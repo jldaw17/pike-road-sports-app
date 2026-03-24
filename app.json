@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "wetumpka-sports-app-new",
-    "slug": "wetumpka-sports-app-new",
+    "name": "BB Comer Sports",
+    "slug": "bb-comer-sports",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "wetumpkasportsappnew",
+    "scheme": "bbcomersports",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.radioalabama.wetumpkasports",
+      "bundleIdentifier": "com.radioalabama.bbcomersports",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {

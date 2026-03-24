@@ -1,28 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    setAudioModeAsync,
-    useAudioPlayer,
-    useAudioPlayerStatus,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
 } from 'expo-audio';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
-import { XMLParser } from 'fast-xml-parser';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    BackHandler,
-    Image,
-    Linking,
-    Pressable,
-    RefreshControl,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  BackHandler,
+  Image,
+  Linking,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -35,317 +35,77 @@ const BRAND = {
   white: '#FFFFFF',
   border: '#E5E7EB',
   offWhite: '#F8F8F8',
+  success: '#166534',
+  successBg: '#ECFDF3',
 };
 
 const STREAM_URL = 'https://ice66.securenetsystems.net/WRFSFM';
-const NEWS_RSS_URL =
-  'https://wetumpkasports.com/landing/headlines-featured?print=rss';
-const EVENTS_RSS_URL =
-  'http://wetumpkasports.com/composite?print=rss&view=2';
 
 const URLS = {
-  watch: 'https://wetumpkasports.com/watch-on-site',
-  schedule: 'https://wetumpkasports.com/composite',
-  collierFord: 'https://www.collierfordinc.com/',
+  watch: 'https://www.radioalabama.net/bbcomertigers/',
+  news: 'https://www.radioalabama.net/bbcomertigers/',
 };
 
-type TabKey = 'home' | 'teams' | 'watch' | 'schedule';
-type ScreenMode = 'tabs' | 'sportDetail' | 'embedded';
-
-type SportType = {
-  key: string;
-  label: string;
-  mainUrl: string;
-  scheduleUrl: string;
-  rosterUrl: string;
-  statsUrl: string;
-  newsRssUrl: string;
-  allEventsRssUrl: string;
+const STORAGE_KEYS = {
+  liveAlertsSubscribed: 'bb_comer_live_alerts_subscribed',
+  expoPushToken: 'bb_comer_expo_push_token',
 };
-
-type NewsItem = {
-  title: string;
-  link: string;
-  date: string;
-  description: string;
-  image?: string;
-  rawDate?: string;
-};
-
-type EventItem = {
-  id: string;
-  title: string;
-  link: string;
-  date: string;
-  description: string;
-  rawDate?: string;
-};
-
-const SPORTS: SportType[] = [
-  {
-    key: 'football',
-    label: 'Football',
-    mainUrl: 'https://wetumpkasports.com/sports/fball/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/fball/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/fball/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/fball/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/fball/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/fball/composite?print=rss',
-  },
-  {
-    key: 'baseball',
-    label: 'Baseball',
-    mainUrl: 'https://wetumpkasports.com/sports/bsb/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/bsb/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/bsb/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/bsb/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/bsb/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/bsb/composite?print=rss',
-  },
-  {
-    key: 'boys-basketball',
-    label: "Men's Basketball",
-    mainUrl: 'https://wetumpkasports.com/sports/mbkb/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/mbkb/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/mbkb/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/mbkb/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/mbkb/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/mbkb/composite?print=rss',
-  },
-  {
-    key: 'girls-basketball',
-    label: "Women's Basketball",
-    mainUrl: 'https://wetumpkasports.com/sports/wbkb/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wbkb/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wbkb/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wbkb/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wbkb/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wbkb/composite?print=rss',
-  },
-  {
-    key: 'softball',
-    label: 'Softball',
-    mainUrl: 'https://wetumpkasports.com/sports/sball/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/sball/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/sball/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/sball/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/sball/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/sball/composite?print=rss',
-  },
-  {
-    key: 'volleyball',
-    label: 'Volleyball',
-    mainUrl: 'https://wetumpkasports.com/sports/wvball/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wvball/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wvball/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wvball/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wvball/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wvball/composite?print=rss',
-  },
-  {
-    key: 'boys-soccer',
-    label: 'Soccer',
-    mainUrl: 'https://wetumpkasports.com/sports/msoc/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/msoc/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/msoc/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/msoc/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/msoc/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/msoc/composite?print=rss',
-  },
-  {
-    key: 'girls-soccer',
-    label: "Women's Soccer",
-    mainUrl: 'https://wetumpkasports.com/sports/wsoc/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wsoc/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wsoc/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wsoc/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wsoc/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wsoc/composite?print=rss',
-  },
-  {
-    key: 'cross-country-boys',
-    label: 'Cross Country',
-    mainUrl: 'https://wetumpkasports.com/sports/mxc/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/mxc/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/mxc/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/mxc/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/mxc/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/mxc/composite?print=rss',
-  },
-  {
-    key: 'cross-country-girls',
-    label: "Women's Cross Country",
-    mainUrl: 'https://wetumpkasports.com/sports/wxc/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wxc/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wxc/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wxc/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wxc/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wxc/composite?print=rss',
-  },
-  {
-    key: 'boys-tennis',
-    label: "Men's Tennis",
-    mainUrl: 'https://wetumpkasports.com/sports/mten/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/mten/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/mten/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/mten/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/mten/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/mten/composite?print=rss',
-  },
-  {
-    key: 'girls-tennis',
-    label: "Women's Tennis",
-    mainUrl: 'https://wetumpkasports.com/sports/wten/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wten/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wten/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wten/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wten/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wten/composite?print=rss',
-  },
-  {
-    key: 'golf-boys',
-    label: "Men's Golf",
-    mainUrl: 'https://wetumpkasports.com/sports/mgolf/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/mgolf/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/mgolf/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/mgolf/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/mgolf/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/mgolf/composite?print=rss',
-  },
-  {
-    key: 'golf-girls',
-    label: "Women's Golf",
-    mainUrl: 'https://wetumpkasports.com/sports/wgolf/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wgolf/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wgolf/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wgolf/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wgolf/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wgolf/composite?print=rss',
-  },
-  {
-    key: 'track-boys',
-    label: 'Track & Field',
-    mainUrl: 'https://wetumpkasports.com/sports/mtrack/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/mtrack/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/mtrack/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/mtrack/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/mtrack/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/mtrack/composite?print=rss',
-  },
-  {
-    key: 'track-girls',
-    label: "Women's Track & Field",
-    mainUrl: 'https://wetumpkasports.com/sports/wtrack/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wtrack/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wtrack/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wtrack/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wtrack/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wtrack/composite?print=rss',
-  },
-  {
-    key: 'cheer',
-    label: 'Cheer',
-    mainUrl: 'https://wetumpkasports.com/sports/cheer/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/cheer/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/cheer/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/cheer/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/cheer/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/cheer/composite?print=rss',
-  },
-  {
-    key: 'dance',
-    label: 'Dance',
-    mainUrl: 'https://wetumpkasports.com/sports/dance/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/dance/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/dance/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/dance/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/dance/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/dance/composite?print=rss',
-  },
-  {
-    key: 'flag-football',
-    label: 'Flag Football',
-    mainUrl: 'https://wetumpkasports.com/sports/flagfball/index',
-    scheduleUrl:
-      'https://wetumpkasports.com/sports/flagfball/2025-26/schedule',
-    rosterUrl:
-      'https://wetumpkasports.com/sports/flagfball/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/flagfball/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/flagfball/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/flagfball/composite?print=rss',
-  },
-  {
-    key: 'wrestling-boys',
-    label: "Men's Wrestling",
-    mainUrl: 'https://wetumpkasports.com/sports/wrest/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wrest/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wrest/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wrest/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wrest/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wrest/composite?print=rss',
-  },
-  {
-    key: 'wrestling-girls',
-    label: "Women's Wrestling",
-    mainUrl: 'https://wetumpkasports.com/sports/wwrest/index',
-    scheduleUrl: 'https://wetumpkasports.com/sports/wwrest/2025-26/schedule',
-    rosterUrl: 'https://wetumpkasports.com/sports/wwrest/2025-26/roster',
-    statsUrl: 'https://wetumpkasports.com/sports/wwrest/2025-26/teams',
-    newsRssUrl:
-      'http://wetumpkasports.com/sports/wwrest/headlines-featured?print=rss',
-    allEventsRssUrl:
-      'http://wetumpkasports.com/sports/wwrest/composite?print=rss',
-  },
-];
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
+
+type TabKey = 'home' | 'news';
+type ScreenMode = 'tabs' | 'embedded';
+
+type NewsItem = {
+  id: string;
+  title: string;
+  date: string;
+  description: string;
+};
+
+type EventItem = {
+  id: string;
+  title: string;
+  date: string;
+  location: string;
+};
+
+const PLACEHOLDER_NEWS: NewsItem[] = [
+  {
+    id: '1',
+    title: 'Latest news coming soon',
+    date: 'Coming Soon',
+    description: 'BB Comer Sports Network stories will appear here.',
+  },
+  {
+    id: '2',
+    title: 'More Tigers coverage on the way',
+    date: 'Coming Soon',
+    description: 'Game stories, features, and updates will live here.',
+  },
+];
+
+const PLACEHOLDER_EVENTS: EventItem[] = [
+  {
+    id: '1',
+    title: 'Upcoming events coming soon',
+    date: 'Coming Soon',
+    location: 'BB Comer High School',
+  },
+  {
+    id: '2',
+    title: 'Schedules will be added here',
+    date: 'Coming Soon',
+    location: 'Childersburg, AL',
+  },
+];
 
 function TopIcon({
   label,
@@ -499,7 +259,7 @@ function LaunchSplash() {
         <View style={styles.flashShadowLong} />
         <View style={styles.flashLogoPlate}>
           <Image
-            source={require('./assets/whs-indian-head.png')}
+            source={require('./assets/images/school-logo.png')}
             style={styles.flashMainLogo}
             resizeMode="contain"
           />
@@ -508,21 +268,62 @@ function LaunchSplash() {
 
       <View style={styles.flashBottomBranding}>
         <Image
-          source={require('./assets/wsn-logo.png')}
-          style={styles.flashWSNLogo}
+          source={require('./assets/images/network-logo.png')}
+          style={styles.flashNetworkLogo}
           resizeMode="contain"
         />
 
         <View style={styles.flashSponsorBadge}>
           <Image
-            source={require('./assets/collier-ford-logo.png')}
+            source={require('./assets/images/sponsor-logo-splash.png')}
             style={styles.flashSponsorImage}
             resizeMode="contain"
           />
         </View>
 
-        <Text style={styles.flashBottomSub}>Presented by Collier Ford</Text>
+        <Text style={styles.flashBottomSub}>
+          Presented by Coosa Pines Federal Credit Union
+        </Text>
       </View>
+    </View>
+  );
+}
+
+function LiveAlertsCard({
+  onSubscribe,
+  subscribing,
+}: {
+  onSubscribe: () => void;
+  subscribing: boolean;
+}) {
+  return (
+    <View style={styles.alertCard}>
+      <View style={styles.alertCardTop}>
+        <View style={styles.alertIconWrap}>
+          <Ionicons name="notifications" size={18} color={BRAND.gold} />
+        </View>
+        <View style={styles.flexOne}>
+          <Text style={styles.alertTitle}>Live Broadcast Alerts</Text>
+          <Text style={styles.alertDescription}>
+            Get notified when BB Comer Sports Network goes live.
+          </Text>
+        </View>
+      </View>
+
+      <Pressable
+        style={styles.alertButton}
+        onPress={onSubscribe}
+        disabled={subscribing}
+      >
+        <Ionicons
+          name={subscribing ? 'hourglass-outline' : 'notifications-outline'}
+          size={18}
+          color={BRAND.black}
+        />
+        <Text style={styles.alertButtonText}>
+          {subscribing ? 'Subscribing...' : 'Subscribe'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -530,41 +331,21 @@ function LaunchSplash() {
 function HomeScreen({
   onOpenEmbedded,
   onToggleAudio,
-  newsItems,
-  newsLoading,
-  upcomingEvents,
-  eventsLoading,
-  finalAlertsEnabled,
-  onEnableFinalAlerts,
-  onTestFinalScoreAlert,
-  broadcastAlertsEnabled,
-  onEnableBroadcastAlerts,
-  onTestBroadcastAlert,
-  onRefresh,
-  refreshing,
+  showLiveAlertsCard,
+  onSubscribeToAlerts,
+  subscribingToAlerts,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
   onToggleAudio: () => void;
-  newsItems: NewsItem[];
-  newsLoading: boolean;
-  upcomingEvents: EventItem[];
-  eventsLoading: boolean;
-  finalAlertsEnabled: boolean;
-  onEnableFinalAlerts: () => void;
-  onTestFinalScoreAlert: () => void;
-  broadcastAlertsEnabled: boolean;
-  onEnableBroadcastAlerts: () => void;
-  onTestBroadcastAlert: () => void;
-  onRefresh: () => void;
-  refreshing: boolean;
+  showLiveAlertsCard: boolean;
+  onSubscribeToAlerts: () => void;
+  subscribingToAlerts: boolean;
 }) {
   return (
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.screenContent}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      showsVerticalScrollIndicator={false}
     >
       <LinearGradient
         colors={[BRAND.black, '#161616']}
@@ -575,7 +356,7 @@ function HomeScreen({
         <View style={styles.headerLeft}>
           <View style={styles.teamLogoBox}>
             <Image
-              source={require('./assets/whs-indian-head.png')}
+              source={require('./assets/images/school-logo.png')}
               style={styles.headerTeamLogo}
               resizeMode="contain"
             />
@@ -583,10 +364,10 @@ function HomeScreen({
 
           <View style={styles.headerTitleWrap}>
             <Text style={styles.appTitle} numberOfLines={1} adjustsFontSizeToFit>
-              Wetumpka Athletics
+              BB Comer Athletics
             </Text>
             <Text style={styles.appSubtitle} numberOfLines={1}>
-              Home of the Indians
+              Home of the Tigers
             </Text>
           </View>
         </View>
@@ -601,13 +382,10 @@ function HomeScreen({
         </View>
       </LinearGradient>
 
-      <Pressable
-        style={styles.sponsorBanner}
-        onPress={() => Linking.openURL(URLS.collierFord)}
-      >
+      <View style={styles.sponsorBanner}>
         <View style={styles.sponsorBannerLogo}>
           <Image
-            source={require('./assets/collier-ford-logo.png')}
+            source={require('./assets/images/sponsor-logo.png')}
             style={styles.sponsorBannerLogoImage}
             resizeMode="contain"
           />
@@ -615,72 +393,21 @@ function HomeScreen({
 
         <View style={styles.flexOne}>
           <Text style={styles.sponsorBannerLabel}>PRESENTED BY</Text>
-          <Text style={styles.sponsorBannerTitle}>Collier Ford</Text>
-          <Text style={styles.sponsorBannerSub}>Tap to visit website</Text>
+          <Text style={styles.sponsorBannerTitle}>Coosa Pines FCU</Text>
+          <Text style={styles.sponsorBannerSub}>
+            Proud sponsor of Comer Sports Network
+          </Text>
         </View>
-      </Pressable>
-
-      <View style={styles.pushBannerWrap}>
-        <LinearGradient
-          colors={finalAlertsEnabled ? ['#151515', '#222222'] : ['#151515', '#232323']}
-          style={styles.pushBanner}
-        >
-          <View style={styles.pushBannerLeft}>
-            <Ionicons
-              name={finalAlertsEnabled ? 'notifications' : 'notifications-outline'}
-              size={18}
-              color={BRAND.gold}
-            />
-            <Text style={styles.pushBannerText}>
-              {finalAlertsEnabled ? 'Final score alerts enabled' : 'Turn on final score alerts'}
-            </Text>
-          </View>
-
-          <View style={styles.pushBannerRight}>
-            {!finalAlertsEnabled ? (
-              <Pressable style={styles.pushBannerButton} onPress={onEnableFinalAlerts}>
-                <Text style={styles.pushBannerButtonText}>Enable</Text>
-              </Pressable>
-            ) : (
-              <Pressable style={styles.pushBannerButtonAlt} onPress={onTestFinalScoreAlert}>
-                <Text style={styles.pushBannerButtonAltText}>Test</Text>
-              </Pressable>
-            )}
-          </View>
-        </LinearGradient>
       </View>
 
-      <View style={styles.pushBannerWrap}>
-        <LinearGradient
-          colors={broadcastAlertsEnabled ? ['#151515', '#222222'] : ['#151515', '#232323']}
-          style={styles.pushBanner}
-        >
-          <View style={styles.pushBannerLeft}>
-            <Ionicons
-              name={broadcastAlertsEnabled ? 'radio' : 'radio-outline'}
-              size={18}
-              color={BRAND.gold}
-            />
-            <Text style={styles.pushBannerText}>
-              {broadcastAlertsEnabled
-                ? 'Live broadcast alerts enabled'
-                : 'Turn on live broadcast notifications'}
-            </Text>
-          </View>
-
-          <View style={styles.pushBannerRight}>
-            {!broadcastAlertsEnabled ? (
-              <Pressable style={styles.pushBannerButton} onPress={onEnableBroadcastAlerts}>
-                <Text style={styles.pushBannerButtonText}>Enable</Text>
-              </Pressable>
-            ) : (
-              <Pressable style={styles.pushBannerButtonAlt} onPress={onTestBroadcastAlert}>
-                <Text style={styles.pushBannerButtonAltText}>Test</Text>
-              </Pressable>
-            )}
-          </View>
-        </LinearGradient>
-      </View>
+      {showLiveAlertsCard && (
+        <View style={styles.sectionBlockSpacing}>
+          <LiveAlertsCard
+            onSubscribe={onSubscribeToAlerts}
+            subscribing={subscribingToAlerts}
+          />
+        </View>
+      )}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Quick Access</Text>
@@ -703,375 +430,83 @@ function HomeScreen({
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Upcoming Events</Text>
-        <Pressable onPress={() => onOpenEmbedded('Schedule', URLS.schedule)}>
-          <Text style={styles.sectionLink}>See All</Text>
-        </Pressable>
       </View>
 
-      {eventsLoading ? (
-        <View style={styles.sliderLoadingWrap}>
-          <ActivityIndicator size="small" color={BRAND.gold} />
-        </View>
-      ) : upcomingEvents.length === 0 ? (
-        <View style={styles.sliderEmptyWrap}>
-          <Text style={styles.sliderEmptyText}>No upcoming events this week.</Text>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.espnCardsRow}
-        >
-          {upcomingEvents.map((item, index) => (
-            <Pressable
-              key={`${item.id}-${index}`}
-              style={styles.espnCard}
-              onPress={() => onOpenEmbedded(item.title, item.link)}
-            >
-              <View style={styles.espnCardHeader}>
-                <Text style={styles.espnCardSport}>{detectSport(item.title)}</Text>
-                <Text style={styles.espnCardDate}>{item.date}</Text>
-              </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.espnCardsRow}
+      >
+        {PLACEHOLDER_EVENTS.map((item) => (
+          <View key={item.id} style={styles.espnCard}>
+            <View style={styles.espnCardHeader}>
+              <Text style={styles.espnCardSport}>Tigers</Text>
+              <Text style={styles.espnCardDate}>{item.date}</Text>
+            </View>
 
-              <View style={styles.upcomingEventCardBody}>
-                <Text style={styles.upcomingEventTitle} numberOfLines={3}>
-                  {item.title}
-                </Text>
-              </View>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
+            <View style={styles.upcomingEventCardBody}>
+              <Text style={styles.upcomingEventTitle} numberOfLines={3}>
+                {item.title}
+              </Text>
+              <Text style={styles.upcomingEventLocation}>{item.location}</Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Latest News</Text>
       </View>
 
-      {newsLoading ? (
-        <View style={styles.newsLoadingWrap}>
-          <ActivityIndicator size="large" color={BRAND.gold} />
-          <Text style={styles.newsLoadingText}>Loading news...</Text>
-        </View>
-      ) : newsItems.length === 0 ? (
-        <View style={styles.newsLoadingWrap}>
-          <Text style={styles.newsEmptyTitle}>No news stories loaded.</Text>
-          <Text style={styles.newsEmptyText}>
-            The RSS feed may be blocked or may not include stories in the format the app expects.
-          </Text>
-        </View>
-      ) : (
-        newsItems.map((item, index) => (
-          <Pressable
-            key={`${item.link}-${index}`}
-            style={styles.newsFeedCard}
-            onPress={() => onOpenEmbedded(item.title, item.link)}
-          >
-            <View style={styles.newsFeedImage}>
-              {item.image ? (
-                <Image
-                  source={{ uri: item.image }}
-                  style={styles.newsFeedImageActual}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Text style={styles.newsFeedImageText}>NEWS</Text>
-              )}
-            </View>
+      {PLACEHOLDER_NEWS.map((item) => (
+        <View key={item.id} style={styles.newsFeedCard}>
+          <View style={styles.newsFeedImage}>
+            <Image
+              source={require('./assets/images/network-logo.png')}
+              style={styles.newsFeedImageActual}
+              resizeMode="contain"
+            />
+          </View>
 
-            <View style={styles.newsFeedBody}>
-              <Text style={styles.newsFeedTitle}>{item.title}</Text>
-              <Text style={styles.newsFeedDate}>{item.date}</Text>
-              <Text style={styles.newsFeedDescription} numberOfLines={3}>
-                {item.description || 'Tap to read more'}
-              </Text>
-            </View>
-          </Pressable>
-        ))
-      )}
+          <View style={styles.newsFeedBody}>
+            <Text style={styles.newsFeedTitle}>{item.title}</Text>
+            <Text style={styles.newsFeedDate}>{item.date}</Text>
+            <Text style={styles.newsFeedDescription} numberOfLines={3}>
+              {item.description}
+            </Text>
+          </View>
+        </View>
+      ))}
     </ScrollView>
   );
 }
 
-function TeamsScreen({
-  onOpenSport,
-  followedTeams,
-  onToggleFollow,
-}: {
-  onOpenSport: (sport: SportType) => void;
-  followedTeams: string[];
-  onToggleFollow: (teamKey: string) => void;
-}) {
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.teamsScreenContent}>
-      <LinearGradient colors={[BRAND.black, '#141414']} style={styles.teamsHeroBar}>
-        <Text style={styles.teamsHeroTitle}>TEAMS</Text>
-      </LinearGradient>
-
-      <View style={styles.teamsListWrap}>
-        {SPORTS.map((sport) => {
-          const isFollowed = followedTeams.includes(sport.key);
-
-          return (
-            <View key={sport.key} style={styles.teamRowCard}>
-              <Pressable
-                style={styles.teamRowMain}
-                onPress={() => onOpenSport(sport)}
-              >
-                <Text style={styles.teamRowText}>{sport.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color={BRAND.goldDark} />
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.followPill,
-                  isFollowed ? styles.followPillOn : styles.followPillOff,
-                ]}
-                onPress={() => onToggleFollow(sport.key)}
-              >
-                <Ionicons
-                  name={isFollowed ? 'star' : 'star-outline'}
-                  size={14}
-                  color={isFollowed ? BRAND.white : BRAND.black}
-                />
-                <Text
-                  style={[
-                    styles.followPillText,
-                    isFollowed ? styles.followPillTextOn : styles.followPillTextOff,
-                  ]}
-                >
-                  {isFollowed ? 'Following' : 'Follow'}
-                </Text>
-              </Pressable>
-            </View>
-          );
-        })}
-      </View>
-    </ScrollView>
-  );
-}
-
-function FeedSection({
-  title,
-  items,
-  loading,
-  emptyText,
-  onOpenEmbedded,
-  isEventFeed = false,
-}: {
-  title: string;
-  items: NewsItem[] | EventItem[];
-  loading: boolean;
-  emptyText: string;
-  onOpenEmbedded: (title: string, url: string) => void;
-  isEventFeed?: boolean;
-}) {
-  return (
-    <>
-      <View style={styles.sectionHeaderPadded}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-
-      {loading ? (
-        <View style={styles.newsLoadingWrap}>
-          <ActivityIndicator size="small" color={BRAND.gold} />
-        </View>
-      ) : items.length === 0 ? (
-        <View style={styles.feedEmptyCard}>
-          <Text style={styles.feedEmptyText}>{emptyText}</Text>
-        </View>
-      ) : (
-        items.map((item: any, index: number) => (
-          <Pressable
-            key={`${item.link}-${index}`}
-            style={styles.feedListCard}
-            onPress={() => onOpenEmbedded(item.title, item.link)}
-          >
-            {isEventFeed ? (
-              <>
-                <View style={styles.feedEventHeaderRow}>
-                  <Text style={styles.feedListDate}>{item.date}</Text>
-                  <Ionicons name="calendar-outline" size={16} color={BRAND.goldDark} />
-                </View>
-
-                <View style={styles.feedScoreWrap}>
-                  <Text style={styles.upcomingEventTitle} numberOfLines={3}>
-                    {item.title}
-                  </Text>
-                </View>
-
-                <Text style={styles.feedListDescription} numberOfLines={2}>
-                  {item.description || 'Tap to open'}
-                </Text>
-              </>
-            ) : (
-              <>
-                <View style={styles.feedListTopRow}>
-                  <Text style={styles.feedListTitle}>{item.title}</Text>
-                  <Ionicons name="arrow-forward" size={16} color={BRAND.goldDark} />
-                </View>
-
-                <Text style={styles.feedListDate}>{item.date}</Text>
-                <Text style={styles.feedListDescription} numberOfLines={2}>
-                  {item.description || 'Tap to open'}
-                </Text>
-              </>
-            )}
-          </Pressable>
-        ))
-      )}
-    </>
-  );
-}
-
-function SportDetailScreen({
-  sport,
-  onBack,
+function NewsScreen({
   onOpenEmbedded,
 }: {
-  sport: SportType;
-  onBack: () => void;
   onOpenEmbedded: (title: string, url: string) => void;
 }) {
-  const [teamNews, setTeamNews] = useState<NewsItem[]>([]);
-  const [teamEvents, setTeamEvents] = useState<EventItem[]>([]);
-  const [newsLoading, setNewsLoading] = useState(true);
-  const [eventsLoading, setEventsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = async () => {
-    setNewsLoading(true);
-    setEventsLoading(true);
-
-    try {
-      const [news, events] = await Promise.all([
-        fetchNewsFeed(sport.newsRssUrl),
-        fetchEventsFeed(sport.allEventsRssUrl),
-      ]);
-
-      const upcomingEvents = filterUpcomingWeekEvents(events);
-
-      setTeamNews(news.slice(0, 5));
-      setTeamEvents(upcomingEvents.slice(0, 4));
-    } catch (error) {
-      console.log('Sport detail feed error:', error);
-      setTeamNews([]);
-      setTeamEvents([]);
-    } finally {
-      setNewsLoading(false);
-      setEventsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const initialLoad = async () => {
-      if (!mounted) return;
-      await load();
-    };
-
-    initialLoad();
-
-    const interval = setInterval(() => {
-      if (mounted) load();
-    }, 60000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [sport]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
-
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.sportDetailContent}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <LinearGradient colors={[BRAND.black, '#151515']} style={styles.sportTopBar}>
-        <Pressable onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={20} color={BRAND.black} />
-        </Pressable>
-
-        <View style={styles.sportTopBarTitleWrap}>
-          <Text style={styles.sportTopBarTitle}>{sport.label.toUpperCase()}</Text>
-        </View>
-      </LinearGradient>
-
-      <View style={styles.sportActionRow}>
-        <Pressable
-          style={styles.goldActionButton}
-          onPress={() => onOpenEmbedded(`${sport.label} Schedule`, sport.scheduleUrl)}
-        >
-          <Ionicons name="calendar-outline" size={16} color={BRAND.black} />
-          <Text style={styles.goldActionText}>SCHEDULE</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.goldActionButton}
-          onPress={() => onOpenEmbedded(`${sport.label} Roster`, sport.rosterUrl)}
-        >
-          <Ionicons name="people-outline" size={16} color={BRAND.black} />
-          <Text style={styles.goldActionText}>ROSTER</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.goldActionButton}
-          onPress={() => onOpenEmbedded(`${sport.label} Stats`, sport.statsUrl)}
-        >
-          <Ionicons name="stats-chart-outline" size={16} color={BRAND.black} />
-          <Text style={styles.goldActionText}>STATS</Text>
-        </Pressable>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+      <View style={styles.sectionHeaderTop}>
+        <Text style={styles.sectionTitle}>News</Text>
       </View>
 
-      <FeedSection
-        title="Latest Team News"
-        items={teamNews}
-        loading={newsLoading}
-        emptyText="No team news available right now."
-        onOpenEmbedded={onOpenEmbedded}
-      />
-
-      <FeedSection
-        title="Upcoming Team Events"
-        items={teamEvents}
-        loading={eventsLoading}
-        emptyText="No upcoming team events this week."
-        onOpenEmbedded={onOpenEmbedded}
-        isEventFeed
-      />
-
-      <View style={styles.sectionHeaderPadded}>
-        <Text style={styles.sectionTitle}>More</Text>
-      </View>
-
-      <View style={styles.upcomingRow}>
+      {PLACEHOLDER_NEWS.map((item) => (
         <Pressable
-          style={styles.upcomingCard}
-          onPress={() => onOpenEmbedded(`${sport.label} Team Page`, sport.mainUrl)}
+          key={item.id}
+          style={styles.feedListCard}
+          onPress={() => onOpenEmbedded('BB Comer News', URLS.news)}
         >
-          <Text style={styles.upcomingDate}>TEAM PAGE</Text>
-          <Text style={styles.upcomingSport}>{sport.label}</Text>
-          <Text style={styles.upcomingMeta}>Open official team page</Text>
-        </Pressable>
+          <View style={styles.feedListTopRow}>
+            <Text style={styles.feedListTitle}>{item.title}</Text>
+            <Ionicons name="arrow-forward" size={16} color={BRAND.goldDark} />
+          </View>
 
-        <Pressable
-          style={styles.upcomingCard}
-          onPress={() => onOpenEmbedded(`${sport.label} Schedule`, sport.scheduleUrl)}
-        >
-          <Text style={styles.upcomingDate}>FULL SCHEDULE</Text>
-          <Text style={styles.upcomingSport}>{sport.label}</Text>
-          <Text style={styles.upcomingMeta}>Open complete schedule</Text>
+          <Text style={styles.feedListDate}>{item.date}</Text>
+          <Text style={styles.feedListDescription}>{item.description}</Text>
         </Pressable>
-      </View>
+      ))}
     </ScrollView>
   );
 }
@@ -1101,6 +536,35 @@ function TabButton({
   );
 }
 
+async function registerForPushNotificationsAsync() {
+  if (!Device.isDevice) {
+    throw new Error('Push notifications require a physical device.');
+  }
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    throw new Error('Push notification permission was not granted.');
+  }
+
+  const projectId =
+    Constants?.expoConfig?.extra?.eas?.projectId ??
+    Constants?.easConfig?.projectId;
+
+  if (!projectId) {
+    throw new Error('Missing EAS projectId for push notifications.');
+  }
+
+  const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+  return tokenResponse.data;
+}
+
 export default function App() {
   const player = useAudioPlayer(STREAM_URL);
   const playerStatus = useAudioPlayerStatus(player);
@@ -1108,53 +572,17 @@ export default function App() {
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [screenMode, setScreenMode] = useState<ScreenMode>('tabs');
-  const [selectedSport, setSelectedSport] = useState<SportType | null>(null);
   const [embeddedTitle, setEmbeddedTitle] = useState('');
   const [embeddedUrl, setEmbeddedUrl] = useState('');
-  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([]);
-  const [newsLoading, setNewsLoading] = useState(true);
-  const [eventsLoading, setEventsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [finalAlertsEnabled, setFinalAlertsEnabled] = useState(false);
-  const [broadcastAlertsEnabled, setBroadcastAlertsEnabled] = useState(false);
-  const [followedTeams, setFollowedTeams] = useState<string[]>([]);
-  const [expoPushToken, setExpoPushToken] = useState('');
-
-  const loadHomeFeeds = async () => {
-    try {
-      setNewsLoading(true);
-      setEventsLoading(true);
-
-      const [news, events] = await Promise.all([
-        fetchNewsFeed(NEWS_RSS_URL),
-        fetchEventsFeed(EVENTS_RSS_URL),
-      ]);
-
-      const weekEvents = filterUpcomingWeekEvents(events);
-
-      setNewsItems(news.slice(0, 8));
-      setUpcomingEvents(weekEvents.slice(0, 10));
-    } catch (error) {
-      console.log('Home feed load error:', error);
-      setNewsItems([]);
-      setUpcomingEvents([]);
-    } finally {
-      setNewsLoading(false);
-      setEventsLoading(false);
-    }
-  };
+  const [showAudioBar, setShowAudioBar] = useState(false);
+  const [showLiveAlertsCard, setShowLiveAlertsCard] = useState(true);
+  const [subscribingToAlerts, setSubscribingToAlerts] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowLaunchSplash(false);
     }, 2200);
     return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    loadHomeFeeds();
   }, []);
 
   useEffect(() => {
@@ -1174,132 +602,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const loadSavedPreferences = async () => {
+    const loadAlertPreference = async () => {
       try {
-        const savedTeams = await AsyncStorage.getItem('followedTeams');
-        const savedFinalAlerts = await AsyncStorage.getItem('finalAlertsEnabled');
-        const savedBroadcastAlerts = await AsyncStorage.getItem('broadcastAlertsEnabled');
-
-        if (savedTeams) setFollowedTeams(JSON.parse(savedTeams));
-        if (savedFinalAlerts === 'true') setFinalAlertsEnabled(true);
-        if (savedBroadcastAlerts === 'true') setBroadcastAlertsEnabled(true);
+        const storedValue = await AsyncStorage.getItem(
+          STORAGE_KEYS.liveAlertsSubscribed
+        );
+        if (storedValue === 'true') {
+          setShowLiveAlertsCard(false);
+        }
       } catch (error) {
-        console.log('Preference load error:', error);
+        console.log('Failed to load live alert preference:', error);
       }
     };
 
-    loadSavedPreferences();
+    loadAlertPreference();
   }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadHomeFeeds();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const onRefreshHome = async () => {
-    setRefreshing(true);
-    await loadHomeFeeds();
-    setRefreshing(false);
-  };
-
-  const ensurePushPermissionAndToken = async () => {
-    const existing = await Notifications.getPermissionsAsync();
-    let finalStatus = existing.status;
-
-    if (finalStatus !== 'granted') {
-      const requested = await Notifications.requestPermissionsAsync();
-      finalStatus = requested.status;
-    }
-
-    if (finalStatus !== 'granted') {
-      throw new Error('Permission not granted');
-    }
-
-    if (!expoPushToken) {
-      const token = await Notifications.getExpoPushTokenAsync();
-      setExpoPushToken(token.data);
-      console.log('Expo push token:', token.data);
-    }
-  };
-
-  const enableFinalAlerts = async () => {
-    try {
-      await ensurePushPermissionAndToken();
-      await AsyncStorage.setItem('finalAlertsEnabled', 'true');
-      setFinalAlertsEnabled(true);
-      Alert.alert(
-        'Final score alerts enabled',
-        'This device is ready to receive final score push notifications.'
-      );
-    } catch {
-      Alert.alert('Notifications not enabled', 'Permission was not granted.');
-    }
-  };
-
-  const enableBroadcastAlerts = async () => {
-    try {
-      await ensurePushPermissionAndToken();
-      await AsyncStorage.setItem('broadcastAlertsEnabled', 'true');
-      setBroadcastAlertsEnabled(true);
-      Alert.alert(
-        'Broadcast alerts enabled',
-        'This device is now set to receive live radio and video broadcast alerts.'
-      );
-    } catch {
-      Alert.alert('Notifications not enabled', 'Permission was not granted.');
-    }
-  };
-
-  const toggleFollowTeam = async (teamKey: string) => {
-    try {
-      let updated: string[] = [];
-      if (followedTeams.includes(teamKey)) {
-        updated = followedTeams.filter((key) => key !== teamKey);
-      } else {
-        updated = [...followedTeams, teamKey];
-      }
-      setFollowedTeams(updated);
-      await AsyncStorage.setItem('followedTeams', JSON.stringify(updated));
-    } catch (error) {
-      console.log('Follow toggle error:', error);
-    }
-  };
-
-  const sendTestFinalScoreNotification = async () => {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Final Score',
-          body: 'Wetumpka 42, Opponent 21',
-          data: { type: 'final_score' },
-        },
-        trigger: null,
-      });
-    } catch (error) {
-      console.log('Test final notification error:', error);
-    }
-  };
-
-  const sendTestBroadcastNotification = async () => {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'We Are Live',
-          body: 'Wetumpka Sports Network is now live on radio/video.',
-          data: { type: 'live_broadcast' },
-        },
-        trigger: null,
-      });
-    } catch (error) {
-      console.log('Broadcast test notification error:', error);
-    }
-  };
 
   const toggleAudio = async () => {
     try {
+      setShowAudioBar(true);
+
       if (playerStatus?.playing) {
         player.pause();
       } else {
@@ -1311,23 +633,38 @@ export default function App() {
     }
   };
 
-  const openSport = (sport: SportType) => {
-    setSelectedSport(sport);
-    setScreenMode('sportDetail');
-  };
-
   const openEmbedded = (title: string, url: string) => {
     setEmbeddedTitle(title);
     setEmbeddedUrl(url);
     setScreenMode('embedded');
   };
 
-  const closeSubScreen = () => {
-    if (screenMode === 'embedded' && selectedSport) {
-      setScreenMode('sportDetail');
-      return;
+  const subscribeToLiveAlerts = async () => {
+    try {
+      setSubscribingToAlerts(true);
+
+      const token = await registerForPushNotificationsAsync();
+
+      await AsyncStorage.setItem(STORAGE_KEYS.liveAlertsSubscribed, 'true');
+      await AsyncStorage.setItem(STORAGE_KEYS.expoPushToken, token);
+
+      console.log('Expo push token:', token);
+
+      setShowLiveAlertsCard(false);
+
+      Alert.alert(
+        'Subscribed',
+        'Live broadcast alerts are turned on for this device.'
+      );
+    } catch (error: any) {
+      console.log('Push notification setup error:', error);
+      Alert.alert(
+        'Unable to subscribe',
+        error?.message || 'Push notifications could not be enabled right now.'
+      );
+    } finally {
+      setSubscribingToAlerts(false);
     }
-    setScreenMode('tabs');
   };
 
   const renderMainContent = () => {
@@ -1339,66 +676,21 @@ export default function App() {
           <HomeScreen
             onOpenEmbedded={openEmbedded}
             onToggleAudio={toggleAudio}
-            newsItems={newsItems}
-            newsLoading={newsLoading}
-            upcomingEvents={upcomingEvents}
-            eventsLoading={eventsLoading}
-            finalAlertsEnabled={finalAlertsEnabled}
-            onEnableFinalAlerts={enableFinalAlerts}
-            onTestFinalScoreAlert={sendTestFinalScoreNotification}
-            broadcastAlertsEnabled={broadcastAlertsEnabled}
-            onEnableBroadcastAlerts={enableBroadcastAlerts}
-            onTestBroadcastAlert={sendTestBroadcastNotification}
-            onRefresh={onRefreshHome}
-            refreshing={refreshing}
+            showLiveAlertsCard={showLiveAlertsCard}
+            onSubscribeToAlerts={subscribeToLiveAlerts}
+            subscribingToAlerts={subscribingToAlerts}
           />
         );
       }
 
-      if (activeTab === 'teams') {
-        return (
-          <TeamsScreen
-            onOpenSport={openSport}
-            followedTeams={followedTeams}
-            onToggleFollow={toggleFollowTeam}
-          />
-        );
-      }
-
-      if (activeTab === 'watch') {
-        return (
-          <EmbeddedWebView
-            url={URLS.watch}
-            headerTitle="Watch Live"
-            onBack={() => setActiveTab('home')}
-          />
-        );
-      }
-
-      return (
-        <EmbeddedWebView
-          url={URLS.schedule}
-          headerTitle="Schedule"
-          onBack={() => setActiveTab('home')}
-        />
-      );
-    }
-
-    if (screenMode === 'sportDetail' && selectedSport) {
-      return (
-        <SportDetailScreen
-          sport={selectedSport}
-          onBack={() => setScreenMode('tabs')}
-          onOpenEmbedded={openEmbedded}
-        />
-      );
+      return <NewsScreen onOpenEmbedded={openEmbedded} />;
     }
 
     return (
       <EmbeddedWebView
         url={embeddedUrl}
         headerTitle={embeddedTitle}
-        onBack={closeSubScreen}
+        onBack={() => setScreenMode('tabs')}
       />
     );
   };
@@ -1410,11 +702,13 @@ export default function App() {
 
       {!showLaunchSplash && (
         <>
-          <AudioMiniPlayer
-            isPlaying={!!playerStatus?.playing}
-            isLoading={!!playerStatus?.isBuffering}
-            onToggle={toggleAudio}
-          />
+          {showAudioBar && (
+            <AudioMiniPlayer
+              isPlaying={!!playerStatus?.playing}
+              isLoading={!!playerStatus?.isBuffering}
+              onToggle={toggleAudio}
+            />
+          )}
 
           <View style={styles.bottomTabBar}>
             <TabButton
@@ -1423,247 +717,39 @@ export default function App() {
               active={screenMode === 'tabs' && activeTab === 'home'}
               onPress={() => {
                 setScreenMode('tabs');
-                setSelectedSport(null);
                 setActiveTab('home');
               }}
             />
             <TabButton
-              label="Teams"
-              icon="grid"
-              active={
-                (screenMode === 'tabs' && activeTab === 'teams') ||
-                screenMode === 'sportDetail'
-              }
+              label="News"
+              icon="newspaper"
+              active={screenMode === 'tabs' && activeTab === 'news'}
               onPress={() => {
                 setScreenMode('tabs');
-                setSelectedSport(null);
-                setActiveTab('teams');
+                setActiveTab('news');
               }}
             />
-            <Pressable
-              style={styles.centerWatchButton}
-              onPress={() => {
-                setEmbeddedTitle('Watch Live');
-                setEmbeddedUrl(URLS.watch);
-                setScreenMode('embedded');
-              }}
-            >
-              <Ionicons name="play" size={26} color={BRAND.black} />
-            </Pressable>
+            <TabButton
+  label="Watch"
+  icon="play-circle"
+  active={screenMode === 'embedded' && embeddedTitle === 'Watch Live'}
+  onPress={() => {
+    setEmbeddedTitle('Watch Live');
+    setEmbeddedUrl(URLS.watch);
+    setScreenMode('embedded');
+  }}
+/>
             <TabButton
               label="Listen"
               icon="headset"
-              active={false}
+              active={!!playerStatus?.playing}
               onPress={toggleAudio}
-            />
-            <TabButton
-              label="Schedule"
-              icon="calendar"
-              active={screenMode === 'tabs' && activeTab === 'schedule'}
-              onPress={() => {
-                setScreenMode('tabs');
-                setSelectedSport(null);
-                setActiveTab('schedule');
-              }}
             />
           </View>
         </>
       )}
     </SafeAreaView>
   );
-}
-
-function detectSport(text: string) {
-  const lowered = text.toLowerCase();
-
-  if (lowered.includes('football')) return 'Football';
-  if (lowered.includes('baseball')) return 'Baseball';
-  if (lowered.includes('softball')) return 'Softball';
-  if (lowered.includes('basketball')) return 'Basketball';
-  if (lowered.includes('soccer')) return 'Soccer';
-  if (lowered.includes('volleyball')) return 'Volleyball';
-  if (lowered.includes('tennis')) return 'Tennis';
-  if (lowered.includes('golf')) return 'Golf';
-  if (lowered.includes('track')) return 'Track';
-  if (lowered.includes('cross country')) return 'Cross Country';
-  if (lowered.includes('wrestling')) return 'Wrestling';
-  if (lowered.includes('flag football')) return 'Flag Football';
-  if (lowered.includes('cheer')) return 'Cheer';
-  if (lowered.includes('dance')) return 'Dance';
-
-  return 'Event';
-}
-
-async function fetchNewsFeed(url: string): Promise<NewsItem[]> {
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/rss+xml, application/xml, text/xml, */*',
-    },
-  });
-
-  const xmlText = await response.text();
-
-  const parser = new XMLParser({
-    ignoreAttributes: false,
-    attributeNamePrefix: '@_',
-    trimValues: true,
-  });
-
-  const parsed = parser.parse(xmlText);
-  const rawItems = parsed?.rss?.channel?.item ?? [];
-  const itemsArray = Array.isArray(rawItems)
-    ? rawItems
-    : rawItems
-      ? [rawItems]
-      : [];
-
-  return itemsArray
-    .filter((item: any) => item?.title && item?.link)
-    .map((item: any) => {
-      const descriptionHtml = String(item.description ?? '');
-
-      const mediaContent =
-        item?.['media:content']?.['@_url'] ||
-        item?.['media:content']?.url ||
-        item?.enclosure?.['@_url'] ||
-        item?.enclosure?.url ||
-        item?.['media:thumbnail']?.['@_url'] ||
-        item?.['media:thumbnail']?.url ||
-        '';
-
-      const imageFromDescriptionMatch = descriptionHtml.match(
-        /<img[^>]+src=["']([^"']+)["']/i
-      );
-
-      const image =
-        mediaContent ||
-        (imageFromDescriptionMatch ? imageFromDescriptionMatch[1] : '');
-
-      return {
-        title: String(item.title ?? '').trim(),
-        link: String(item.link ?? '').trim(),
-        date: formatFeedDate(String(item.pubDate ?? '').trim()),
-        rawDate: String(item.pubDate ?? '').trim(),
-        description: stripHtml(descriptionHtml),
-        image,
-      };
-    })
-    .sort((a, b) => dateSortAscDescRecent(a.rawDate, b.rawDate));
-}
-
-async function fetchEventsFeed(url: string): Promise<EventItem[]> {
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/rss+xml, application/xml, text/xml, */*',
-    },
-  });
-
-  const xmlText = await response.text();
-
-  const parser = new XMLParser({
-    ignoreAttributes: false,
-    attributeNamePrefix: '@_',
-    trimValues: true,
-  });
-
-  const parsed = parser.parse(xmlText);
-  const rawItems = parsed?.rss?.channel?.item ?? [];
-  const itemsArray = Array.isArray(rawItems)
-    ? rawItems
-    : rawItems
-      ? [rawItems]
-      : [];
-
-  return itemsArray
-    .filter((item: any) => item?.title && item?.link)
-    .map((item: any, index: number) => ({
-      id: String(item.link ?? `${index}`),
-      title: String(item.title ?? '').trim(),
-      link: String(item.link ?? '').trim(),
-      date: formatFeedDate(String(item.pubDate ?? '').trim()),
-      rawDate: String(item.pubDate ?? '').trim(),
-      description: stripHtml(String(item.description ?? '')),
-    }))
-    .sort((a, b) => sortUpcomingFirst(a.rawDate, b.rawDate));
-}
-
-function sortUpcomingFirst(a?: string, b?: string) {
-  const aDate = parseFeedDateValue(a);
-  const bDate = parseFeedDateValue(b);
-  if (!aDate && !bDate) return 0;
-  if (!aDate) return 1;
-  if (!bDate) return -1;
-  return aDate.getTime() - bDate.getTime();
-}
-
-function dateSortAscDescRecent(a?: string, b?: string) {
-  const aTime = a ? new Date(a).getTime() : NaN;
-  const bTime = b ? new Date(b).getTime() : NaN;
-  if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
-  if (Number.isNaN(aTime)) return 1;
-  if (Number.isNaN(bTime)) return -1;
-  return bTime - aTime;
-}
-
-function stripHtml(value: string) {
-  return value
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function formatFeedDate(dateString: string) {
-  if (!dateString) return '';
-
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function parseFeedDateValue(dateString?: string) {
-  if (!dateString) return null;
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-}
-
-function isWithinNextWeek(dateString?: string) {
-  const eventDate = parseFeedDateValue(dateString);
-  if (!eventDate) return false;
-
-  const now = new Date();
-  const todayStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-
-  const nextWeekEnd = new Date(todayStart);
-  nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-  nextWeekEnd.setHours(23, 59, 59, 999);
-
-  return eventDate >= todayStart && eventDate <= nextWeekEnd;
-}
-
-function filterUpcomingWeekEvents(events: EventItem[]) {
-  return events.filter((event) => isWithinNextWeek(event.rawDate));
 }
 
 const styles = StyleSheet.create({
@@ -1686,8 +772,8 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 30,
   },
-  sportDetailContent: {
-    paddingBottom: 24,
+  sectionBlockSpacing: {
+    marginTop: 16,
   },
 
   flashContainer: {
@@ -1727,47 +813,48 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 360,
     height: 360,
-    backgroundColor: 'rgba(0,0,0,0.07)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     transform: [{ rotate: '-38deg' }, { translateX: 120 }, { translateY: 120 }],
     borderRadius: 30,
   },
   flashLogoPlate: {
-    width: 260,
-    height: 260,
+    width: 280,
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
   },
   flashMainLogo: {
-    width: 250,
-    height: 250,
+    width: 240,
+    height: 240,
   },
   flashBottomBranding: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    marginTop: 10,
   },
-  flashWSNLogo: {
-    width: 280,
-    height: 65,
-    marginBottom: 12,
+  flashNetworkLogo: {
+    width: 300,
+    height: 72,
+    marginBottom: 14,
   },
   flashSponsorBadge: {
-    width: 220,
-    height: 62,
+    width: 300,
+    height: 90,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#D9D9D9',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   flashSponsorImage: {
-    width: '100%',
-    height: '100%',
+    width: '110%',
+    height: '110%',
   },
   flashBottomSub: {
     color: '#4B5563',
@@ -1892,56 +979,63 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  pushBannerWrap: {
-    marginTop: 14,
-  },
-  pushBanner: {
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  pushBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  pushBannerText: {
-    color: BRAND.white,
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  pushBannerRight: {
-    marginLeft: 10,
-  },
-  pushBannerButton: {
-    backgroundColor: BRAND.gold,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  pushBannerButtonText: {
-    color: BRAND.black,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  pushBannerButtonAlt: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+  alertCard: {
+    backgroundColor: BRAND.white,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#3B3B3B',
+    borderColor: BRAND.border,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
-  pushBannerButtonAltText: {
-    color: BRAND.white,
-    fontSize: 12,
+  alertCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  alertIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: BRAND.black,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  alertTitle: {
+    color: BRAND.black,
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  alertDescription: {
+    color: BRAND.gray,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  alertButton: {
+    marginTop: 14,
+    backgroundColor: BRAND.gold,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  alertButtonText: {
+    color: BRAND.black,
+    fontSize: 15,
     fontWeight: '800',
   },
 
+  sectionHeaderTop: {
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
   sectionHeader: {
     marginTop: 22,
     marginBottom: 10,
@@ -1950,23 +1044,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  sectionHeaderPadded: {
-    marginTop: 22,
-    marginBottom: 10,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   sectionTitle: {
     color: BRAND.black,
     fontSize: 22,
     fontWeight: '800',
-  },
-  sectionLink: {
-    color: BRAND.goldDark,
-    fontSize: 14,
-    fontWeight: '700',
   },
 
   quickGrid: {
@@ -1986,23 +1067,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     marginTop: 8,
-  },
-
-  sliderLoadingWrap: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sliderEmptyWrap: {
-    backgroundColor: BRAND.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BRAND.border,
-    padding: 18,
-  },
-  sliderEmptyText: {
-    color: BRAND.gray,
-    fontSize: 14,
   },
 
   espnCardsRow: {
@@ -2049,29 +1113,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 22,
   },
+  upcomingEventLocation: {
+    color: BRAND.gray,
+    fontSize: 13,
+    marginTop: 8,
+    fontWeight: '600',
+  },
 
-  newsLoadingWrap: {
-    paddingVertical: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  newsLoadingText: {
-    marginTop: 10,
-    color: BRAND.gray,
-    fontSize: 14,
-  },
-  newsEmptyTitle: {
-    color: BRAND.black,
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  newsEmptyText: {
-    color: BRAND.gray,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
   newsFeedCard: {
     backgroundColor: BRAND.white,
     borderRadius: 20,
@@ -2086,20 +1134,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   newsFeedImage: {
-    height: 180,
+    height: 160,
     backgroundColor: BRAND.black,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    padding: 20,
   },
   newsFeedImageActual: {
     width: '100%',
     height: '100%',
-  },
-  newsFeedImageText: {
-    color: BRAND.gold,
-    fontSize: 24,
-    fontWeight: '800',
   },
   newsFeedBody: {
     padding: 14,
@@ -2123,190 +1167,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  teamsScreenContent: {
-    paddingBottom: 120,
-  },
-  teamsHeroBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    marginBottom: 14,
-  },
-  teamsHeroTitle: {
-    color: BRAND.gold,
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  teamsListWrap: {
-    paddingHorizontal: 16,
-  },
-  teamRowCard: {
-    backgroundColor: BRAND.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BRAND.border,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  teamRowMain: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  teamRowText: {
-    color: BRAND.black,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  followPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    gap: 4,
-  },
-  followPillOn: {
-    backgroundColor: BRAND.black,
-  },
-  followPillOff: {
-    backgroundColor: BRAND.gold,
-  },
-  followPillText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  followPillTextOn: {
-    color: BRAND.white,
-  },
-  followPillTextOff: {
-    color: BRAND.black,
-  },
-
-  sportTopBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sportTopBarTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
-    flex: 1,
-  },
-  sportTopBarTitle: {
-    color: BRAND.white,
-    fontSize: 20,
-    fontWeight: '800',
-    flex: 1,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: BRAND.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subHeader: {
-    backgroundColor: BRAND.black,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  subHeaderTitle: {
-    color: BRAND.white,
-    fontSize: 18,
-    fontWeight: '800',
-    marginLeft: 12,
-    flex: 1,
-  },
-  loaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(243,244,246,0.65)',
-  },
-
-  sportActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-    gap: 10,
-  },
-  goldActionButton: {
-    flex: 1,
-    backgroundColor: BRAND.gold,
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  goldActionText: {
-    color: BRAND.black,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-
-  upcomingRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  upcomingCard: {
-    flex: 1,
-    backgroundColor: BRAND.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BRAND.border,
-    padding: 16,
-  },
-  upcomingDate: {
-    color: BRAND.goldDark,
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  upcomingSport: {
-    color: BRAND.black,
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  upcomingMeta: {
-    color: BRAND.gray,
-    fontSize: 13,
-  },
-
-  feedEmptyCard: {
-    marginHorizontal: 16,
-    backgroundColor: BRAND.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BRAND.border,
-    padding: 16,
-  },
-  feedEmptyText: {
-    color: BRAND.gray,
-    fontSize: 14,
-  },
   feedListCard: {
     backgroundColor: BRAND.white,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: BRAND.border,
     padding: 14,
-    marginHorizontal: 16,
     marginBottom: 10,
   },
   feedListTopRow: {
@@ -2333,19 +1199,6 @@ const styles = StyleSheet.create({
     color: BRAND.gray,
     fontSize: 13,
     lineHeight: 18,
-  },
-
-  feedEventHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  feedScoreWrap: {
-    backgroundColor: BRAND.offWhite,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
   },
 
   audioBar: {
@@ -2411,17 +1264,55 @@ const styles = StyleSheet.create({
     color: BRAND.gold,
   },
   centerWatchButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
+    width: 78,
+    height: 78,
+    borderRadius: 22,
     backgroundColor: BRAND.gold,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -24,
+    marginTop: -26,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+  },
+  centerWatchButtonText: {
+    color: BRAND.black,
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+
+  subHeader: {
+    height: 56,
+    backgroundColor: BRAND.white,
+    borderBottomWidth: 1,
+    borderBottomColor: BRAND.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: BRAND.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  subHeaderTitle: {
+    color: BRAND.black,
+    fontSize: 18,
+    fontWeight: '800',
+    flex: 1,
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.75)',
   },
 });
