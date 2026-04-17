@@ -1,0 +1,22 @@
+
+[functions.send-live-push]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-live-push/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/send-live-push/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/send-live-push/*.html" ]
+
+[functions.send-custom-push]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-custom-push/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/send-custom-push/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/send-custom-push/*.html" ]

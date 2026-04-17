@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "BB Comer Sports",
-    "slug": "bb-comer-sports",
+    "name": "Pike Road Athletics",
+    "slug": "pike-road-athletics",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "bbcomersports",
+    "scheme": "pikeroadathletics",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.radioalabama.bbcomersports",
+      "bundleIdentifier": "com.radioalabama.pikeroad",
+      "buildNumber": "1.0.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
@@ -19,48 +20,38 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
+      "package": "com.radioalabama.pikeroad",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "static"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/splash-logo.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#1F3B7A"
         }
       ],
-      "expo-audio",
-      "expo-notifications"
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true
+        }
+      ],
+      "expo-notifications",
+      "expo-video"
     ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9159c3a6-925e-4c1c-ac34-e68a56191ff1"
+        "projectId": "REPLACE-WITH-NEW-EAS-PROJECT-ID"
       }
     }
   }
