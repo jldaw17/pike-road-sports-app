@@ -5,7 +5,7 @@ import {
   useAudioPlayer,
   useAudioPlayerStatus,
 } from 'expo-audio';
-import { Video } from 'expo-av';
+import { Video, type AVPlaybackStatus } from 'expo-av';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
@@ -24,22 +24,43 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  type ViewStyle,
   Text,
   View,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import {
+  type AthleticOSAppHomeModule,
+  type AthleticOSAthleteOfTheWeek,
+  type AthleticOSAppPrerollConfig,
+  type AthleticOSAppVideosConfig,
+  type AthleticOSPromotionCard,
+  type AthleticOSAppSponsorPlacement,
+  type AthleticOSSport,
+  type AthleticOSSportAppConfig,
+  getAthleteOfTheWeekBySchoolId,
+  getAppPrerollConfigBySchoolId,
+  getAppVideosConfigBySchoolId,
   getDefaultSchoolConfig,
-  getSchoolConfigBySlug,
-  getScheduleEventsBySchoolSlug,
-  getSportConfigBySchoolSlugAndKey,
-  getSportScheduleEventsBySchoolSlug,
-  getSportStoriesBySchoolSlug,
-  getStoriesBySchoolSlug,
+  getAppHomeModulesBySchoolId,
+  getAppSponsorPlacementsBySchoolId,
+  getPromotionCardBySchoolId,
+  getSchoolConfigById,
+  getScheduleEventsBySchoolId,
+  getSchoolAppConfigById,
+  getSportAppConfigBySchoolId,
+  getSportBySchoolIdAndKey,
+  getSportConfigBySchoolIdAndKey,
+  getSportScheduleEventsBySchoolId,
+  getSportStoriesBySchoolId,
+  getSportsBySchoolId,
+  getStoriesBySchoolId,
   mapScheduleEventToHomeEventItem,
   mapStoryToHomeNewsItem,
 } from './lib/athleticos';
-import { supabase } from './lib/supabase';
+import { getSchoolIdFromSlug } from './lib/getSchool';
+import { subscribeToTeam, unsubscribeFromTeam } from './lib/pushos';
+import { usePushNotifications } from './hooks/usePushNotifications';
 
 const BRAND = {
   primary: '#1F3B7A',
@@ -56,29 +77,136 @@ const BRAND = {
   red: '#C8102E',
 };
 
-const STREAM_URL = 'https://ice42.securenetsystems.net/RALA1';
-const TICKETS_URL = 'https://gofan.co/app/school/AL72525';
-
-const CASTOS_FEED_URL = 'https://feeds.castos.com/0gjg';
-const ASN_YOUTUBE_URL = 'https://www.youtube.com/@pikeroadlive';
-const ASN_CASTR_URL = 'https://www.youtube.com/@pikeroadlive';
-const ASN_RADIO_URL = 'https://ice42.securenetsystems.net/RALA1';
-const SCHOOL_SLUG = 'pike-road';
-const DEFAULT_SCHOOL_CONFIG = getDefaultSchoolConfig(SCHOOL_SLUG);
-const URLS = {
-  watch: DEFAULT_SCHOOL_CONFIG.watchUrl,
-  schedule: DEFAULT_SCHOOL_CONFIG.scheduleUrl,
-  mainSite: DEFAULT_SCHOOL_CONFIG.mainSiteUrl,
-  sponsor: DEFAULT_SCHOOL_CONFIG.sponsorUrl,
-};
 const STORAGE_KEYS = {
   notificationsEnabled: 'notificationsEnabled',
   notificationsPromptDismissed: 'notificationsPromptDismissed',
   followedTeams: 'followedTeams',
+  autoPlayVideo: 'autoPlayVideo',
+  useLocalTimezone: 'useLocalTimezone',
+  themeMode: 'themeMode',
 };
 
-type TabKey = 'home' | 'teams' | 'PSN' | 'tickets' | 'PRS';
-type ScreenMode = 'tabs' | 'sportDetail' | 'embedded';
+const SPONSOR_CAROUSEL_CARD_WIDTH = 248;
+const SPONSOR_CAROUSEL_CARD_GAP = 12;
+
+function normalizeConfiguredSchoolSlug(value?: string) {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/-(athletics|sports-app|sports)$/i, '');
+}
+
+function getConfiguredSchoolSlug() {
+  const extraSlug = Constants?.expoConfig?.extra?.schoolSlug;
+  if (typeof extraSlug === 'string' && extraSlug.trim()) {
+    return normalizeConfiguredSchoolSlug(extraSlug);
+  }
+
+  const appSlug = Constants?.expoConfig?.slug;
+  if (typeof appSlug === 'string' && appSlug.trim()) {
+    return normalizeConfiguredSchoolSlug(appSlug);
+  }
+
+  return '';
+}
+
+function getYoutubeApiKey() {
+  try {
+    // Expo config (primary)
+    const expoKey =
+      (Constants?.expoConfig?.extra as any)?.youtubeApiKey ||
+      (Constants as any)?.manifest?.extra?.youtubeApiKey;
+
+    if (expoKey && typeof expoKey === 'string' && expoKey.trim().length > 0) {
+      return expoKey.trim();
+    }
+
+    // Env fallback
+    if (process.env.EXPO_PUBLIC_YOUTUBE_API_KEY) {
+      return process.env.EXPO_PUBLIC_YOUTUBE_API_KEY.trim();
+    }
+
+    return null;
+  } catch (err) {
+    console.warn('Failed to resolve YouTube API key', err);
+    return null;
+  }
+}
+
+function getSafeSortOrder(value?: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function normalizeModuleKey(value?: string) {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+}
+
+function normalizePlacementKey(value?: string) {
+  return normalizeModuleKey(value);
+}
+
+function getHeroBrandTitle(schoolConfig: {
+  heroTitleOverride?: string;
+  appShortName?: string;
+  displayName?: string;
+}) {
+  const heroTitleOverride = schoolConfig.heroTitleOverride?.trim() ?? '';
+  if (heroTitleOverride) {
+    return heroTitleOverride;
+  }
+
+  const appShortName = schoolConfig.appShortName?.trim() ?? '';
+  if (appShortName) {
+    return `${appShortName} Athletics`;
+  }
+
+  return schoolConfig.displayName?.trim() || 'Athletics';
+}
+
+function getHeroBrandSubtitle(schoolConfig: {
+  heroSubtitleOverride?: string;
+  mascotName?: string;
+}) {
+  const heroSubtitleOverride = schoolConfig.heroSubtitleOverride?.trim() ?? '';
+  if (heroSubtitleOverride) {
+    return heroSubtitleOverride;
+  }
+
+  const mascotName = schoolConfig.mascotName?.trim() ?? '';
+  if (mascotName) {
+    return `Home of the ${mascotName}`;
+  }
+
+  return 'Powered by AthleticOS';
+}
+
+function getResolvedHomeModules(modules: AthleticOSAppHomeModule[]) {
+  return [...modules]
+    .filter((module) => module.is_enabled !== false && module.module_key)
+    .sort((a, b) => {
+      const orderDiff = getSafeSortOrder(a.sort_order) - getSafeSortOrder(b.sort_order);
+      if (orderDiff !== 0) {
+        return orderDiff;
+      }
+
+      return (a.module_key ?? '').localeCompare(b.module_key ?? '');
+    });
+}
+
+type TabKey = 'home' | 'teams' | 'media' | 'tickets' | 'more';
+type ScreenMode =
+  | 'tabs'
+  | 'sportDetail'
+  | 'athleteOfWeekDetail'
+  | 'storyDetail'
+  | 'embedded'
+  | 'schedule'
+  | 'settings'
+  | 'manageTeams'
+  | 'savedEvents';
 
 type SportType = {
   key: string;
@@ -86,21 +214,34 @@ type SportType = {
   shortLabel?: string;
 };
 
-type PodcastEpisode = {
-  title: string;
-  link: string;
-  date: string;
-  description: string;
-  image?: string;
-  rawDate?: string;
-};
-
 type NewsItem = {
   title: string;
   link: string;
   date: string;
   description: string;
+  summary?: string;
+  body?: string;
+  sportName?: string;
   image?: string;
+  rawDate?: string;
+};
+
+type VideoItem = {
+  id: string;
+  title: string;
+  link: string;
+  date: string;
+  image?: string;
+  rawDate?: string;
+};
+
+type GalleryItem = {
+  id: string;
+  title: string;
+  link: string;
+  date: string;
+  image?: string;
+  sport?: string;
   rawDate?: string;
 };
 
@@ -124,6 +265,11 @@ type NormalizedScheduleItem = {
   timeLabel: string;
   link: string;
   homeAway?: string;
+};
+
+type FollowableSport = {
+  id: string;
+  label: string;
 };
 
 const SPORTS: SportType[] = [
@@ -246,7 +392,10 @@ function extractImageFromHtml(html = '') {
     html.match(/<img[^>]+src=["']([^"']+)["']/i) ||
     html.match(/https?:\/\/[^"'\s>]+\.(?:jpg|jpeg|png|webp)/i);
 
-  if (!imgMatch) return undefined;
+  if (!imgMatch) {
+    return undefined;
+  }
+
   return Array.isArray(imgMatch) ? imgMatch[1] || imgMatch[0] : undefined;
 }
 
@@ -290,6 +439,79 @@ function formatDateTime(raw?: string) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+async function fetchRssItems(url: string) {
+  const response = await fetch(normalizeUrl(url));
+
+  if (!response.ok) {
+    throw new Error(`Feed request failed: ${response.status}`);
+  }
+
+  const xml = await response.text();
+  const items = xml.match(/<item\b[\s\S]*?<\/item>/gi) ?? [];
+
+  return items.map((itemXml, index) => {
+    const title = stripHtml(decodeHtml(getTagValue(itemXml, 'title')));
+    const link = normalizeUrl(decodeHtml(getTagValue(itemXml, 'link')));
+    const description = decodeHtml(getTagValue(itemXml, 'description'));
+    const pubDate = decodeHtml(getTagValue(itemXml, 'pubDate'));
+    const image = extractImageFromHtml(description);
+
+    return {
+      id: `${index}-${title}-${link}`,
+      title,
+      link,
+      description: stripHtml(description),
+      rawDate: pubDate,
+      date: formatDate(pubDate),
+      image,
+    };
+  });
+}
+
+function getGalleryFeedCandidates(mainSiteUrl: string) {
+  const trimmedBase = mainSiteUrl.replace(/\/+$/, '');
+
+  // Assumptions to verify: the school site exposes one of these gallery/photo RSS feeds.
+  return [
+    `${trimmedBase}/gallery/feed/`,
+    `${trimmedBase}/galleries/feed/`,
+    `${trimmedBase}/category/galleries/feed/`,
+    `${trimmedBase}/category/photos/feed/`,
+    `${trimmedBase}/feed/?post_type=gallery`,
+  ];
+}
+
+async function fetchGalleryItems(mainSiteUrl: string): Promise<GalleryItem[]> {
+  if (!hasResolvedUrl(mainSiteUrl)) {
+    return [];
+  }
+
+  for (const candidateUrl of getGalleryFeedCandidates(mainSiteUrl)) {
+    try {
+      const items = await fetchRssItems(candidateUrl);
+      const galleries = items
+        .filter((item) => item.title && item.link && item.image)
+        .map((item, index) => ({
+          id: item.id || `${candidateUrl}-${index}`,
+          title: item.title,
+          link: item.link,
+          image: item.image,
+          rawDate: item.rawDate,
+          date: item.date,
+          sport: inferSportFromTitle(item.title),
+        }));
+
+      if (galleries.length > 0) {
+        return galleries;
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+
+  return [];
 }
 
 function filterRecentResultEvents(events: EventItem[]) {
@@ -373,49 +595,164 @@ function filterNextFourGames(events: EventItem[]) {
     .slice(0, 4);
 }
 
-async function fetchRssItems(url: string) {
-  const response = await fetch(normalizeUrl(url));
-  const xml = await response.text();
-  const items = xml.match(/<item\b[\s\S]*?<\/item>/gi) ?? [];
+function getXmlAttributeValue(xml: string, tag: string, attribute: string) {
+  const match = xml.match(
+    new RegExp(`<${tag}\\b[^>]*\\b${attribute}=["']([^"']+)["'][^>]*\\/?>`, 'i')
+  );
+  return match?.[1]?.trim() ?? '';
+}
 
-  return items.map((itemXml) => {
-    const title = decodeHtml(getTagValue(itemXml, 'title'));
-    const link = normalizeUrl(decodeHtml(getTagValue(itemXml, 'link')));
-    const description = decodeHtml(getTagValue(itemXml, 'description'));
-    const pubDate = decodeHtml(getTagValue(itemXml, 'pubDate'));
-    const image = extractImageFromHtml(description);
+function extractYoutubePlaylistId(value?: string) {
+  const normalizedValue = (value ?? '').trim();
+  if (!normalizedValue) {
+    return '';
+  }
 
-    return {
-      title: stripHtml(title),
-      link,
-      description: stripHtml(description),
-      rawDate: pubDate,
-      date: formatDate(pubDate),
-      image,
-    };
+  if (!normalizedValue.includes('http')) {
+    return normalizedValue;
+  }
+
+  const listMatch = normalizedValue.match(/[?&]list=([A-Za-z0-9_-]+)/i);
+  if (listMatch?.[1]?.trim()) {
+    return listMatch[1].trim();
+  }
+
+  const pathMatch = normalizedValue.match(/\/playlist\/([A-Za-z0-9_-]+)/i);
+  return pathMatch?.[1]?.trim() ?? '';
+}
+
+async function fetchYoutubePlaylistVideos(
+  config: AthleticOSAppVideosConfig | null
+): Promise<VideoItem[]> {
+  if (!config?.is_enabled) {
+    return [];
+  }
+
+  console.log('[AthleticOS] videos config:', config);
+
+  const playlistId = extractYoutubePlaylistId(
+    config.playlist_id ||
+      config.youtube_playlist_id ||
+      config.playlist_url ||
+      config.youtube_playlist_url
+  );
+  console.log('YOUTUBE API KEY:', getYoutubeApiKey());
+  console.log('PLAYLIST ID:', playlistId);
+  console.log('[AthleticOS] extracted playlist id:', playlistId);
+  if (!playlistId) {
+    return [];
+  }
+
+  const youtubeApiKey = getYoutubeApiKey();
+  if (!youtubeApiKey) {
+    console.log('[AthleticOS] missing YouTube API key for videos module');
+    return [];
+  }
+
+  try {
+    const maxResults =
+      typeof config.max_videos === 'number' && Number.isFinite(config.max_videos)
+        ? Math.max(1, Math.min(50, Math.floor(config.max_videos)))
+        : 8;
+    const params = new URLSearchParams({
+      part: 'snippet',
+      playlistId,
+      maxResults: String(maxResults),
+      key: youtubeApiKey,
+    });
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/playlistItems?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      console.log('[AthleticOS] YouTube playlist request failed:', response.status);
+      return [];
+    }
+
+    const payload = await response.json();
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+
+    const videos = items
+      .map((item: any, index: number) => {
+        const snippet = item?.snippet && typeof item.snippet === 'object' ? item.snippet : null;
+        const resourceId =
+          snippet?.resourceId && typeof snippet.resourceId === 'object'
+            ? snippet.resourceId
+            : null;
+        const thumbnails =
+          snippet?.thumbnails && typeof snippet.thumbnails === 'object'
+            ? snippet.thumbnails
+            : null;
+        const mediumThumbnail =
+          thumbnails?.medium && typeof thumbnails.medium === 'object'
+            ? thumbnails.medium
+            : null;
+        const videoId =
+          typeof resourceId?.videoId === 'string' ? resourceId.videoId.trim() : '';
+        const title =
+          typeof snippet?.title === 'string'
+            ? stripHtml(decodeHtml(snippet.title)).trim()
+            : '';
+        const rawDate =
+          typeof snippet?.publishedAt === 'string' ? snippet.publishedAt.trim() : '';
+        const thumbnail =
+          typeof mediumThumbnail?.url === 'string' ? normalizeUrl(mediumThumbnail.url) : '';
+        const link = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
+
+        if (!title || !hasResolvedUrl(link)) {
+          return null;
+        }
+
+        return {
+          id: videoId || `${playlistId}-${index}`,
+          title,
+          link,
+          rawDate,
+          date: formatDate(rawDate),
+          image: hasResolvedUrl(thumbnail) ? thumbnail : undefined,
+        } satisfies VideoItem;
+      })
+      .filter(Boolean) as VideoItem[];
+
+    console.log('[AthleticOS] fetched video count:', videos.length);
+    return videos.length > 0 ? videos : [];
+  } catch (error) {
+    console.log('YouTube playlist load error:', error);
+    return [];
+  }
+}
+
+function getSponsorSignature(placement: AthleticOSAppSponsorPlacement) {
+  return [
+    (placement.sponsor_name ?? '').trim().toLowerCase(),
+    (placement.sponsor_logo_url ?? '').trim().toLowerCase(),
+    (placement.sponsor_link_url ?? '').trim().toLowerCase(),
+  ].join('|');
+}
+
+function isRenderableSponsorPlacement(placement: AthleticOSAppSponsorPlacement) {
+  return Boolean(
+    placement &&
+      placement.is_enabled !== false &&
+      ((placement.sponsor_logo_url ?? '').trim() ||
+        (placement.sponsor_name ?? '').trim())
+  );
+}
+
+function dedupeSponsorPlacements(placements: AthleticOSAppSponsorPlacement[]) {
+  const seen = new Set<string>();
+
+  return placements.filter((placement) => {
+    const signature = getSponsorSignature(placement);
+    if (!signature || seen.has(signature)) {
+      return false;
+    }
+
+    seen.add(signature);
+    return true;
   });
 }
 
-
-async function fetchPodcastFeed(url: string): Promise<PodcastEpisode[]> {
-  const items = await fetchRssItems(url);
-
-  return items
-    .filter((item) => item.title && item.link)
-    .map((item) => ({
-      title: item.title,
-      link: item.link,
-      description: item.description,
-      date: item.date,
-      rawDate: item.rawDate,
-      image: item.image,
-    }))
-    .sort((a, b) => {
-      const aTime = safeDate(a.rawDate)?.getTime() ?? 0;
-      const bTime = safeDate(b.rawDate)?.getTime() ?? 0;
-      return bTime - aTime;
-    });
-}
 function inferSportFromTitle(title: string) {
   const lower = title.toLowerCase();
   if (lower.includes('football')) return 'Football';
@@ -434,7 +771,7 @@ function inferSportFromTitle(title: string) {
   if (lower.includes('tennis')) return 'Tennis';
   if (lower.includes('track')) return 'Track';
   if (lower.includes('golf')) return 'Golf';
-  return 'Aggies';
+  return 'School Event';
 }
 
 function normalizeScheduleItem(item: EventItem) {
@@ -542,63 +879,6 @@ function getSportColor(sport: string) {
   }
 }
 
-async function registerForPushNotificationsAsync() {
-  try {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-      });
-    }
-
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') return '';
-
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId:
-        Constants?.expoConfig?.extra?.eas?.projectId ||
-        Constants?.easConfig?.projectId,
-    });
-
-    return token.data;
-  } catch (error) {
-    console.log('Push registration error:', error);
-    return '';
-  }
-}
-async function savePushToken(token: string) {
-  try {
-    const { error } = await supabase
-      .from('push_tokens')
-      .upsert(
-        {
-          expo_push_token: token,
-          platform: Platform.OS,
-          app_name: 'pike road',
-          notifications_enabled: true,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'expo_push_token',
-        }
-      );
-
-    if (error) {
-      console.log('Save push token error:', error);
-    }
-  } catch (error) {
-    console.log('Save push token unexpected error:', error);
-  }
-}
-
 function TopIcon({
   label,
   icon,
@@ -625,13 +905,15 @@ function SectionHeader({
   title,
   actionLabel,
   onAction,
+  containerStyle,
 }: {
   title: string;
   actionLabel?: string;
   onAction?: () => void;
+  containerStyle?: ViewStyle;
 }) {
   return (
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, containerStyle]}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction}>
@@ -639,6 +921,32 @@ function SectionHeader({
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+function OptionalSectionHeader({
+  title,
+  actionLabel,
+  onAction,
+  containerStyle,
+}: {
+  title?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  containerStyle?: ViewStyle;
+}) {
+  const resolvedTitle = title?.trim() ?? '';
+  if (!resolvedTitle) {
+    return null;
+  }
+
+  return (
+    <SectionHeader
+      title={resolvedTitle}
+      actionLabel={actionLabel}
+      onAction={onAction}
+      containerStyle={containerStyle}
+    />
   );
 }
 
@@ -678,16 +986,24 @@ function LiveBadge() {
 function AudioMiniPlayer({
   isPlaying,
   isLoading,
+  title,
+  enabled,
   onToggle,
 }: {
   isPlaying: boolean;
   isLoading: boolean;
+  title?: string;
+  enabled: boolean;
   onToggle: () => void;
 }) {
+  if (!enabled) {
+    return null;
+  }
+
   return (
     <View style={styles.audioBar}>
       <View style={styles.audioBarLeft}>
-        <Text style={styles.audioBarTitle}> The Patriot Sports Network</Text>
+        <Text style={styles.audioBarTitle}>{title || 'Live Audio'}</Text>
         <Text style={styles.audioBarSub}>
           {isLoading
             ? 'Loading stream...'
@@ -711,7 +1027,15 @@ function AudioMiniPlayer({
   );
 }
 
-function LaunchSplash() {
+function LaunchSplash({
+  splashBackgroundUrl,
+  splashLogoUrl,
+  schoolDisplayName,
+}: {
+  splashBackgroundUrl?: string;
+  splashLogoUrl?: string;
+  schoolDisplayName?: string;
+}) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const logoSlide = useRef(new Animated.Value(16)).current;
@@ -748,63 +1072,101 @@ function LaunchSplash() {
     >
       <StatusBar barStyle="light-content" backgroundColor="#1F3B7A" />
 
-      <ImageBackground
-        source={require('./assets/images/splash.png')}
-        style={styles.flashBackgroundImage}
-        imageStyle={styles.flashBackgroundImageInner}
-        resizeMode="cover"
-      >
-        <View style={styles.flashOverlay} />
-
-        <View style={styles.flashTopStripeWrap}>
-          <View style={styles.flashTopStripeBlack} />
-          <View style={styles.flashTopStripeRed} />
-          <View style={styles.flashTopStripeBlack} />
-        </View>
-
-        <View style={styles.flashCenterArea}>
-          <View style={styles.flashShadowLong} />
-          <Animated.View
-            style={{
-              transform: [{ translateY: logoSlide }],
-            }}
-          >
-            <View style={styles.flashLogoPlate}>
-              <Image
-                source={require('./assets/images/splash-logo.png')}
-                style={styles.flashMainLogo}
-                resizeMode="contain"
-              />
-            </View>
-          </Animated.View>
-        </View>
-
-        <Animated.View
-          style={[
-            styles.flashBottomBranding,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: logoSlide }],
-            },
-          ]}
+      {hasResolvedUrl(splashBackgroundUrl) ? (
+        <ImageBackground
+          source={{ uri: splashBackgroundUrl }}
+          style={styles.flashBackgroundImage}
+          imageStyle={styles.flashBackgroundImageInner}
+          resizeMode="cover"
         >
-          <Image
-            source={require('./assets/images/network-logo.png')}
-            style={styles.flashWSNLogo}
-            resizeMode="contain"
-          />
+          <View style={styles.flashOverlay} />
 
-          <Text style={styles.flashBottomSub}>Pike Road Athletics</Text>
+          <View style={styles.flashTopStripeWrap}>
+            <View style={styles.flashTopStripeBlack} />
+            <View style={styles.flashTopStripeRed} />
+            <View style={styles.flashTopStripeBlack} />
+          </View>
 
-          <Text style={styles.splashSponsorText}>Presented by</Text>
+          <View style={styles.flashCenterArea}>
+            {hasResolvedUrl(splashLogoUrl) ? <View style={styles.flashShadowLong} /> : null}
+            <Animated.View
+              style={{
+                transform: [{ translateY: logoSlide }],
+              }}
+            >
+              {hasResolvedUrl(splashLogoUrl) ? (
+                <View style={styles.flashLogoPlate}>
+                  <Image
+                    source={{ uri: splashLogoUrl }}
+                    style={styles.flashMainLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : null}
+            </Animated.View>
+          </View>
 
-          <Image
-            source={require('./assets/images/splash-sponsor.png')}
-            style={styles.splashSponsorLogo}
-            resizeMode="contain"
-          />
-        </Animated.View>
-      </ImageBackground>
+          <Animated.View
+            style={[
+              styles.flashBottomBranding,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: logoSlide }],
+              },
+            ]}
+          >
+            {schoolDisplayName ? (
+              <Text style={styles.flashBottomSub}>{schoolDisplayName}</Text>
+            ) : null}
+          </Animated.View>
+        </ImageBackground>
+      ) : (
+        <LinearGradient
+          colors={[BRAND.black, BRAND.primaryDark, BRAND.surfaceAlt]}
+          style={styles.flashBackgroundImage}
+        >
+          <View style={styles.flashOverlay} />
+
+          <View style={styles.flashTopStripeWrap}>
+            <View style={styles.flashTopStripeBlack} />
+            <View style={styles.flashTopStripeRed} />
+            <View style={styles.flashTopStripeBlack} />
+          </View>
+
+          <View style={styles.flashCenterArea}>
+            <View style={styles.flashShadowLong} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: logoSlide }],
+              }}
+            >
+              {hasResolvedUrl(splashLogoUrl) ? (
+                <View style={styles.flashLogoPlate}>
+                  <Image
+                    source={{ uri: splashLogoUrl }}
+                    style={styles.flashMainLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : null}
+            </Animated.View>
+          </View>
+
+          <Animated.View
+            style={[
+              styles.flashBottomBranding,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: logoSlide }],
+              },
+            ]}
+          >
+            {schoolDisplayName ? (
+              <Text style={styles.flashBottomSub}>{schoolDisplayName}</Text>
+            ) : null}
+          </Animated.View>
+        </LinearGradient>
+      )}
     </Animated.View>
   );
 }
@@ -881,14 +1243,497 @@ function NewsCard({
   );
 }
 
+function StoryDetailScreen({
+  item,
+  onBack,
+}: {
+  item: NewsItem;
+  onBack: () => void;
+}) {
+  const summary = item.summary?.trim() || item.description?.trim() || '';
+  const body = item.body?.trim() || '';
+  const sportName = item.sportName?.trim() || '';
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        {sportName ? <Text style={styles.sportHeaderSub}>{sportName}</Text> : null}
+        <Text style={styles.storyDetailTitle}>{item.title}</Text>
+        {item.date ? <Text style={styles.storyDetailDate}>{item.date}</Text> : null}
+      </LinearGradient>
+
+      {item.image ? (
+        <Image
+          source={{ uri: item.image }}
+          style={styles.storyDetailImage}
+          resizeMode="cover"
+        />
+      ) : null}
+
+      <View style={styles.storyDetailCard}>
+        {summary ? (
+          <View style={styles.storyDetailSection}>
+            <Text style={styles.storyDetailSectionTitle}>Summary</Text>
+            <Text style={styles.storyDetailBody}>{summary}</Text>
+          </View>
+        ) : null}
+
+        {body ? (
+          <View style={styles.storyDetailSection}>
+            <Text style={styles.storyDetailSectionTitle}>Story</Text>
+            <Text style={styles.storyDetailBody}>{body}</Text>
+          </View>
+        ) : null}
+      </View>
+    </ScrollView>
+  );
+}
+
+function StoryCarouselCard({
+  item,
+  onPress,
+}: {
+  item: NewsItem;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.storyCarouselCard} onPress={onPress}>
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.storyCarouselImage} />
+      ) : (
+        <LinearGradient
+          colors={[BRAND.primaryDark, BRAND.black]}
+          style={styles.storyCarouselImage}
+        />
+      )}
+
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.92)']}
+        style={styles.storyCarouselOverlay}
+      />
+
+      <View style={styles.storyCarouselContent}>
+        <View style={styles.storyCarouselMetaRow}>
+          <View style={styles.featuredPill}>
+            <Text style={styles.featuredPillText}>Story</Text>
+          </View>
+          <Text style={styles.storyCarouselMeta}>{item.date || 'Latest News'}</Text>
+        </View>
+
+        <Text style={styles.storyCarouselTitle} numberOfLines={3}>
+          {item.title}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function VideoCarouselCard({
+  item,
+  onPress,
+}: {
+  item: VideoItem;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.videoCarouselCard} onPress={onPress}>
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.videoCarouselImage} />
+      ) : (
+        <LinearGradient
+          colors={[BRAND.primaryDark, BRAND.black]}
+          style={styles.videoCarouselImage}
+        />
+      )}
+
+      <LinearGradient
+        colors={['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.88)']}
+        style={styles.videoCarouselOverlay}
+      />
+
+      <View style={styles.videoPlayBadge}>
+        <Ionicons name="play" size={18} color={BRAND.white} />
+      </View>
+
+      <View style={styles.videoCarouselContent}>
+        <Text style={styles.videoCarouselMeta}>{item.date || 'Latest Video'}</Text>
+        <Text style={styles.videoCarouselTitle} numberOfLines={3}>
+          {item.title}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function GalleryCarouselCard({
+  item,
+  onPress,
+}: {
+  item: GalleryItem;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.galleryCarouselCard} onPress={onPress}>
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.galleryCarouselImage} />
+      ) : (
+        <LinearGradient
+          colors={[BRAND.primaryDark, BRAND.black]}
+          style={styles.galleryCarouselImage}
+        />
+      )}
+
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.9)']}
+        style={styles.galleryCarouselOverlay}
+      />
+
+      <View style={styles.galleryCarouselContent}>
+        <View style={styles.storyCarouselMetaRow}>
+          <Text style={styles.galleryCarouselMeta}>{item.sport || 'Gallery'}</Text>
+          <Text style={styles.galleryCarouselMeta}>{item.date || 'Latest'}</Text>
+        </View>
+        <Text style={styles.galleryCarouselTitle} numberOfLines={3}>
+          {item.title}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function PromotionCard({
+  promotion,
+  onPress,
+}: {
+  promotion: AthleticOSPromotionCard;
+  onPress?: () => void;
+}) {
+  const cardBody = (
+    <>
+      {promotion.image_url ? (
+        <Image
+          source={{ uri: promotion.image_url }}
+          style={styles.promotionCardImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <LinearGradient
+          colors={[BRAND.primaryDark, BRAND.surface]}
+          style={styles.promotionCardImage}
+        />
+      )}
+
+      <LinearGradient
+        colors={promotion.image_url ? ['transparent', 'rgba(0,0,0,0.92)'] : ['rgba(0,0,0,0)', 'rgba(0,0,0,0)']}
+        style={styles.promotionCardOverlay}
+      />
+
+      <View style={styles.promotionCardContent}>
+        <View style={styles.promotionPill}>
+          <Text style={styles.promotionPillText}>Featured</Text>
+        </View>
+        <Text style={styles.promotionCardTitle} numberOfLines={3}>
+          {promotion.title?.trim() || 'Promotion'}
+        </Text>
+        {promotion.subtitle?.trim() ? (
+          <Text style={styles.promotionCardSubtitle} numberOfLines={3}>
+            {promotion.subtitle.trim()}
+          </Text>
+        ) : null}
+        {promotion.cta_text?.trim() ? (
+          <View style={styles.promotionCardButton}>
+            <Text style={styles.promotionCardButtonText}>
+              {promotion.cta_text.trim()}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
+          </View>
+        ) : null}
+      </View>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable style={styles.promotionCard} onPress={onPress}>
+        {cardBody}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.promotionCard}>{cardBody}</View>;
+}
+
+function AppPrerollScreen({
+  config,
+  onComplete,
+}: {
+  config: AthleticOSAppPrerollConfig;
+  onComplete: () => void;
+}) {
+  const [canSkip, setCanSkip] = useState(false);
+
+  useEffect(() => {
+    setCanSkip(false);
+
+    const timer = setTimeout(() => {
+      setCanSkip(true);
+    }, Math.max(config.skip_after_seconds, 1) * 1000);
+
+    return () => clearTimeout(timer);
+  }, [config.skip_after_seconds]);
+
+  const handlePress = () => {
+    if (!config.click_url) {
+      return;
+    }
+
+    Linking.openURL(config.click_url).catch((error) => {
+      console.log('Preroll click-through error:', error);
+      onComplete();
+    });
+  };
+
+  const handlePlaybackStatus = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) {
+      if (status.error) {
+        console.log('Preroll playback error:', status.error);
+        onComplete();
+      }
+
+      return;
+    }
+
+    if (status.didJustFinish) {
+      onComplete();
+    }
+  };
+
+  const content = (
+    <>
+      <Video
+        source={{ uri: config.video_url }}
+        style={styles.prerollVideo}
+        resizeMode="cover"
+        shouldPlay
+        isLooping={false}
+        onPlaybackStatusUpdate={handlePlaybackStatus}
+        onError={(error) => {
+          console.log('Preroll video load error:', error);
+          onComplete();
+        }}
+      />
+
+      <LinearGradient
+        colors={['rgba(0,0,0,0.16)', 'rgba(0,0,0,0.76)']}
+        style={styles.prerollOverlay}
+      />
+
+      <SafeAreaView style={styles.prerollSafeArea}>
+        <View style={styles.prerollTopRow}>
+          <View style={styles.prerollSponsorWrap}>
+            {config.sponsor_name ? (
+              <Text style={styles.prerollSponsorEyebrow}>Presented by</Text>
+            ) : null}
+            {config.sponsor_logo_url ? (
+              <Image
+                source={{ uri: config.sponsor_logo_url }}
+                style={styles.prerollSponsorLogo}
+                resizeMode="contain"
+              />
+            ) : config.sponsor_name ? (
+              <Text style={styles.prerollSponsorName}>{config.sponsor_name}</Text>
+            ) : null}
+          </View>
+
+          {canSkip ? (
+            <Pressable style={styles.prerollSkipButton} onPress={onComplete}>
+              <Text style={styles.prerollSkipButtonText}>Skip</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {config.click_url ? (
+          <Pressable style={styles.prerollTapHint} onPress={handlePress}>
+            <Text style={styles.prerollTapHintText}>Learn More</Text>
+            <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
+          </Pressable>
+        ) : null}
+      </SafeAreaView>
+    </>
+  );
+
+  return <View style={styles.prerollScreen}>{content}</View>;
+}
+
+function AthleteOfWeekCard({
+  item,
+  onPress,
+}: {
+  item: AthleticOSAthleteOfTheWeek;
+  onPress?: () => void;
+}) {
+  const imageUrl = item.featuredImageUrl || item.headshotUrl || null;
+  const title = item.sportName || item.awardWeekLabel || 'Athlete of the Week';
+  const subtitle = item.summary || item.opponent || null;
+  const statsLine = item.stats?.trim() || null;
+
+  const cardBody = (
+    <>
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.athleteOfWeekImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <LinearGradient
+          colors={[BRAND.primaryDark, BRAND.surface]}
+          style={styles.athleteOfWeekImage}
+        />
+      )}
+
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.92)']}
+        style={styles.athleteOfWeekOverlay}
+      />
+
+      <View style={styles.athleteOfWeekContent}>
+        <View style={styles.athleteOfWeekTopRow}>
+          <View style={styles.promotionPill}>
+            <Text style={styles.promotionPillText}>Athlete of the Week</Text>
+          </View>
+        </View>
+
+        {item.athleteName ? (
+          <Text style={styles.athleteOfWeekName} numberOfLines={1}>
+            {item.athleteName}
+          </Text>
+        ) : null}
+
+        <Text style={styles.athleteOfWeekTitle} numberOfLines={3}>
+          {title}
+        </Text>
+
+        {subtitle ? (
+          <Text style={styles.athleteOfWeekSubtitle} numberOfLines={3}>
+            {subtitle}
+          </Text>
+        ) : null}
+
+        {statsLine ? (
+          <Text style={styles.athleteOfWeekStats} numberOfLines={2}>
+            {statsLine}
+          </Text>
+        ) : null}
+
+      </View>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable style={styles.athleteOfWeekCard} onPress={onPress}>
+        {cardBody}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.athleteOfWeekCard}>{cardBody}</View>;
+}
+
+function AthleteOfWeekDetailScreen({
+  item,
+  onBack,
+}: {
+  item: AthleticOSAthleteOfTheWeek;
+  onBack: () => void;
+}) {
+  const imageUrl = item.featuredImageUrl || item.headshotUrl || null;
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={styles.sportHeaderTitle}>Athlete of the Week</Text>
+        {item.awardWeekLabel ? (
+          <Text style={styles.sportHeaderSub}>{item.awardWeekLabel}</Text>
+        ) : null}
+      </LinearGradient>
+
+      <View style={styles.aotwDetailWrap}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.aotwDetailImage}
+            resizeMode="cover"
+          />
+        ) : null}
+
+        <View style={styles.aotwDetailCard}>
+          <Text style={styles.aotwDetailName}>{item.athleteName}</Text>
+
+          {item.sportName ? (
+            <Text style={styles.aotwDetailMeta}>{item.sportName}</Text>
+          ) : null}
+
+          {item.classYear ? (
+            <Text style={styles.aotwDetailMeta}>Class Year: {item.classYear}</Text>
+          ) : null}
+
+          {item.position ? (
+            <Text style={styles.aotwDetailMeta}>Position: {item.position}</Text>
+          ) : null}
+
+          {item.awardWeekLabel ? (
+            <Text style={styles.aotwDetailMeta}>Week: {item.awardWeekLabel}</Text>
+          ) : null}
+
+          {item.awardDate ? (
+            <Text style={styles.aotwDetailMeta}>
+              Award Date: {formatDate(item.awardDate)}
+            </Text>
+          ) : null}
+
+          {item.opponent ? (
+            <Text style={styles.aotwDetailMeta}>Opponent: {item.opponent}</Text>
+          ) : null}
+
+          {item.summary ? (
+            <View style={styles.aotwDetailSection}>
+              <Text style={styles.aotwDetailSectionTitle}>Summary</Text>
+              <Text style={styles.aotwDetailBody}>{item.summary}</Text>
+            </View>
+          ) : null}
+
+          {item.stats ? (
+            <View style={styles.aotwDetailSection}>
+              <Text style={styles.aotwDetailSectionTitle}>Stats</Text>
+              <Text style={styles.aotwDetailBody}>{item.stats}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
 function EventCard({
   item,
   onPress,
   showTime = true,
+  teamName,
 }: {
   item: EventItem;
   onPress: () => void;
   showTime?: boolean;
+  teamName?: string;
 }) {
   const normalized = normalizeScheduleItem(item);
 
@@ -928,7 +1773,7 @@ function EventCard({
           </View>
 
           <View style={styles.resultRow}>
-            <Text style={styles.resultTeamName}>Pike Road</Text>
+            <Text style={styles.resultTeamName}>{teamName || 'Home Team'}</Text>
             <Text style={styles.resultScore}>{normalized.teamScore}</Text>
           </View>
 
@@ -1027,9 +1872,11 @@ function TeamTile({
 
 function HomeScreen({
   onOpenEmbedded,
+  onOpenExternal,
+  onOpenSchedule,
   onOpenSport,
   onToggleAudio,
-  onGoToAsn,
+  onGoToMedia,
   newsItems,
   newsLoading,
   recentEvents,
@@ -1043,11 +1890,22 @@ function HomeScreen({
   onDismissNotificationPrompt,
   liveStatus,
   schoolConfig,
+  appDisplayName,
+  homeModules,
+  promotionCard,
+  athleteOfWeek,
+  sponsorPlacements,
+  videoItems,
+  galleryItems,
+  homeSports,
+  scheduleAvailable,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
+  onOpenExternal: (url: string) => void;
+  onOpenSchedule: () => void;
   onOpenSport: (sport: SportType) => void;
   onToggleAudio: () => void;
-  onGoToAsn: () => void;
+  onGoToMedia: () => void;
   newsItems: NewsItem[];
   newsLoading: boolean;
   recentEvents: EventItem[];
@@ -1064,76 +1922,604 @@ function HomeScreen({
     video: boolean;
   };
   schoolConfig: {
+    displayName: string;
+    logoUrl: string;
+    splashLogoUrl?: string;
+    appShortName?: string;
+    mascotName?: string;
+    heroTitleOverride?: string;
+    heroSubtitleOverride?: string;
     mainSiteUrl: string;
     scheduleUrl: string;
     watchUrl: string;
-    sponsorUrl: string;
+    listenUrl: string;
   };
+  appDisplayName: string;
+  homeModules: AthleticOSAppHomeModule[];
+  promotionCard: AthleticOSPromotionCard | null;
+  athleteOfWeek: AthleticOSAthleteOfTheWeek | null;
+  sponsorPlacements: AthleticOSAppSponsorPlacement[];
+  videoItems: VideoItem[];
+  galleryItems: GalleryItem[];
+  homeSports: SportType[];
+  scheduleAvailable: boolean;
 }) {
   const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
-  const hasScheduleUrl = hasResolvedUrl(schoolConfig.scheduleUrl);
+  const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
+  const hasScheduleUrl = scheduleAvailable;
   const hasMainSiteUrl = hasResolvedUrl(schoolConfig.mainSiteUrl);
-  const hasSponsorUrl = hasResolvedUrl(schoolConfig.sponsorUrl);
-  const tappableRecentEvents = recentEvents.filter((item) => hasResolvedUrl(item.link));
-  const tappableUpcomingEvents = upcomingEvents.filter((item) =>
-    hasResolvedUrl(item.link)
-  );
+  const hasSchoolLogo = hasResolvedUrl(schoolConfig.logoUrl);
+  const visibleRecentEvents = recentEvents;
+  const visibleUpcomingEvents = upcomingEvents;
 
-  const heroItem = newsItems[0];
-  const latestNews = newsItems.slice(0, 4);
+  const storyCarouselItems = newsItems.slice(0, 8);
+  const videoCarouselItems = videoItems.slice(0, 10);
+  const galleryCarouselItems = galleryItems.slice(0, 10);
 
   const isAudioLive = liveStatus.audio;
   const isVideoLive = liveStatus.video;
   const isAnythingLive = isAudioLive || isVideoLive;
 
-  const [bannerIndex, setBannerIndex] = useState(0);
+  const sponsorCarouselRef = useRef<ScrollView | null>(null);
+  const resolvedModules = useMemo(() => getResolvedHomeModules(homeModules), [homeModules]);
+  const hasPresentingSponsorModule = useMemo(
+    () =>
+      resolvedModules.some(
+        (module) => normalizeModuleKey(module.module_key) === 'presenting_sponsor'
+      ),
+    [resolvedModules]
+  );
+  const enabledSponsorPlacements = useMemo(
+    () =>
+      sponsorPlacements.filter((placement) => isRenderableSponsorPlacement(placement)),
+    [sponsorPlacements]
+  );
+  const heroSponsorPlacement = useMemo(() => {
+    const placements = dedupeSponsorPlacements(
+      enabledSponsorPlacements.filter((placement) => {
+        const key = normalizePlacementKey(placement.placement_key);
+        return key === 'hero' || key === 'hero_sponsor';
+      })
+    );
 
-  const banners = [
-    {
-      image: require('./assets/images/banner1.png'),
-      url: 'https://example.com',
-    },
-    {
-      image: require('./assets/images/banner2.png'),
-      url: 'https://example.com',
-    },
-    {
-      image: require('./assets/images/banner3.png'),
-      url: 'https://example.com',
-    },
-  ];
+    return placements[0] ?? null;
+  }, [enabledSponsorPlacements]);
+  const presentingSponsorPlacement = useMemo(() => {
+    const placements = dedupeSponsorPlacements(
+      enabledSponsorPlacements.filter((placement) => {
+        const key = normalizePlacementKey(placement.placement_key);
+        return key === 'presenting_sponsor';
+      })
+    );
+
+    return placements[0] ?? null;
+  }, [enabledSponsorPlacements]);
+  const standardSponsorPlacements = useMemo(
+    () =>
+      dedupeSponsorPlacements(
+        enabledSponsorPlacements.filter((placement) => {
+          const key = normalizePlacementKey(placement.placement_key);
+          return key.startsWith('banner_') || key === 'sponsors';
+        })
+      ),
+    [enabledSponsorPlacements]
+  );
+  const sponsorPlacement = useMemo(
+    () => standardSponsorPlacements[0] ?? null,
+    [standardSponsorPlacements]
+  );
+  const sponsorCardTitle = sponsorPlacement?.sponsor_name?.trim() || 'Sponsor';
+  const sponsorCardLink = sponsorPlacement?.sponsor_link_url?.trim() || '';
+  const hasSponsorCardLink = hasResolvedUrl(sponsorCardLink);
+  const heroSponsorName = heroSponsorPlacement?.sponsor_name?.trim() || '';
+  const heroSponsorLogo = heroSponsorPlacement?.sponsor_logo_url?.trim() || '';
+  const heroSponsorLink = heroSponsorPlacement?.sponsor_link_url?.trim() || '';
+  const hasHeroSponsorLogo = hasResolvedUrl(heroSponsorLogo);
+  const hasHeroSponsorLink = hasResolvedUrl(heroSponsorLink);
+  const presentingSponsorCardPlacement = presentingSponsorPlacement;
+  const showHeroSponsor = Boolean(heroSponsorName) || hasHeroSponsorLogo;
+  const sponsorCarouselPlacements = useMemo(
+    () =>
+      dedupeSponsorPlacements(
+        enabledSponsorPlacements.filter((placement) =>
+          normalizePlacementKey(placement.placement_key).startsWith('carousel_')
+        )
+      ),
+    [enabledSponsorPlacements]
+  );
+  const firstUpcomingEvent = visibleUpcomingEvents[0];
+  const hasPromotionCtaUrl = hasResolvedUrl(promotionCard?.cta_url);
+  const heroActionCount = [
+    hasWatchUrl,
+    hasListenUrl,
+    hasScheduleUrl,
+    hasMainSiteUrl,
+  ].filter(Boolean).length;
+  const heroBrandTitle = getHeroBrandTitle(schoolConfig);
+  const heroBrandSubtitle = getHeroBrandSubtitle(schoolConfig);
 
   useEffect(() => {
+    if (sponsorCarouselPlacements.length < 2) {
+      return;
+    }
+
+    let currentIndex = 0;
+
     const interval = setInterval(() => {
-      setBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 6000);
+      currentIndex = (currentIndex + 1) % sponsorCarouselPlacements.length;
+      sponsorCarouselRef.current?.scrollTo({
+        x: currentIndex * (SPONSOR_CAROUSEL_CARD_WIDTH + SPONSOR_CAROUSEL_CARD_GAP),
+        animated: true,
+      });
+    }, 4500);
 
     return () => clearInterval(interval);
-  }, [banners.length]);
+  }, [sponsorCarouselPlacements.length]);
 
-  let heroEyebrow = 'Game Day Headquarters';
-  let heroTitle = 'The Patriot Sports Network';
+  useEffect(() => {
+    console.log('[AthleticOS] sponsor placement counts:', {
+      all: sponsorPlacements.length,
+      renderable: enabledSponsorPlacements.length,
+      presenting: heroSponsorPlacement ? 1 : 0,
+      sponsors: standardSponsorPlacements.length,
+      carousel: sponsorCarouselPlacements.length,
+    });
+  }, [
+    enabledSponsorPlacements.length,
+    heroSponsorPlacement,
+    sponsorCarouselPlacements.length,
+    sponsorPlacements.length,
+    standardSponsorPlacements.length,
+  ]);
+
+  let heroEyebrow = 'Live Coverage';
+  let heroTitle = 'Live Coverage';
   let heroText =
-    'Watch live, listen live, follow the latest news, and stay on top of every Pike Road team.';
-  let heroCta = 'Open PSN';
+    'Open live video, audio, schedules, and the latest school coverage.';
+  let heroCta = 'Open Coverage';
 
   if (isAudioLive && isVideoLive) {
     heroEyebrow = 'Live Now';
     heroTitle = 'Live Audio + Video';
-    heroText =
-      'Tap to open PSN for the live video stream and live audio coverage.';
+    heroText = 'Open the live coverage hub for video and audio coverage.';
     heroCta = 'Open Live Coverage';
   } else if (isVideoLive) {
     heroEyebrow = 'Live Now';
     heroTitle = 'Live Video';
-    heroText = 'Tap to open PSN and watch the live video stream now.';
+    heroText = 'Open the live coverage hub to watch video now.';
     heroCta = 'Watch Live';
   } else if (isAudioLive) {
     heroEyebrow = 'Live Now';
     heroTitle = 'Live Audio';
-    heroText = 'Tap to open PSN and listen to the live audio broadcast now.';
+    heroText = 'Open the live coverage hub to listen now.';
     heroCta = 'Listen Live';
   }
+
+  const renderStoriesModule = (title: string) => (
+    <React.Fragment key="stories">
+      <OptionalSectionHeader
+        title={title}
+        actionLabel={hasMainSiteUrl ? 'Website' : undefined}
+        onAction={
+          hasMainSiteUrl
+            ? () => onOpenEmbedded('Website', schoolConfig.mainSiteUrl)
+            : undefined
+        }
+      />
+      {newsLoading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={BRAND.primary} />
+        </View>
+      ) : storyCarouselItems.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No news stories found.</Text>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          contentContainerStyle={styles.storyCarouselRow}
+        >
+          {storyCarouselItems.map((item, index) => (
+            <StoryCarouselCard
+              key={`${item.link}-${item.title}-${index}`}
+              item={item}
+              onPress={() => openStoryDetail(item)}
+            />
+          ))}
+        </ScrollView>
+      )}
+    </React.Fragment>
+  );
+
+  const renderVideosModule = (title: string) => {
+    if (videoCarouselItems.length === 0) {
+      return null;
+    }
+
+    return (
+      <React.Fragment key="videos">
+        <OptionalSectionHeader title={title} />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          contentContainerStyle={styles.videoCarouselRow}
+        >
+          {videoCarouselItems.map((item, index) => (
+            <VideoCarouselCard
+              key={`${item.id}-${index}`}
+              item={item}
+              onPress={() => {
+                Linking.openURL(item.link).catch((error) => {
+                  console.log('Video open error:', error);
+                });
+              }}
+            />
+          ))}
+        </ScrollView>
+      </React.Fragment>
+    );
+  };
+
+  const renderGalleriesModule = (title: string) => {
+    if (galleryCarouselItems.length === 0) {
+      return null;
+    }
+
+    return (
+      <React.Fragment key="galleries">
+        <OptionalSectionHeader title={title} />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          contentContainerStyle={styles.galleryCarouselRow}
+        >
+          {galleryCarouselItems.map((item, index) => (
+            <GalleryCarouselCard
+              key={`${item.id}-${index}`}
+              item={item}
+              onPress={() => onOpenEmbedded(item.title, item.link)}
+            />
+          ))}
+        </ScrollView>
+      </React.Fragment>
+    );
+  };
+
+  const renderRecentResultsModule = (title: string) => (
+    <React.Fragment key="recent_results">
+      <OptionalSectionHeader title={title} />
+      {eventsLoading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={BRAND.primary} />
+        </View>
+      ) : visibleRecentEvents.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No recent finals from the last 7 days.</Text>
+          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.eventsRow}
+        >
+          {visibleRecentEvents.map((item) => (
+            <EventCard
+              key={item.id}
+              item={item}
+              teamName={appDisplayName}
+              showTime={false}
+              onPress={() =>
+                hasResolvedUrl(item.link)
+                  ? onOpenEmbedded(item.title, item.link)
+                  : onOpenSchedule()
+              }
+            />
+          ))}
+        </ScrollView>
+      )}
+    </React.Fragment>
+  );
+
+  const renderUpcomingGamesModule = (title: string) => (
+    <React.Fragment key="upcoming_games">
+      <OptionalSectionHeader
+        title={title}
+        actionLabel={hasScheduleUrl ? 'Schedule' : undefined}
+        onAction={hasScheduleUrl ? onOpenSchedule : undefined}
+      />
+      {eventsLoading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={BRAND.primary} />
+        </View>
+      ) : visibleUpcomingEvents.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No upcoming events in the next 7 days.</Text>
+          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.eventsRow}
+        >
+          {visibleUpcomingEvents.slice(0, 10).map((item) => (
+            <EventCard
+              key={item.id}
+              item={item}
+              teamName={appDisplayName}
+              onPress={() =>
+                hasResolvedUrl(item.link)
+                  ? onOpenEmbedded(item.title, item.link)
+                  : onOpenSchedule()
+              }
+            />
+          ))}
+        </ScrollView>
+      )}
+    </React.Fragment>
+  );
+
+  const renderNextGameModule = (title: string) => (
+    <React.Fragment key="next_game">
+      <OptionalSectionHeader title={title} />
+      {eventsLoading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={BRAND.primary} />
+        </View>
+      ) : firstUpcomingEvent ? (
+        <View style={styles.newsList}>
+          <EventCard
+            item={firstUpcomingEvent}
+            teamName={appDisplayName}
+            onPress={() =>
+              hasResolvedUrl(firstUpcomingEvent.link)
+                ? onOpenEmbedded(firstUpcomingEvent.title, firstUpcomingEvent.link)
+                : onOpenSchedule()
+            }
+          />
+        </View>
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No upcoming games scheduled.</Text>
+        </View>
+      )}
+    </React.Fragment>
+  );
+
+  const renderAthleteOfWeekModule = (title: string) => (
+    athleteOfWeek?.athleteName?.trim() ? (
+      <React.Fragment key="athlete_of_week">
+        <OptionalSectionHeader title={title} />
+        <AthleteOfWeekCard item={athleteOfWeek} />
+      </React.Fragment>
+    ) : null
+  );
+
+  const renderSponsorsModule = (title: string) => {
+    if (!sponsorPlacement) {
+      return null;
+    }
+
+    const card = (
+      <>
+        <View style={styles.sponsorTextWrap}>
+          <Text style={styles.sponsorEyebrow}>Presented by</Text>
+          <Text style={styles.sponsorTitle}>{sponsorCardTitle}</Text>
+          <Text style={styles.sponsorText}>
+            Premium sponsor placement for the AthleticOS app experience.
+          </Text>
+        </View>
+
+        {sponsorPlacement?.sponsor_logo_url ? (
+          <Image
+            source={{ uri: sponsorPlacement.sponsor_logo_url }}
+            style={styles.sponsorLogo}
+            resizeMode="contain"
+          />
+        ) : null}
+      </>
+    );
+
+    return (
+      <React.Fragment key="sponsors">
+        <OptionalSectionHeader title={title} />
+        {hasSponsorCardLink ? (
+          <Pressable
+            style={styles.sponsorCard}
+            onPress={() => onOpenEmbedded(sponsorCardTitle, sponsorCardLink)}
+          >
+            {card}
+          </Pressable>
+        ) : (
+          <View style={styles.sponsorCard}>{card}</View>
+        )}
+      </React.Fragment>
+    );
+  };
+
+  const renderPresentingSponsorModule = (title: string) => {
+    if (!hasPresentingSponsorModule || !presentingSponsorCardPlacement) {
+      return null;
+    }
+
+    const presentingTitle = presentingSponsorCardPlacement.sponsor_name?.trim() || title;
+    const presentingLink = presentingSponsorCardPlacement.sponsor_link_url?.trim() || '';
+    const hasPresentingLink = hasResolvedUrl(presentingLink);
+
+    const card = (
+      <>
+        <View style={styles.sponsorTextWrap}>
+          <Text style={styles.sponsorEyebrow}>{title}</Text>
+          <Text style={styles.sponsorTitle}>{presentingTitle}</Text>
+          <Text style={styles.sponsorText}>
+            Official presenting sponsor for the AthleticOS app experience.
+          </Text>
+        </View>
+
+        {presentingSponsorCardPlacement.sponsor_logo_url ? (
+          <Image
+            source={{ uri: presentingSponsorCardPlacement.sponsor_logo_url }}
+            style={styles.sponsorLogo}
+            resizeMode="contain"
+          />
+        ) : null}
+      </>
+    );
+
+    return (
+      <React.Fragment key="presenting_sponsor">
+        {hasPresentingLink ? (
+          <Pressable
+            style={styles.sponsorCard}
+            onPress={() => onOpenEmbedded(presentingTitle, presentingLink)}
+          >
+            {card}
+          </Pressable>
+        ) : (
+          <View style={styles.sponsorCard}>{card}</View>
+        )}
+      </React.Fragment>
+    );
+  };
+
+  const renderSponsorCarouselModule = (title: string) => {
+    if (sponsorCarouselPlacements.length === 0) {
+      return null;
+    }
+
+    return (
+      <React.Fragment key="sponsor_carousel">
+        <OptionalSectionHeader
+          title={title}
+          containerStyle={styles.sectionHeaderTightTop}
+        />
+        <ScrollView
+          ref={sponsorCarouselRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          contentContainerStyle={styles.sponsorCarouselRow}
+          snapToInterval={SPONSOR_CAROUSEL_CARD_WIDTH + SPONSOR_CAROUSEL_CARD_GAP}
+          snapToAlignment="start"
+        >
+          {sponsorCarouselPlacements.map((placement, index) => {
+            const sponsorName = placement.sponsor_name?.trim() || '';
+            const sponsorLink = placement.sponsor_link_url?.trim() || '';
+            const hasSponsorLink = hasResolvedUrl(sponsorLink);
+            const sponsorLogo = placement.sponsor_logo_url?.trim() || '';
+            const hasSponsorLogo = hasResolvedUrl(sponsorLogo);
+
+            if (!hasSponsorLogo && !sponsorName) {
+              return null;
+            }
+
+            const card = (
+              <View style={styles.sponsorCarouselCardContent}>
+                {hasSponsorLogo ? (
+                  <View style={styles.sponsorCarouselLogoWrap}>
+                    <Image
+                      source={{ uri: sponsorLogo }}
+                      style={styles.sponsorCarouselLogo}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : (
+                  <Text style={styles.sponsorCarouselName} numberOfLines={2}>
+                    {sponsorName}
+                  </Text>
+                )}
+              </View>
+            );
+
+            return hasSponsorLink ? (
+              <Pressable
+                key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
+                style={styles.sponsorCarouselCard}
+                onPress={() => onOpenEmbedded(sponsorName, sponsorLink)}
+              >
+                {card}
+              </Pressable>
+            ) : (
+              <View
+                key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
+                style={styles.sponsorCarouselCard}
+              >
+                {card}
+              </View>
+            );
+          })}
+        </ScrollView>
+      </React.Fragment>
+    );
+  };
+
+  const renderPromotionModule = (title: string) => {
+    if (!promotionCard || promotionCard.is_active === false) {
+      return null;
+    }
+
+    return (
+      <React.Fragment key="promotion">
+        <OptionalSectionHeader title={title} />
+        <View style={styles.promotionModuleBottomSpacing}>
+          <PromotionCard
+            promotion={promotionCard}
+            onPress={
+              hasPromotionCtaUrl
+                ? () =>
+                    onOpenEmbedded(
+                      promotionCard.cta_text?.trim() || promotionCard.title?.trim() || title,
+                      promotionCard.cta_url as string
+                    )
+                : undefined
+            }
+          />
+        </View>
+      </React.Fragment>
+    );
+  };
+
+  const renderHomeModule = (module: AthleticOSAppHomeModule) => {
+    const title = module.label?.trim() || '';
+    const moduleKey = normalizeModuleKey(module.module_key);
+
+    switch (moduleKey) {
+      case 'stories':
+        return renderStoriesModule(title);
+      case 'videos':
+      case 'social_carousel':
+        return renderVideosModule(title);
+      case 'galleries':
+        return renderGalleriesModule(title);
+      case 'recent_results':
+        return renderRecentResultsModule(title);
+      case 'upcoming_games':
+        return renderUpcomingGamesModule(title);
+      case 'next_game':
+        return renderNextGameModule(title);
+      case 'athlete_of_week':
+      case 'athlete_of_the_week':
+        return renderAthleteOfWeekModule(title);
+      case 'promotion':
+        return renderPromotionModule(title);
+      case 'presenting_sponsor':
+        return renderPresentingSponsorModule(title);
+      case 'sponsor_carousel':
+        return renderSponsorCarouselModule(title);
+      case 'sponsors':
+        return renderSponsorsModule(title);
+      default:
+        return null;
+    }
+  };
 
   return (
     <ScrollView
@@ -1148,44 +2534,86 @@ function HomeScreen({
       }
     >
       <LinearGradient
-        colors={[BRAND.red, '#141418', BRAND.primaryDark]}
+        colors={['#D3183B', '#10131D', '#102754']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.homeHeader}
       >
-        <View style={styles.headerLeft}>
-          <View style={styles.teamLogoBox}>
-            <Image
-              source={require('./assets/images/school-logo.png')}
-              style={styles.headerTeamLogo}
-              resizeMode="contain"
-            />
+        <View style={styles.heroBackdropGlow} />
+        <View style={styles.headerTopRow}>
+          <View style={styles.headerLeft}>
+            {hasSchoolLogo ? (
+              <View style={styles.teamLogoBox}>
+                <Image
+                  source={{ uri: schoolConfig.logoUrl }}
+                  style={styles.headerTeamLogo}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : null}
+
+            <View style={styles.headerTitleWrap}>
+              <Text style={styles.appTitle} numberOfLines={1} adjustsFontSizeToFit>
+                {heroBrandTitle}
+              </Text>
+              <Text style={styles.appSubtitle} numberOfLines={1}>
+                {heroBrandSubtitle}
+              </Text>
+              {showHeroSponsor && heroSponsorName ? (
+                <Text style={styles.heroSponsorInlineText} numberOfLines={1}>
+                  Presented by {heroSponsorName}
+                </Text>
+              ) : null}
+            </View>
           </View>
 
-          <View style={styles.headerTitleWrap}>
-            <Text style={styles.appTitle} numberOfLines={1} adjustsFontSizeToFit>
-              Pike Road Athletics
-            </Text>
-            <Text style={styles.appSubtitle} numberOfLines={1}>
-              Home of the Patriots
-            </Text>
-          </View>
+          {showHeroSponsor && hasHeroSponsorLogo ? (
+            hasHeroSponsorLink ? (
+              <Pressable
+                style={styles.heroSponsorLogoWrap}
+                onPress={() =>
+                  onOpenEmbedded(heroSponsorName || 'Sponsor', heroSponsorLink)
+                }
+              >
+                <Image
+                  source={{ uri: heroSponsorLogo }}
+                  style={styles.heroSponsorLogo}
+                  resizeMode="contain"
+                />
+              </Pressable>
+            ) : (
+              <View style={styles.heroSponsorLogoWrap}>
+                <Image
+                  source={{ uri: heroSponsorLogo }}
+                  style={styles.heroSponsorLogo}
+                  resizeMode="contain"
+                />
+              </View>
+            )
+          ) : null}
         </View>
 
-        <View style={styles.heroButtonRow}>
+        <View
+          style={[
+            styles.heroButtonRow,
+            heroActionCount >= 4 ? styles.heroButtonRowCompact : null,
+          ]}
+        >
           {hasWatchUrl ? (
             <TopIcon
               label="Watch"
               icon="videocam"
-              onPress={() => onOpenEmbedded('Watch Live', schoolConfig.watchUrl)}
+              onPress={() => onOpenExternal(schoolConfig.watchUrl)}
             />
           ) : null}
-          <TopIcon label="Listen" icon="headset" onPress={onToggleAudio} />
+          {hasListenUrl ? (
+            <TopIcon label="Listen" icon="headset" onPress={onToggleAudio} />
+          ) : null}
           {hasScheduleUrl ? (
             <TopIcon
               label="Schedule"
               icon="calendar"
-              onPress={() => onOpenEmbedded('Full Schedule', schoolConfig.scheduleUrl)}
+              onPress={onOpenSchedule}
             />
           ) : null}
           {hasMainSiteUrl ? (
@@ -1204,7 +2632,7 @@ function HomeScreen({
           isAnythingLive ? styles.liveNowCardLive : null,
           pressed ? { opacity: 0.88, transform: [{ scale: 0.985 }] } : null,
         ]}
-        onPress={onGoToAsn}
+        onPress={onGoToMedia}
       >
         <View style={styles.liveNowLeft}>
           <Text style={styles.liveNowEyebrow}>{heroEyebrow}</Text>
@@ -1252,19 +2680,6 @@ function HomeScreen({
         </View>
       </Pressable>
 
-      <Pressable
-  style={styles.bannerWrap}
-  onPress={() =>
-    onOpenEmbedded('Sponsor', banners[bannerIndex].url)
-  }
->
-<Image
-    source={banners[bannerIndex].image}
-    style={styles.bannerImage}
-    resizeMode="contain"
-  />
-</Pressable>
-
       {showNotificationPrompt && !notificationsEnabled && (
         <View style={styles.notificationSignupCard}>
           <View style={styles.notificationTextWrap}>
@@ -1272,7 +2687,7 @@ function HomeScreen({
               Get live broadcast + final score alerts
             </Text>
             <Text style={styles.notificationSignupText}>
-              Be the first to know when the Patriots are live and when finals go official.
+              Be the first to know when your teams are live and when finals go official.
             </Text>
           </View>
 
@@ -1294,160 +2709,37 @@ function HomeScreen({
         </View>
       )}
 
-      <SectionHeader title="Featured Story" />
-      {newsLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
-        </View>
-      ) : heroItem ? (
-        <NewsCard
-          item={heroItem}
-          featured
-          onPress={() => onOpenEmbedded(heroItem.title, heroItem.link)}
-        />
-      ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No featured story found.</Text>
-        </View>
-      )}
-
-      <SectionHeader title="Recent Finals" />
-      {eventsLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
-        </View>
-      ) : tappableRecentEvents.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No recent finals from the last 7 days.</Text>
-          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.eventsRow}
-        >
-          {tappableRecentEvents.map((item) => (
-            <EventCard
-              key={item.id}
-              item={item}
-              showTime={false}
-              onPress={() => onOpenEmbedded(item.title, item.link)}
-            />
-          ))}
-        </ScrollView>
-      )}
-
-      <SectionHeader
-        title="Upcoming Games"
-        actionLabel={hasScheduleUrl ? 'Full Schedule' : undefined}
-        onAction={
-          hasScheduleUrl
-            ? () => onOpenEmbedded('Full Schedule', schoolConfig.scheduleUrl)
-            : undefined
-        }
-      />
-      {eventsLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
-        </View>
-      ) : tappableUpcomingEvents.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No upcoming events in the next 7 days.</Text>
-          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.eventsRow}
-        >
-          {tappableUpcomingEvents.slice(0, 10).map((item) => (
-            <EventCard
-              key={item.id}
-              item={item}
-              onPress={() => onOpenEmbedded(item.title, item.link)}
-            />
-          ))}
-        </ScrollView>
-      )}
-
-      <SectionHeader
-        title="Latest News"
-        actionLabel={hasMainSiteUrl ? 'Main Site' : undefined}
-        onAction={
-          hasMainSiteUrl
-            ? () => onOpenEmbedded('Pike Road Athletics', schoolConfig.mainSiteUrl)
-            : undefined
-        }
-      />
-      {newsLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
-        </View>
-      ) : latestNews.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No news stories found.</Text>
-        </View>
-      ) : (
-        <View style={styles.newsList}>
-          {latestNews.map((item) => (
-            <NewsCard
-              key={`${item.link}-${item.title}`}
-              item={item}
-              onPress={() => onOpenEmbedded(item.title, item.link)}
-            />
-          ))}
-        </View>
-      )}
-
-      <SectionHeader title="All" />
-      <View style={styles.teamsGrid}>
-        {SPORTS.map((sport) => (
-          <TeamTile
-            key={sport.key}
-            sport={sport}
-            onPress={() => onOpenSport(sport)}
-          />
-        ))}
-      </View>
-
-      {hasSponsorUrl ? (
-        <Pressable
-          style={styles.sponsorCard}
-          onPress={() => onOpenEmbedded('Sponsor', schoolConfig.sponsorUrl)}
-        >
-          <View style={styles.sponsorTextWrap}>
-            <Text style={styles.sponsorEyebrow}>Presented by</Text>
-            <Text style={styles.sponsorTitle}>Your Sponsor Here</Text>
-            <Text style={styles.sponsorText}>
-              Premium sponsor placement for the Patriot Sports Network app.
-            </Text>
-          </View>
-
-          <Image
-            source={require('./assets/images/sponsor-logo.png')}
-            style={styles.sponsorLogo}
-            resizeMode="contain"
-          />
-        </Pressable>
-      ) : null}
+      {resolvedModules.map((module) => renderHomeModule(module))}
     </ScrollView>
   );
 }
 
 function TeamsScreen({
   onOpenSport,
+  schoolDisplayName,
+  themeMode,
 }: {
   onOpenSport: (sport: SportType) => void;
+  schoolDisplayName?: string;
+  themeMode: 'light' | 'dark';
 }) {
+  const isLightMode = themeMode === 'light';
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <View style={styles.tabHero}>
+    <ScrollView
+      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      contentContainerStyle={[
+        styles.screenContent,
+        isLightMode ? styles.screenContentLight : null,
+      ]}
+    >
+      <View style={[styles.tabHero, isLightMode ? styles.tabHeroLight : null]}>
         <Text style={styles.tabHeroEyebrow}>Teams</Text>
-        <Text style={styles.tabHeroTitle}>Patriot Athletics</Text>
-        <Text style={styles.tabHeroText}>
-          Tap into schedules, rosters, news, and team pages for Pike Road Athletics.
+        <Text style={[styles.tabHeroTitle, isLightMode ? styles.textPrimaryLight : null]}>
+          {schoolDisplayName || 'Athletics'}
+        </Text>
+        <Text style={[styles.tabHeroText, isLightMode ? styles.textSecondaryLight : null]}>
+          Tap into schedules, rosters, news, and team pages.
         </Text>
       </View>
 
@@ -1470,92 +2762,178 @@ function TeamsScreen({
   );
 }
 
-function WatchScreen({
+function MediaScreen({
   onOpenEmbedded,
+  onOpenExternal,
+  onOpenSchedule,
   onToggleAudio,
+  watchUrl,
+  listenUrl,
+  scheduleUrl,
+  mainSiteUrl,
+  displayName,
+  isAudioPlaying,
+  liveStatus,
+  themeMode,
+  scheduleAvailable,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
+  onOpenExternal: (url: string) => void;
+  onOpenSchedule: () => void;
   onToggleAudio: () => void;
+  watchUrl: string;
+  listenUrl: string;
+  scheduleUrl: string;
+  mainSiteUrl: string;
+  displayName?: string;
+  isAudioPlaying: boolean;
+  liveStatus: {
+    audio: boolean;
+    video: boolean;
+  };
+  themeMode: 'light' | 'dark';
+  scheduleAvailable: boolean;
 }) {
+  const isLightMode = themeMode === 'light';
+  const hasWatchUrl = hasResolvedUrl(watchUrl);
+  const hasListenUrl = hasResolvedUrl(listenUrl);
+  const hasScheduleUrl = scheduleAvailable;
+  const hasMainSiteUrl = hasResolvedUrl(mainSiteUrl);
+  const hasActions = hasWatchUrl || hasListenUrl || hasScheduleUrl || hasMainSiteUrl;
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <View style={styles.tabHero}>
+    <ScrollView
+      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      contentContainerStyle={[
+        styles.screenContent,
+        isLightMode ? styles.screenContentLight : null,
+      ]}
+    >
+      <View style={[styles.tabHero, isLightMode ? styles.tabHeroLight : null]}>
         <Text style={styles.tabHeroEyebrow}>Watch + Listen</Text>
-        <Text style={styles.tabHeroTitle}>The Patriot Sports Network</Text>
-        <Text style={styles.tabHeroText}>
-          Jump straight into live coverage, the full website, and the schedule.
+        <Text style={[styles.tabHeroTitle, isLightMode ? styles.textPrimaryLight : null]}>
+          {displayName || 'Media'}
+        </Text>
+        <Text style={[styles.tabHeroText, isLightMode ? styles.textSecondaryLight : null]}>
+          Open live coverage, schedules, and school links when available.
         </Text>
       </View>
 
-      <Pressable
-        style={styles.watchPrimaryCard}
-        onPress={() => onOpenEmbedded('Watch Live', URLS.watch)}
-      >
-        <Ionicons name="videocam" size={28} color={BRAND.white} />
-        <View style={styles.watchCardBody}>
-          <Text style={styles.watchCardTitle}>Watch Live</Text>
-          <Text style={styles.watchCardText}>
-            Open the Pike Road live video page inside the app.
-          </Text>
+      {!hasActions ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No media links are available.</Text>
         </View>
-      </Pressable>
+      ) : null}
 
-      <Pressable style={styles.watchSecondaryCard} onPress={onToggleAudio}>
-        <Ionicons name="headset" size={26} color={BRAND.white} />
-        <View style={styles.watchCardBody}>
-          <Text style={styles.watchCardTitle}>Listen Live</Text>
-          <Text style={styles.watchCardText}>
-            Start the live Patriot Sports Network audio stream.
-          </Text>
-        </View>
-      </Pressable>
+      {hasWatchUrl ? (
+        <Pressable
+          style={styles.watchPrimaryCard}
+          onPress={() => onOpenExternal(watchUrl)}
+        >
+          <Ionicons name="videocam" size={28} color={BRAND.white} />
+          <View style={styles.watchCardBody}>
+            <Text style={styles.watchCardTitle}>
+              {liveStatus.video ? 'Watch Live Now' : 'Watch Live'}
+            </Text>
+            <Text style={styles.watchCardText}>Open the live video stream.</Text>
+          </View>
+        </Pressable>
+      ) : null}
 
-      <Pressable
-        style={styles.watchSecondaryCard}
-        onPress={() => onOpenEmbedded('Schedule', URLS.schedule)}
-      >
-        <Ionicons name="calendar" size={26} color={BRAND.white} />
-        <View style={styles.watchCardBody}>
-          <Text style={styles.watchCardTitle}>View Schedule</Text>
-          <Text style={styles.watchCardText}>
-            See the full Pike Road Athletics composite schedule.
-          </Text>
-        </View>
-      </Pressable>
+      {hasListenUrl ? (
+        <Pressable style={styles.watchSecondaryCard} onPress={onToggleAudio}>
+          <Ionicons
+            name={isAudioPlaying ? 'pause-circle' : 'headset'}
+            size={26}
+            color={BRAND.white}
+          />
+          <View style={styles.watchCardBody}>
+            <Text style={styles.watchCardTitle}>
+              {isAudioPlaying
+                ? 'Pause Live Audio'
+                : liveStatus.audio
+                ? 'Listen Live Now'
+                : 'Listen Live'}
+            </Text>
+            <Text style={styles.watchCardText}>Start or pause the live audio stream.</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
+      {hasScheduleUrl ? (
+        <Pressable style={styles.watchSecondaryCard} onPress={onOpenSchedule}>
+          <Ionicons name="calendar" size={26} color={BRAND.white} />
+          <View style={styles.watchCardBody}>
+            <Text style={styles.watchCardTitle}>View Schedule</Text>
+            <Text style={styles.watchCardText}>Open the in-app school schedule.</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
+      {hasMainSiteUrl ? (
+        <Pressable
+          style={styles.watchSecondaryCard}
+          onPress={() => onOpenEmbedded('Website', mainSiteUrl)}
+        >
+          <Ionicons name="globe-outline" size={26} color={BRAND.white} />
+          <View style={styles.watchCardBody}>
+            <Text style={styles.watchCardTitle}>Open Website</Text>
+            <Text style={styles.watchCardText}>Open the school site.</Text>
+          </View>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
 
 function ScheduleScreen({
-  upcomingEvents,
+  scheduleEvents,
   eventsLoading,
   onOpenEmbedded,
+  onBack,
+  schoolDisplayName,
+  schoolLogoUrl,
 }: {
-  upcomingEvents: EventItem[];
+  scheduleEvents: EventItem[];
   eventsLoading: boolean;
   onOpenEmbedded: (title: string, url: string) => void;
+  onBack: () => void;
+  schoolDisplayName?: string;
+  schoolLogoUrl?: string;
 }) {
   const normalized = useMemo(
-    () => upcomingEvents.slice(0, 40).map(normalizeScheduleItem),
-    [upcomingEvents]
+    () => scheduleEvents.slice(0, 40).map(normalizeScheduleItem),
+    [scheduleEvents]
   );
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.screenContent}
+    >
       <LinearGradient
         colors={[BRAND.primaryDark, BRAND.black]}
         style={styles.scheduleHero}
       >
-        <View style={styles.scheduleHeroLogoWrap}>
-          <Image
-            source={require('./assets/images/school-logo.png')}
-            style={styles.scheduleHeroLogo}
-            resizeMode="contain"
-          />
-        </View>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+
+        {hasResolvedUrl(schoolLogoUrl) ? (
+          <View style={styles.scheduleHeroLogoWrap}>
+            <Image
+              source={{ uri: schoolLogoUrl }}
+              style={styles.scheduleHeroLogo}
+              resizeMode="contain"
+            />
+          </View>
+        ) : null}
 
         <Text style={styles.scheduleHeroTitle}>Schedule</Text>
-        <Text style={styles.scheduleHeroSub}>Pike Road Athletics</Text>
+        {schoolDisplayName ? (
+          <Text style={styles.scheduleHeroSub}>{schoolDisplayName}</Text>
+        ) : null}
       </LinearGradient>
 
       {eventsLoading ? (
@@ -1565,7 +2943,7 @@ function ScheduleScreen({
         </View>
       ) : normalized.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No upcoming events in the next 10 days.</Text>
+          <Text style={styles.emptyTitle}>No schedule events are available.</Text>
           <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
         </View>
       ) : (
@@ -1573,7 +2951,11 @@ function ScheduleScreen({
           <Pressable
             key={item.id}
             style={styles.scheduleCard}
-            onPress={() => onOpenEmbedded(item.title, item.link)}
+            onPress={() => {
+              if (hasResolvedUrl(item.link)) {
+                onOpenEmbedded(item.title, item.link);
+              }
+            }}
           >
             <View style={styles.scheduleCardLeft}>
               <View
@@ -1603,12 +2985,22 @@ function ScheduleScreen({
 
 function SportDetailScreen({
   sport,
+  schoolId,
+  schoolSlug,
+  schoolConfig,
   onBack,
   onOpenEmbedded,
   followedTeams,
   onToggleFollowTeam,
 }: {
   sport: SportType;
+  schoolId: string | number | null;
+  schoolSlug: string;
+  schoolConfig: {
+    displayName: string;
+    logoUrl: string;
+    splashLogoUrl?: string;
+  };
   onBack: () => void;
   onOpenEmbedded: (title: string, url: string) => void;
   followedTeams: string[];
@@ -1641,17 +3033,38 @@ function SportDetailScreen({
       try {
         setLoading(true);
 
+        if (!schoolId) {
+          console.log(`No school found for slug "${schoolSlug}"`);
+          setSportConfig({
+            key: sport.key,
+            name: sport.shortLabel || sport.label,
+            slug: sport.key,
+            mainUrl: '',
+            scheduleUrl: '',
+            rosterUrl: '',
+            recruitingUrl: '',
+          });
+          setNewsItems([]);
+          setEvents([]);
+          return;
+        }
+
         const [nextSportConfig, teamNews, teamSchedule] = await Promise.all([
-          getSportConfigBySchoolSlugAndKey(SCHOOL_SLUG, sport.key),
-          getSportStoriesBySchoolSlug(SCHOOL_SLUG, sport.key),
-          getSportScheduleEventsBySchoolSlug(SCHOOL_SLUG, sport.key),
+          getSportConfigBySchoolIdAndKey(schoolId, sport.key, schoolSlug),
+          getSportStoriesBySchoolId(schoolId, sport.key),
+          getSportScheduleEventsBySchoolId(schoolId, sport.key),
         ]);
 
         if (!mounted) return;
 
         setSportConfig(nextSportConfig);
         const mappedNews = teamNews
-          .map((story) => mapStoryToHomeNewsItem(story, nextSportConfig.mainUrl))
+          .map((story) =>
+            mapStoryToHomeNewsItem(
+              story,
+              nextSportConfig.mainUrl || nextSportConfig.scheduleUrl
+            )
+          )
           .filter((item) => item.title && item.link)
           .map((item) => ({
             ...item,
@@ -1700,10 +3113,13 @@ function SportDetailScreen({
     return () => {
       mounted = false;
     };
-  }, [sport]);
+  }, [schoolId, schoolSlug, sport]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.screenContent}
+    >
       <LinearGradient
         colors={[BRAND.black, BRAND.primaryDark]}
         style={styles.sportHeader}
@@ -1718,14 +3134,18 @@ function SportDetailScreen({
             {sport.shortLabel || sport.label}
           </Text>
 
-          <Image
-            source={require('./assets/images/team-sponsor.png')}
-            style={styles.teamPageSponsorLogo}
-            resizeMode="contain"
-          />
+          {hasResolvedUrl(schoolConfig.logoUrl) ? (
+            <Image
+              source={{ uri: schoolConfig.logoUrl }}
+              style={styles.teamPageSponsorLogo}
+              resizeMode="contain"
+            />
+          ) : null}
         </View>
 
-        <Text style={styles.sportHeaderSub}>Pike Road Athletics</Text>
+        {schoolConfig.displayName ? (
+          <Text style={styles.sportHeaderSub}>{schoolConfig.displayName}</Text>
+        ) : null}
 
         <Pressable
           style={[
@@ -1853,7 +3273,7 @@ function SportDetailScreen({
             <NewsCard
               key={`${item.link}-${item.title}`}
               item={item}
-              onPress={() => onOpenEmbedded(item.title, item.link)}
+              onPress={() => openStoryDetail(item)}
             />
           ))}
         </View>
@@ -1928,159 +3348,26 @@ function EmbeddedWebView({
   );
 }
 
-function ASNScreen({
-  onOpenEmbedded,
-  onOpenExternal,
-  onToggleAsnAudio,
-  asnAudioPlaying,
-  liveStatus,
-}: {
-  onOpenEmbedded: (title: string, url: string) => void;
-  onOpenExternal: (url: string) => void;
-  onToggleAsnAudio: () => void;
-  asnAudioPlaying: boolean;
-  liveStatus: {
-    audio: boolean;
-    video: boolean;
-  };
-}) {
-  const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadEpisodes = async () => {
-      try {
-        setLoading(true);
-        const feedItems = await fetchPodcastFeed(CASTOS_FEED_URL);
-        if (!mounted) return;
-        setEpisodes(feedItems.slice(0, 8));
-      } catch (error) {
-        console.log('Podcast load error:', error);
-        if (!mounted) return;
-        setEpisodes([]);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadEpisodes();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-  const isAudioLive = liveStatus.audio;
-const isVideoLive = liveStatus.video;
-
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <LinearGradient
-        colors={[BRAND.black, BRAND.primaryDark]}
-        style={styles.asnHero}
-      >
-        <Image
-          source={require('./assets/images/network-logo.png')}
-          style={styles.asnHeroLogo}
-          resizeMode="contain"
-        />
-        <Text style={styles.asnHeroTitle}>Patriot Sports Network</Text>
-        <Text style={styles.asnHeroText}>
-          Watch live, listen live, catch the latest episodes, and stay connected to The Patriot Sports Network.
-        </Text>
-      </LinearGradient>
-
-      <View style={styles.asnActionsWrap}>
-        <Pressable
-          style={styles.asnPrimaryButton}
-          onPress={() => onOpenEmbedded('PSN Watch Live', ASN_CASTR_URL)}
-        >
-          <Ionicons name="videocam" size={22} color={BRAND.white} />
-          <Text style={styles.asnPrimaryButtonText}>
-  {isVideoLive ? 'Watch Live Now' : 'Watch Live'}
-</Text>
-        </Pressable>
-
-        <Pressable style={styles.asnSecondaryButton} onPress={onToggleAsnAudio}>
-          <Ionicons
-            name={asnAudioPlaying ? 'pause-circle' : 'headset'}
-            size={22}
-            color={BRAND.white}
-          />
-          <Text style={styles.asnSecondaryButtonText}>
-  {asnAudioPlaying
-    ? 'Pause Listen Live'
-    : isAudioLive
-      ? 'Listen Live Now'
-      : 'Listen Live'}
-</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.asnSecondaryButton}
-          onPress={() => onOpenExternal(ASN_YOUTUBE_URL)}
-        >
-          <Ionicons name="logo-youtube" size={22} color={BRAND.white} />
-          <Text style={styles.asnSecondaryButtonText}>YouTube Channel</Text>
-        </Pressable>
-      </View>
-
-      <SectionHeader title="Latest Episodes" />
-
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
-        </View>
-      ) : episodes.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No podcast episodes found.</Text>
-          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
-        </View>
-      ) : (
-        <View style={styles.newsList}>
-          {episodes.map((item) => (
-            <Pressable
-              key={`${item.link}-${item.title}`}
-              style={styles.newsCard}
-              onPress={() => onOpenExternal(item.link)}
-            >
-              {item.image ? (
-                <Image source={{ uri: item.image }} style={styles.newsThumb} />
-              ) : (
-                <View style={styles.newsThumbFallback}>
-                  <Ionicons name="mic-outline" size={22} color={BRAND.white} />
-                </View>
-              )}
-
-              <View style={styles.newsCardBody}>
-                <Text style={styles.newsCardTitle} numberOfLines={2}>
-                  {item.title}
-                </Text>
-                <Text style={styles.newsCardMeta}>{item.date || 'Latest Episode'}</Text>
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={BRAND.gray}
-                style={styles.newsChevron}
-              />
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </ScrollView>
-  );
-}
-
 function TicketsScreen({
   onOpenEmbedded,
+  ticketsUrl,
+  themeMode,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
+  ticketsUrl: string;
+  themeMode: 'light' | 'dark';
 }) {
+  const isLightMode = themeMode === 'light';
+  const hasTicketsUrl = hasResolvedUrl(ticketsUrl);
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+    <ScrollView
+      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      contentContainerStyle={[
+        styles.screenContent,
+        isLightMode ? styles.screenContentLight : null,
+      ]}
+    >
       <LinearGradient
         colors={[BRAND.red, BRAND.primaryDark]}
         style={styles.tabHero}
@@ -2088,22 +3375,341 @@ function TicketsScreen({
         <Text style={styles.tabHeroEyebrow}>Tickets</Text>
         <Text style={styles.tabHeroTitle}>Game Tickets</Text>
         <Text style={styles.tabHeroText}>
-          Buy official Pike Road Athletics tickets through GoFan.
+          Open ticketing links when available.
         </Text>
       </LinearGradient>
 
-      <Pressable
-        style={styles.watchPrimaryCard}
-        onPress={() => onOpenEmbedded('Pike Road Tickets', TICKETS_URL)}
-      >
-        <Ionicons name="ticket-outline" size={28} color={BRAND.white} />
-        <View style={styles.watchCardBody}>
-          <Text style={styles.watchCardTitle}>Open Tickets</Text>
-          <Text style={styles.watchCardText}>
-            View and purchase tickets for Pike Road Athletics events.
-          </Text>
+      {hasTicketsUrl ? (
+        <Pressable
+          style={styles.watchPrimaryCard}
+          onPress={() => onOpenEmbedded('Tickets', ticketsUrl)}
+        >
+          <Ionicons name="ticket-outline" size={28} color={BRAND.white} />
+          <View style={styles.watchCardBody}>
+            <Text style={styles.watchCardTitle}>Open Tickets</Text>
+            <Text style={styles.watchCardText}>
+              View and purchase tickets.
+            </Text>
+          </View>
+        </Pressable>
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No ticket link is available.</Text>
         </View>
-      </Pressable>
+      )}
+    </ScrollView>
+  );
+}
+
+function MoreListRow({
+  title,
+  subtitle,
+  onPress,
+  trailing,
+}: {
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <Pressable
+      style={styles.teamListCard}
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      <View style={styles.moreRowTextWrap}>
+        <Text style={styles.teamListTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.teamListSub}>{subtitle}</Text> : null}
+      </View>
+      {trailing ?? <Ionicons name="chevron-forward" size={22} color={BRAND.gray} />}
+    </Pressable>
+  );
+}
+
+function MoreScreen({
+  schoolConfig,
+  followedTeamsCount,
+  themeMode,
+  onOpenManageTeams,
+  onOpenSettings,
+  onOpenSavedEvents,
+  onOpenEmbedded,
+}: {
+  schoolConfig: {
+    watchUrl: string;
+    scheduleUrl: string;
+    ticketsUrl: string;
+    shopUrl: string;
+  };
+  followedTeamsCount: number;
+  themeMode: 'light' | 'dark';
+  onOpenManageTeams: () => void;
+  onOpenSettings: () => void;
+  onOpenSavedEvents: () => void;
+  onOpenEmbedded: (title: string, url: string) => void;
+}) {
+  const isLightMode = themeMode === 'light';
+  const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
+  const hasScheduleUrl = hasResolvedUrl(schoolConfig.scheduleUrl);
+  const hasTicketsUrl = hasResolvedUrl(schoolConfig.ticketsUrl);
+  const hasShopUrl = hasResolvedUrl(schoolConfig.shopUrl);
+
+  return (
+    <ScrollView
+      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      contentContainerStyle={[
+        styles.screenContent,
+        isLightMode ? styles.screenContentLight : null,
+      ]}
+    >
+      <View style={[styles.tabHero, isLightMode ? styles.tabHeroLight : null]}>
+        <Text style={styles.tabHeroEyebrow}>More</Text>
+        <Text style={[styles.tabHeroTitle, isLightMode ? styles.textPrimaryLight : null]}>
+          More
+        </Text>
+        <Text style={[styles.tabHeroText, isLightMode ? styles.textSecondaryLight : null]}>
+          Manage teams, settings, saved items, and school links.
+        </Text>
+      </View>
+
+      <View style={styles.teamsList}>
+        <MoreListRow
+          title="My Teams"
+          subtitle={
+            followedTeamsCount > 0
+              ? `${followedTeamsCount} followed`
+              : 'Manage followed teams'
+          }
+          onPress={onOpenManageTeams}
+        />
+        <MoreListRow
+          title="Settings"
+          subtitle="Notifications, playback, timezone, theme"
+          onPress={onOpenSettings}
+        />
+        <MoreListRow
+          title="My Saved Events"
+          subtitle="Saved events will appear here"
+          onPress={onOpenSavedEvents}
+        />
+        {hasWatchUrl ? (
+          <MoreListRow
+            title="Video"
+            subtitle="Open live video"
+            onPress={() => onOpenEmbedded('Video', schoolConfig.watchUrl)}
+          />
+        ) : null}
+        {hasScheduleUrl ? (
+          <MoreListRow
+            title="Events"
+            subtitle="Open the schedule"
+            onPress={() => onOpenEmbedded('Events', schoolConfig.scheduleUrl)}
+          />
+        ) : null}
+        {hasTicketsUrl ? (
+          <MoreListRow
+            title="Tickets"
+            subtitle="Open ticketing"
+            onPress={() => onOpenEmbedded('Tickets', schoolConfig.ticketsUrl)}
+          />
+        ) : null}
+        {hasShopUrl ? (
+          <MoreListRow
+            title="Shop"
+            subtitle="Open the team store"
+            onPress={() => onOpenEmbedded('Shop', schoolConfig.shopUrl)}
+          />
+        ) : null}
+      </View>
+    </ScrollView>
+  );
+}
+
+function ManageTeamsScreen({
+  onBack,
+  sports,
+  followedTeams,
+  onToggleFollowTeam,
+  themeMode,
+}: {
+  onBack: () => void;
+  sports: FollowableSport[];
+  followedTeams: string[];
+  onToggleFollowTeam: (teamKey: string) => void;
+  themeMode: 'light' | 'dark';
+}) {
+  const isLightMode = themeMode === 'light';
+  return (
+    <ScrollView
+      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      contentContainerStyle={[
+        styles.screenContent,
+        isLightMode ? styles.screenContentLight : null,
+      ]}
+    >
+      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={styles.sportHeaderTitle}>My Teams</Text>
+        <Text style={styles.sportHeaderSub}>Manage followed teams for notifications.</Text>
+      </LinearGradient>
+
+      {sports.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No teams are available.</Text>
+        </View>
+      ) : (
+        <View style={styles.teamsList}>
+          {sports.map((sport) => {
+            const isFollowing = followedTeams.includes(sport.id);
+            return (
+              <View key={sport.id} style={styles.teamListCard}>
+                <View style={styles.moreRowTextWrap}>
+                  <Text style={styles.teamListTitle}>{sport.label}</Text>
+                  <Text style={styles.teamListSub}>
+                    {isFollowing ? 'Following' : 'Not following'}
+                  </Text>
+                </View>
+                <Pressable
+                  style={[
+                    styles.inlineFollowButton,
+                    isFollowing ? styles.inlineFollowButtonActive : null,
+                  ]}
+                  onPress={() => onToggleFollowTeam(sport.id)}
+                >
+                  <Text style={styles.inlineFollowButtonText}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function SettingsScreen({
+  onBack,
+  notificationsEnabled,
+  onToggleNotifications,
+  autoPlayVideo,
+  onToggleAutoPlayVideo,
+  useLocalTimezone,
+  onToggleUseLocalTimezone,
+  themeMode,
+  onToggleThemeMode,
+  onOpenManageTeams,
+}: {
+  onBack: () => void;
+  notificationsEnabled: boolean;
+  onToggleNotifications: () => void;
+  autoPlayVideo: boolean;
+  onToggleAutoPlayVideo: () => void;
+  useLocalTimezone: boolean;
+  onToggleUseLocalTimezone: () => void;
+  themeMode: 'light' | 'dark';
+  onToggleThemeMode: () => void;
+  onOpenManageTeams: () => void;
+}) {
+  const isLightMode = themeMode === 'light';
+  return (
+    <ScrollView
+      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      contentContainerStyle={[
+        styles.screenContent,
+        isLightMode ? styles.screenContentLight : null,
+      ]}
+    >
+      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={styles.sportHeaderTitle}>Settings</Text>
+        <Text style={styles.sportHeaderSub}>Manage notifications, playback, and theme.</Text>
+      </LinearGradient>
+
+      <View style={styles.teamsList}>
+        <MoreListRow
+          title="Push Notifications"
+          subtitle={notificationsEnabled ? 'Enabled' : 'Disabled'}
+          onPress={onToggleNotifications}
+          trailing={
+            <Text style={styles.settingsValueText}>
+              {notificationsEnabled ? 'On' : 'Off'}
+            </Text>
+          }
+        />
+        <MoreListRow
+          title="Manage Notifications"
+          subtitle="Choose followed teams"
+          onPress={onOpenManageTeams}
+        />
+        <MoreListRow
+          title="Auto-play Video"
+          subtitle={autoPlayVideo ? 'Enabled' : 'Disabled'}
+          onPress={onToggleAutoPlayVideo}
+          trailing={
+            <Text style={styles.settingsValueText}>
+              {autoPlayVideo ? 'On' : 'Off'}
+            </Text>
+          }
+        />
+        <MoreListRow
+          title="Use Local Timezone"
+          subtitle={useLocalTimezone ? 'Enabled' : 'Disabled'}
+          onPress={onToggleUseLocalTimezone}
+          trailing={
+            <Text style={styles.settingsValueText}>
+              {useLocalTimezone ? 'On' : 'Off'}
+            </Text>
+          }
+        />
+        <MoreListRow
+          title="Theme"
+          subtitle={themeMode === 'light' ? 'Light mode' : 'Dark mode'}
+          onPress={onToggleThemeMode}
+          trailing={
+            <Text style={styles.settingsValueText}>
+              {themeMode === 'light' ? 'Light' : 'Dark'}
+            </Text>
+          }
+        />
+      </View>
+    </ScrollView>
+  );
+}
+
+function SavedEventsScreen({
+  onBack,
+  themeMode,
+}: {
+  onBack: () => void;
+  themeMode: 'light' | 'dark';
+}) {
+  const isLightMode = themeMode === 'light';
+  return (
+    <ScrollView
+      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      contentContainerStyle={styles.screenContent}
+    >
+      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={styles.sportHeaderTitle}>My Saved Events</Text>
+        <Text style={styles.sportHeaderSub}>Saved events will appear here.</Text>
+      </LinearGradient>
+
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyTitle}>No saved events yet.</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -2111,25 +3717,30 @@ function TicketsScreen({
 function BottomNav({
   activeTab,
   onChange,
+  themeMode,
+  centerLogoUrl,
 }: {
   activeTab: TabKey;
   onChange: (tab: TabKey) => void;
+  themeMode: 'light' | 'dark';
+  centerLogoUrl?: string;
 }) {
+  const isLightMode = themeMode === 'light';
+  const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const items: {
     key: TabKey;
     label: string;
     icon?: keyof typeof Ionicons.glyphMap;
-    isAsn?: boolean;
   }[] = [
-    { key: 'home', label: 'Home', icon: 'home' },
+    { key: 'media', label: 'Broadcast', icon: 'radio-outline' },
     { key: 'teams', label: 'Teams', icon: 'people' },
-    { key: 'asn', label: 'ASN', isAsn: true },
+    { key: 'home', label: 'Home', icon: 'home' },
     { key: 'tickets', label: 'Tickets', icon: 'ticket-outline' },
-    { key: 'scs', label: 'PCS Site', icon: 'school-outline' },
+    { key: 'more', label: 'More', icon: 'ellipsis-horizontal' },
   ];
 
   return (
-    <View style={styles.bottomNav}>
+    <View style={[styles.bottomNav, isLightMode ? styles.bottomNavLight : null]}>
       {items.map((item) => {
         const active = activeTab === item.key;
 
@@ -2138,11 +3749,11 @@ function BottomNav({
             key={item.key}
             style={[
               styles.bottomNavItem,
-              item.isAsn ? styles.bottomNavItemAsn : null,
+              item.key === 'home' ? styles.bottomNavItemAsn : null,
             ]}
             onPress={() => onChange(item.key)}
           >
-            {item.isAsn ? (
+            {item.key === 'home' ? (
               <>
                 <View
                   style={[
@@ -2150,11 +3761,19 @@ function BottomNav({
                     active ? styles.asnTabWrapActive : null,
                   ]}
                 >
-                  <Image
-                    source={require('./assets/images/network-logo.png')}
-                    style={styles.asnTabLogo}
-                    resizeMode="contain"
-                  />
+                  {hasCenterLogo ? (
+                    <Image
+                      source={{ uri: centerLogoUrl }}
+                      style={styles.centerNavLogo}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Ionicons
+                      name="radio-outline"
+                      size={18}
+                      color={active ? BRAND.white : BRAND.gray}
+                    />
+                  )}
                 </View>
                 <Text
                   style={[
@@ -2162,7 +3781,7 @@ function BottomNav({
                     active ? styles.bottomNavLabelActive : null,
                   ]}
                 >
-                  PSN
+                  {item.label}
                 </Text>
               </>
             ) : (
@@ -2189,100 +3808,90 @@ function BottomNav({
   );
 }
 
-function LaunchVideo({ onFinish }: { onFinish: () => void }) {
-  return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <Video
-        source={require('./assets/images/launch-sponsor.mp4')}
-        style={{ flex: 1 }}
-        resizeMode="cover"
-        shouldPlay
-        isLooping={false}
-        onPlaybackStatusUpdate={(status) => {
-          if (!status.isLoaded) return;
-          if (status.didJustFinish) {
-            onFinish();
-          }
-        }}
-      />
-    </View>
-  );
-}
-
 export default function App() {
-  const player = useAudioPlayer(STREAM_URL);
+  const schoolSlug = useMemo(() => getConfiguredSchoolSlug(), []);
+  const defaultSchoolConfig = useMemo(
+    () => getDefaultSchoolConfig(schoolSlug),
+    [schoolSlug]
+  );
+  const player = useAudioPlayer(null);
   const playerStatus = useAudioPlayerStatus(player);
-
-  const asnPlayer = useAudioPlayer(ASN_RADIO_URL);
-  const asnPlayerStatus = useAudioPlayerStatus(asnPlayer);
-
-  const SCS_SITE_URL = 'https://www.pikeroadschools.org/';
 
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [screenMode, setScreenMode] = useState<ScreenMode>('tabs');
   const [selectedSport, setSelectedSport] = useState<SportType | null>(null);
+  const [selectedStory, setSelectedStory] = useState<NewsItem | null>(null);
+  const [previousScreenMode, setPreviousScreenMode] = useState<ScreenMode>('tabs');
   const [embeddedTitle, setEmbeddedTitle] = useState('');
   const [embeddedUrl, setEmbeddedUrl] = useState('');
-  useEffect(() => {
-  setAudioModeAsync({
-    playsInSilentMode: true,
-    shouldPlayInBackground: true,
-  }).catch((error) => {
-    console.log('Audio mode setup error:', error);
-  });
 
-  fetchLiveStatus(); // 👈 ADD THIS LINE
-
-}, []);
-useEffect(() => {
-  const interval = setInterval(() => {
-    fetchLiveStatus();
-  }, 30000);
-
-  return () => clearInterval(interval);
-}, []);
-
-  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+const [videoItems, setVideoItems] = useState<VideoItem[]>([]);
+const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
 const [recentEvents, setRecentEvents] = useState<EventItem[]>([]);
 const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([]);
 const [allEvents, setAllEvents] = useState<EventItem[]>([]);
-  const [schoolConfig, setSchoolConfig] = useState(() =>
-    getDefaultSchoolConfig(SCHOOL_SLUG)
+  const [homeModules, setHomeModules] = useState<AthleticOSAppHomeModule[]>([]);
+  const [promotionCard, setPromotionCard] = useState<AthleticOSPromotionCard | null>(
+    null
   );
+  const [athleteOfWeek, setAthleteOfWeek] = useState<AthleticOSAthleteOfTheWeek | null>(
+    null
+  );
+  const [sponsorPlacements, setSponsorPlacements] = useState<
+    AthleticOSAppSponsorPlacement[]
+  >([]);
+  const [homeSports, setHomeSports] = useState<SportType[]>(SPORTS);
+  const [followableSports, setFollowableSports] = useState<FollowableSport[]>([]);
+  const [resolvedSchoolId, setResolvedSchoolId] = useState<string | number | null>(
+    null
+  );
+  const [schoolLookupComplete, setSchoolLookupComplete] = useState(false);
+  const [prerollConfig, setPrerollConfig] = useState<AthleticOSAppPrerollConfig | null>(
+    null
+  );
+  const [prerollDecisionComplete, setPrerollDecisionComplete] = useState(false);
+  const [showPreroll, setShowPreroll] = useState(false);
+  const [schoolConfig, setSchoolConfig] = useState(() => defaultSchoolConfig);
+  const appDisplayName = schoolConfig.displayName.trim() || 'Athletics';
   const [newsLoading, setNewsLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showLaunchVideo, setShowLaunchVideo] = useState(true);
 
- const [expoPushToken, setExpoPushToken] = useState('');
-const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
-const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-const [followedTeams, setFollowedTeams] = useState<string[]>([]);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [followedTeams, setFollowedTeams] = useState<string[]>([]);
+  const [autoPlayVideo, setAutoPlayVideo] = useState(false);
+  const [useLocalTimezone, setUseLocalTimezone] = useState(true);
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('dark');
+  const [audioPlayerVisible, setAudioPlayerVisible] = useState(false);
 
-const [liveStatus, setLiveStatus] = useState({
-  audio: true,
-  video: true,
-});
-const fetchLiveStatus = async () => {
-  const { data, error } = await supabase
-    .from('live_status')
-    .select('*')
-    .eq('id', 1)
-    .single();
-
-  if (data) {
-    setLiveStatus({
-      audio: data.audio_live,
-      video: data.video_live,
-    });
-  }
-};
-
+  const [liveStatus] = useState({
+    audio: false,
+    video: false,
+  });
+  const {
+    token: expoPushToken,
+    isEnabled: pushNotificationsEnabled,
+    enable: enablePushNotifications,
+  } = usePushNotifications(resolvedSchoolId);
 
   const isPlaying = Boolean((playerStatus as any)?.playing);
   const isLoading = Boolean((playerStatus as any)?.loading);
-  const asnAudioPlaying = Boolean((asnPlayerStatus as any)?.playing);
+  const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
+  const hasMainSiteUrl = hasResolvedUrl(schoolConfig.mainSiteUrl);
+
+  useEffect(() => {
+    if (!hasListenUrl) {
+      try {
+        player.pause();
+      } catch {}
+      return;
+    }
+
+    player.replace(schoolConfig.listenUrl);
+  }, [hasListenUrl, player, schoolConfig.listenUrl]);
 
   useEffect(() => {
   setAudioModeAsync({
@@ -2299,29 +3908,259 @@ const fetchLiveStatus = async () => {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function resolveSchool() {
+      try {
+        const nextSchoolId = schoolSlug
+          ? await getSchoolIdFromSlug(schoolSlug)
+          : null;
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!nextSchoolId) {
+          console.log(`No school found for slug "${schoolSlug}"`);
+        }
+
+        console.log('[AthleticOS] schoolSlug:', schoolSlug);
+        console.log('[AthleticOS] schoolId:', nextSchoolId);
+        setResolvedSchoolId(nextSchoolId);
+      } catch (error) {
+        console.log(`School lookup failed for slug "${schoolSlug}":`, error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setResolvedSchoolId(null);
+      } finally {
+        if (mounted) {
+          setSchoolLookupComplete(true);
+        }
+      }
+    }
+
+    setSchoolLookupComplete(false);
+    resolveSchool();
+
+    return () => {
+      mounted = false;
+    };
+  }, [schoolSlug]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fallbackTimer = setTimeout(() => {
+      if (!mounted) {
+        return;
+      }
+
+      setPrerollConfig(null);
+      setShowPreroll(false);
+      setPrerollDecisionComplete(true);
+    }, 4000);
+
+    async function loadPrerollConfig() {
+      if (!schoolLookupComplete) {
+        return;
+      }
+
+      try {
+        if (!resolvedSchoolId) {
+          if (!mounted) {
+            return;
+          }
+
+          setPrerollConfig(null);
+          setShowPreroll(false);
+          setPrerollDecisionComplete(true);
+          return;
+        }
+
+        const nextPrerollConfig = await getAppPrerollConfigBySchoolId(resolvedSchoolId);
+
+        if (!mounted) {
+          return;
+        }
+
+        const shouldShow =
+          Boolean(nextPrerollConfig?.is_enabled) &&
+          hasResolvedUrl(nextPrerollConfig?.video_url);
+
+        setPrerollConfig(nextPrerollConfig);
+        setShowPreroll(shouldShow);
+      } catch (error) {
+        console.log('Preroll config load error:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setPrerollConfig(null);
+        setShowPreroll(false);
+      } finally {
+        if (mounted) {
+          clearTimeout(fallbackTimer);
+          setPrerollDecisionComplete(true);
+        }
+      }
+    }
+
+    setPrerollDecisionComplete(false);
+    loadPrerollConfig();
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      mounted = false;
+    };
+  }, [resolvedSchoolId, schoolLookupComplete]);
+
   const loadHomeFeeds = async () => {
   try {
     setNewsLoading(true);
     setEventsLoading(true);
 
-    const [nextSchoolConfig, stories, scheduleEvents] = await Promise.all([
-      getSchoolConfigBySlug(SCHOOL_SLUG),
-      getStoriesBySchoolSlug(SCHOOL_SLUG),
-      getScheduleEventsBySchoolSlug(SCHOOL_SLUG),
+    if (!resolvedSchoolId) {
+      console.log(`Home feed skipped because no school was resolved for "${schoolSlug}"`);
+      setSchoolConfig(defaultSchoolConfig);
+      setHomeModules([]);
+      setPromotionCard(null);
+      setAthleteOfWeek(null);
+      setSponsorPlacements([]);
+      setHomeSports(SPORTS);
+      setFollowableSports([]);
+      setNewsItems([]);
+      setVideoItems([]);
+      setGalleryItems([]);
+      setRecentEvents([]);
+      setUpcomingEvents([]);
+      setAllEvents([]);
+      return;
+    }
+
+    const [
+      nextSchoolConfig,
+      schoolAppConfig,
+      moduleConfig,
+      nextPromotionCard,
+      nextAthleteOfWeek,
+      videosConfig,
+      sponsorConfig,
+      sportAppConfig,
+      sportsData,
+      stories,
+      scheduleEvents,
+      resolvedSports,
+    ] = await Promise.all([
+      getSchoolConfigById(resolvedSchoolId, schoolSlug),
+      getSchoolAppConfigById(resolvedSchoolId),
+      getAppHomeModulesBySchoolId(resolvedSchoolId),
+      getPromotionCardBySchoolId(resolvedSchoolId),
+      getAthleteOfTheWeekBySchoolId(resolvedSchoolId),
+      getAppVideosConfigBySchoolId(resolvedSchoolId),
+      getAppSponsorPlacementsBySchoolId(resolvedSchoolId),
+      getSportAppConfigBySchoolId(resolvedSchoolId),
+      getSportsBySchoolId(resolvedSchoolId),
+      getStoriesBySchoolId(resolvedSchoolId),
+      getScheduleEventsBySchoolId(resolvedSchoolId),
+      Promise.all(
+        SPORTS.map(async (sport) => ({
+          sport,
+          record: await getSportBySchoolIdAndKey(resolvedSchoolId, sport.key),
+        }))
+      ),
     ]);
 
+    const mergedSchoolConfig = {
+      ...nextSchoolConfig,
+      logoUrl:
+        (typeof schoolAppConfig?.logo_url === 'string' &&
+        schoolAppConfig.logo_url.trim()
+          ? schoolAppConfig.logo_url.trim()
+          : undefined) ?? nextSchoolConfig.logoUrl,
+      splashLogoUrl:
+        (typeof schoolAppConfig?.splash_logo_url === 'string' &&
+        schoolAppConfig.splash_logo_url.trim()
+          ? schoolAppConfig.splash_logo_url.trim()
+          : undefined) ?? nextSchoolConfig.splashLogoUrl,
+      splashBackgroundUrl:
+        (typeof schoolAppConfig?.splash_background_url === 'string' &&
+        schoolAppConfig.splash_background_url.trim()
+          ? schoolAppConfig.splash_background_url.trim()
+          : undefined) ?? nextSchoolConfig.splashBackgroundUrl,
+      appShortName:
+        (typeof schoolAppConfig?.app_short_name === 'string' &&
+        schoolAppConfig.app_short_name.trim()
+          ? schoolAppConfig.app_short_name.trim()
+          : undefined) ?? nextSchoolConfig.appShortName,
+      mascotName:
+        (typeof schoolAppConfig?.mascot_name === 'string' &&
+        schoolAppConfig.mascot_name.trim()
+          ? schoolAppConfig.mascot_name.trim()
+          : undefined) ?? nextSchoolConfig.mascotName,
+      heroTitleOverride:
+        (typeof schoolAppConfig?.hero_title_override === 'string' &&
+        schoolAppConfig.hero_title_override.trim()
+          ? schoolAppConfig.hero_title_override.trim()
+          : undefined) ?? nextSchoolConfig.heroTitleOverride,
+      heroSubtitleOverride:
+        (typeof schoolAppConfig?.hero_subtitle_override === 'string' &&
+        schoolAppConfig.hero_subtitle_override.trim()
+          ? schoolAppConfig.hero_subtitle_override.trim()
+          : undefined) ?? nextSchoolConfig.heroSubtitleOverride,
+      mainSiteUrl:
+        (typeof schoolAppConfig?.website_url === 'string' &&
+        schoolAppConfig.website_url.trim()
+          ? schoolAppConfig.website_url.trim()
+          : undefined) ?? nextSchoolConfig.mainSiteUrl,
+      watchUrl:
+        (typeof schoolAppConfig?.watch_url === 'string' &&
+        schoolAppConfig.watch_url.trim()
+          ? schoolAppConfig.watch_url.trim()
+          : undefined) ?? nextSchoolConfig.watchUrl,
+      listenUrl:
+        (typeof schoolAppConfig?.listen_url === 'string' &&
+        schoolAppConfig.listen_url.trim()
+          ? schoolAppConfig.listen_url.trim()
+          : undefined) ?? nextSchoolConfig.listenUrl,
+      ticketsUrl:
+        (typeof schoolAppConfig?.tickets_url === 'string' &&
+        schoolAppConfig.tickets_url.trim()
+          ? schoolAppConfig.tickets_url.trim()
+          : undefined) ?? nextSchoolConfig.ticketsUrl,
+      shopUrl:
+        (typeof schoolAppConfig?.shop_url === 'string' &&
+        schoolAppConfig.shop_url.trim()
+          ? schoolAppConfig.shop_url.trim()
+          : undefined) ?? nextSchoolConfig.shopUrl,
+    };
+
+    console.log('[AthleticOS] appConfig:', schoolAppConfig);
+    console.log('[AthleticOS] modules:', moduleConfig);
+
     const news = stories
-      .map((story) => mapStoryToHomeNewsItem(story, nextSchoolConfig.mainSiteUrl))
+      .map((story) =>
+        mapStoryToHomeNewsItem(
+          story,
+          mergedSchoolConfig.athleticOSSiteUrl || mergedSchoolConfig.mainSiteUrl
+        )
+      )
       .filter((item) => item.title && item.link)
       .map((item) => ({
         ...item,
         date: formatDate(item.rawDate),
       }));
 
+    console.log('[AthleticOS] stories count:', stories?.length);
+    console.log('[AthleticOS] stories sample:', stories?.[0]);
+
     const allScheduleEvents = scheduleEvents.map((event) => {
       const mapped = mapScheduleEventToHomeEventItem(
         event,
-        nextSchoolConfig.scheduleUrl
+        mergedSchoolConfig.scheduleUrl
       );
 
       return {
@@ -2332,18 +4171,93 @@ const fetchLiveStatus = async () => {
 
     const recent = filterRecentResultEvents(allScheduleEvents).slice(0, 10);
     const upcoming = filterUpcomingWeekEvents(allScheduleEvents).slice(0, 10);
+    const nextGame = upcoming[0] ?? null;
+    const nextVideoItems = await fetchYoutubePlaylistVideos(videosConfig);
+    const resolvedModules = getResolvedHomeModules(moduleConfig);
+    const nextGalleryItems = resolvedModules.some(
+      (module) => normalizeModuleKey(module.module_key) === 'galleries'
+    )
+      ? await fetchGalleryItems(mergedSchoolConfig.mainSiteUrl)
+      : [];
 
-    console.log('RECENT FINALS COUNT:', recent.length);
-    console.log('UPCOMING COUNT:', upcoming.length);
+    console.log('[AthleticOS] upcomingGames:', upcoming?.length);
+    console.log('[AthleticOS] recentResults:', recent?.length);
+    console.log('[AthleticOS] nextGame:', nextGame);
+    console.log('[AthleticOS] sponsors:', sponsorConfig);
+
+    const sportConfigById = new Map(
+      sportAppConfig
+        .map((config) => {
+          const sportId =
+            config.sport_id === undefined || config.sport_id === null
+              ? ''
+              : String(config.sport_id);
+          return sportId ? [sportId, config] : null;
+        })
+        .filter(Boolean) as [string, AthleticOSSportAppConfig][]
+    );
+
+    const orderedHomeSports = resolvedSports
+      .map(({ sport, record }, index) => {
+        const config = record?.id ? sportConfigById.get(String(record.id)) : undefined;
+
+        return {
+          sport,
+          index,
+          sortOrder: getSafeSortOrder(config?.sort_order ?? index),
+          isVisible: config?.is_visible !== false,
+        };
+      })
+      .filter((item) => item.isVisible)
+      .sort((a, b) => {
+        const orderDiff = a.sortOrder - b.sortOrder;
+        if (orderDiff !== 0) {
+          return orderDiff;
+        }
+
+        return a.index - b.index;
+      })
+      .map((item) => item.sport);
+
+    const nextFollowableSports = sportsData
+      .map((sport) => {
+        const id =
+          typeof sport.slug === 'string' && sport.slug.trim()
+            ? sport.slug.trim()
+            : typeof sport.id === 'string' || typeof sport.id === 'number'
+            ? String(sport.id)
+            : '';
+        const label =
+          typeof sport.name === 'string' && sport.name.trim() ? sport.name.trim() : '';
+
+        return id && label ? ({ id, label } satisfies FollowableSport) : null;
+      })
+      .filter(Boolean) as FollowableSport[];
 
     setNewsItems(news.slice(0, 8));
+    setGalleryItems(nextGalleryItems);
     setRecentEvents(recent);
     setUpcomingEvents(upcoming);
     setAllEvents(allScheduleEvents);
-    setSchoolConfig(nextSchoolConfig);
+    setSchoolConfig(mergedSchoolConfig);
+    setHomeModules(moduleConfig);
+    setPromotionCard(nextPromotionCard);
+    setAthleteOfWeek(nextAthleteOfWeek);
+    setSponsorPlacements(sponsorConfig);
+    setVideoItems(nextVideoItems);
+    setFollowableSports(nextFollowableSports);
+    setHomeSports(orderedHomeSports.length > 0 ? orderedHomeSports : SPORTS);
   } catch (error) {
     console.log('Home feed load error:', error);
+    setHomeModules([]);
+    setPromotionCard(null);
+    setAthleteOfWeek(null);
+    setSponsorPlacements([]);
+    setHomeSports(SPORTS);
+    setFollowableSports([]);
     setNewsItems([]);
+    setVideoItems([]);
+    setGalleryItems([]);
     setRecentEvents([]);
     setUpcomingEvents([]);
     setAllEvents([]);
@@ -2354,8 +4268,12 @@ const fetchLiveStatus = async () => {
 };
 
   useEffect(() => {
+    if (!schoolLookupComplete) {
+      return;
+    }
+
     loadHomeFeeds();
-  }, []);
+  }, [defaultSchoolConfig, resolvedSchoolId, schoolLookupComplete, schoolSlug]);
 
   useEffect(() => {
     const loadSavedPreferences = async () => {
@@ -2369,12 +4287,31 @@ const fetchLiveStatus = async () => {
         const savedDismissed = await AsyncStorage.getItem(
           STORAGE_KEYS.notificationsPromptDismissed
         );
+        const savedAutoPlayVideo = await AsyncStorage.getItem(
+          STORAGE_KEYS.autoPlayVideo
+        );
+        const savedUseLocalTimezone = await AsyncStorage.getItem(
+          STORAGE_KEYS.useLocalTimezone
+        );
+        const savedThemeMode = await AsyncStorage.getItem(STORAGE_KEYS.themeMode);
 
         if (savedEnabled === 'true') {
           setNotificationsEnabled(true);
           setShowNotificationPrompt(false);
         } else {
           setShowNotificationPrompt(savedDismissed === 'true' ? false : true);
+        }
+
+        if (savedAutoPlayVideo === 'true') {
+          setAutoPlayVideo(true);
+        }
+
+        if (savedUseLocalTimezone === 'false') {
+          setUseLocalTimezone(false);
+        }
+
+        if (savedThemeMode === 'light' || savedThemeMode === 'dark') {
+          setThemeMode(savedThemeMode);
         }
       } catch (error) {
         console.log('Preference load error:', error);
@@ -2384,31 +4321,27 @@ const fetchLiveStatus = async () => {
     loadSavedPreferences();
   }, []);
 
- useEffect(() => {
-  const checkNotificationStatus = async () => {
-    try {
-      const { status } = await Notifications.getPermissionsAsync();
+  useEffect(() => {
+    if (!pushNotificationsEnabled) {
+      return;
+    }
 
-      if (status === 'granted') {
+    const persistNotificationState = async () => {
+      try {
         setNotificationsEnabled(true);
         setShowNotificationPrompt(false);
-
         await AsyncStorage.setItem(STORAGE_KEYS.notificationsEnabled, 'true');
-
-        const token = await registerForPushNotificationsAsync();
-
-        if (token) {
-          setExpoPushToken(token);
-          await savePushToken(token); // 👈 THIS IS THE IMPORTANT LINE
-        }
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.notificationsPromptDismissed,
+          'true'
+        );
+      } catch (error) {
+        console.log('Notification persistence error:', error);
       }
-    } catch (error) {
-      console.log('Notification status check error:', error);
-    }
-  };
+    };
 
-  checkNotificationStatus();
-}, []);
+    persistNotificationState();
+  }, [pushNotificationsEnabled]);
 
   useEffect(() => {
     if (expoPushToken) {
@@ -2416,14 +4349,44 @@ const fetchLiveStatus = async () => {
     }
   }, [expoPushToken]);
 
+  useEffect(() => {
+    if (!expoPushToken || !resolvedSchoolId || followedTeams.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncFollowedTeams = async () => {
+      for (const teamId of followedTeams) {
+        if (cancelled) {
+          return;
+        }
+
+        await subscribeToTeam(expoPushToken, teamId, resolvedSchoolId);
+      }
+    };
+
+    syncFollowedTeams();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [expoPushToken, followedTeams, resolvedSchoolId]);
+
   const toggleFollowTeam = async (teamKey: string) => {
     try {
       let updated: string[];
 
       if (followedTeams.includes(teamKey)) {
         updated = followedTeams.filter((key) => key !== teamKey);
+        if (expoPushToken) {
+          await unsubscribeFromTeam(expoPushToken, teamKey);
+        }
       } else {
         updated = [...followedTeams, teamKey];
+        if (expoPushToken && resolvedSchoolId) {
+          await subscribeToTeam(expoPushToken, teamKey, resolvedSchoolId);
+        }
       }
 
       setFollowedTeams(updated);
@@ -2436,9 +4399,27 @@ const fetchLiveStatus = async () => {
     }
   };
 
-  const handleEnableNotifications = async () => {
+  const toggleAutoPlayVideoSetting = async () => {
+    const nextValue = !autoPlayVideo;
+    setAutoPlayVideo(nextValue);
+    await AsyncStorage.setItem(STORAGE_KEYS.autoPlayVideo, String(nextValue));
+  };
+
+  const toggleUseLocalTimezoneSetting = async () => {
+    const nextValue = !useLocalTimezone;
+    setUseLocalTimezone(nextValue);
+    await AsyncStorage.setItem(STORAGE_KEYS.useLocalTimezone, String(nextValue));
+  };
+
+  const toggleThemeModeSetting = async () => {
+    const nextMode = themeMode === 'dark' ? 'light' : 'dark';
+    setThemeMode(nextMode);
+    await AsyncStorage.setItem(STORAGE_KEYS.themeMode, nextMode);
+  };
+
+const handleEnableNotifications = async () => {
   try {
-    const token = await registerForPushNotificationsAsync();
+    const token = await enablePushNotifications();
 
     if (!token) {
       Alert.alert(
@@ -2447,9 +4428,6 @@ const fetchLiveStatus = async () => {
       );
       return;
     }
-
-    setExpoPushToken(token);
-    await savePushToken(token);
 
     setNotificationsEnabled(true);
     setShowNotificationPrompt(false);
@@ -2473,6 +4451,17 @@ const fetchLiveStatus = async () => {
   }
 };
 
+  const toggleNotificationsSetting = async () => {
+    if (!notificationsEnabled) {
+      await handleEnableNotifications();
+      return;
+    }
+
+    setNotificationsEnabled(false);
+    setShowNotificationPrompt(false);
+    await AsyncStorage.setItem(STORAGE_KEYS.notificationsEnabled, 'false');
+  };
+
   const onRefresh = async () => {
     try {
       setRefreshing(true);
@@ -2480,6 +4469,20 @@ const fetchLiveStatus = async () => {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const openExternalUrl = (url: string) => {
+    if (!hasResolvedUrl(url)) {
+      return;
+    }
+
+    Linking.openURL(url).catch((error) => {
+      console.log('External open error:', error);
+    });
+  };
+
+  const openScheduleScreen = () => {
+    setScreenMode('schedule');
   };
 
   const openEmbedded = (title: string, url: string) => {
@@ -2493,14 +4496,39 @@ const fetchLiveStatus = async () => {
     setScreenMode('sportDetail');
   };
 
+  const openStoryDetail = (item: NewsItem) => {
+    setPreviousScreenMode(screenMode);
+    setSelectedStory(item);
+    setScreenMode('storyDetail');
+  };
+
+  const handleBottomNavChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    setScreenMode('tabs');
+    setEmbeddedTitle('');
+    setEmbeddedUrl('');
+    setSelectedStory(null);
+  };
+
   const closeSpecialScreen = () => {
     setScreenMode('tabs');
     setEmbeddedTitle('');
     setEmbeddedUrl('');
+    setSelectedStory(null);
+  };
+
+  const closeStoryDetail = () => {
+    setScreenMode(previousScreenMode);
+    setSelectedStory(null);
   };
 
   const toggleAudio = async () => {
   try {
+    if (!hasListenUrl) {
+      Alert.alert('Audio Unavailable', 'No live audio stream is configured.');
+      return;
+    }
+
     if (isPlaying) {
       await player.pause();
 
@@ -2511,10 +4539,12 @@ const fetchLiveStatus = async () => {
       return;
     }
 
+    setAudioPlayerVisible(true);
+
     if (Platform.OS === 'android') {
       player.setActiveForLockScreen(true, {
-        title: 'Patriot Sports Network',
-        artist: 'Pike Road Athletics',
+        title: appDisplayName,
+        artist: 'AthleticOS',
         albumTitle: 'Live Stream',
       });
     }
@@ -2526,165 +4556,213 @@ const fetchLiveStatus = async () => {
   }
 };
 
-const toggleAsnAudio = async () => {
-  try {
-    if (asnAudioPlaying) {
-      await asnPlayer.pause();
-
-      if (Platform.OS === 'android') {
-        asnPlayer.setActiveForLockScreen(false);
-      }
-
-      return;
-    }
-
-    if (Platform.OS === 'android') {
-      asnPlayer.setActiveForLockScreen(true, {
-        title: 'Aggie Sports Network',
-        artist: 'Sylacauga Athletics',
-        albumTitle: 'Live Stream',
-      });
-    }
-
-    await asnPlayer.play();
-  } catch (error) {
-    console.log('ASN audio toggle error:', error);
-    Alert.alert('Audio Error', 'Could not start the ASN stream.');
-  }
-};
-
-const checkLiveStatus = async () => {
-  try {
-    const response = await fetch(
-      'http://192.168.1.114:3000/live-status.json?ts=' + Date.now()
-    );
-    const data = await response.json();
-
-    console.log('LIVE STATUS JSON:', data);
-
-    setLiveStatus({
-      audio: data.audio === true,
-      video: data.video === true,
-    });
-  } catch (error) {
-    console.log('Live status fetch error:', error);
-  }
-};
-
-/*
-useEffect(() => {
-  checkLiveStatus();
-
-  const interval = setInterval(() => {
-    checkLiveStatus();
-  }, 5000);
-
-  return () => clearInterval(interval);
-}, []);
-*/
-
-  if (showLaunchSplash) {
-  return <LaunchSplash />;
+if (showLaunchSplash) {
+  return (
+    <LaunchSplash
+      splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
+      splashLogoUrl={schoolConfig.splashLogoUrl}
+      schoolDisplayName={schoolConfig.displayName}
+    />
+  );
 }
 
-if (showLaunchVideo) {
-  return <LaunchVideo onFinish={() => setShowLaunchVideo(false)} />;
+if (!prerollDecisionComplete) {
+  return (
+    <LaunchSplash
+      splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
+      splashLogoUrl={schoolConfig.splashLogoUrl}
+      schoolDisplayName={schoolConfig.displayName}
+    />
+  );
 }
+
+if (showPreroll && prerollConfig) {
+  return (
+    <AppPrerollScreen
+      config={prerollConfig}
+      onComplete={() => {
+        setShowPreroll(false);
+      }}
+    />
+  );
+}
+
+  let mainContent: React.ReactNode = null;
 
   if (screenMode === 'embedded' && embeddedUrl) {
-    return (
+    mainContent = (
       <EmbeddedWebView
         url={embeddedUrl}
         headerTitle={embeddedTitle}
         onBack={closeSpecialScreen}
       />
     );
-  }
+  } else if (screenMode === 'storyDetail' && selectedStory) {
+    mainContent = (
+      <StoryDetailScreen item={selectedStory} onBack={closeStoryDetail} />
+    );
+  } else if (screenMode === 'manageTeams') {
+    mainContent = (
+      <ManageTeamsScreen
+        onBack={closeSpecialScreen}
+        sports={followableSports}
+        followedTeams={followedTeams}
+        onToggleFollowTeam={toggleFollowTeam}
+        themeMode={themeMode}
+      />
+    );
+  } else if (screenMode === 'settings') {
+    mainContent = (
+      <SettingsScreen
+        onBack={closeSpecialScreen}
+        notificationsEnabled={notificationsEnabled}
+        onToggleNotifications={toggleNotificationsSetting}
+        autoPlayVideo={autoPlayVideo}
+        onToggleAutoPlayVideo={toggleAutoPlayVideoSetting}
+        useLocalTimezone={useLocalTimezone}
+        onToggleUseLocalTimezone={toggleUseLocalTimezoneSetting}
+        themeMode={themeMode}
+        onToggleThemeMode={toggleThemeModeSetting}
+        onOpenManageTeams={() => setScreenMode('manageTeams')}
+      />
+    );
+  } else if (screenMode === 'savedEvents') {
+    mainContent = (
+      <SavedEventsScreen onBack={closeSpecialScreen} themeMode={themeMode} />
+    );
+  } else if (screenMode === 'schedule') {
+    mainContent = (
+      <ScheduleScreen
+        scheduleEvents={allEvents}
+        eventsLoading={eventsLoading}
+        onOpenEmbedded={openEmbedded}
+        onBack={closeSpecialScreen}
+        schoolDisplayName={appDisplayName}
+        schoolLogoUrl={schoolConfig.logoUrl}
+      />
+    );
+  } else if (screenMode === 'sportDetail' && selectedSport) {
+    mainContent = (
+      <SportDetailScreen
+        sport={selectedSport}
+        schoolId={resolvedSchoolId}
+        schoolSlug={schoolSlug}
+        schoolConfig={schoolConfig}
+        onBack={closeSpecialScreen}
+        onOpenEmbedded={openEmbedded}
+        followedTeams={followedTeams}
+        onToggleFollowTeam={toggleFollowTeam}
+      />
+    );
+  } else {
+    mainContent = (
+      <>
+        {activeTab === 'home' ? (
+          <HomeScreen
+            onOpenEmbedded={openEmbedded}
+            onOpenExternal={openExternalUrl}
+            onOpenSchedule={openScheduleScreen}
+            onOpenSport={openSport}
+            onToggleAudio={toggleAudio}
+            onGoToMedia={() => setActiveTab('media')}
+            newsItems={newsItems}
+            newsLoading={newsLoading}
+            recentEvents={recentEvents}
+            upcomingEvents={upcomingEvents}
+            eventsLoading={eventsLoading}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            showNotificationPrompt={showNotificationPrompt}
+            notificationsEnabled={notificationsEnabled}
+            onEnableNotifications={handleEnableNotifications}
+            onDismissNotificationPrompt={async () => {
+              setShowNotificationPrompt(false);
+              await AsyncStorage.setItem(
+                STORAGE_KEYS.notificationsPromptDismissed,
+                'true'
+              );
+            }}
+            liveStatus={liveStatus}
+            schoolConfig={schoolConfig}
+            appDisplayName={appDisplayName}
+            homeModules={homeModules}
+            promotionCard={promotionCard}
+            athleteOfWeek={athleteOfWeek}
+            sponsorPlacements={sponsorPlacements}
+            videoItems={videoItems}
+            galleryItems={galleryItems}
+            homeSports={homeSports}
+            scheduleAvailable={eventsLoading || allEvents.length > 0}
+          />
+        ) : null}
 
-  if (screenMode === 'sportDetail' && selectedSport) {
-    return (
-      <SafeAreaView style={styles.appShell}>
-        <StatusBar barStyle="light-content" />
-        <SportDetailScreen
-          sport={selectedSport}
-          onBack={closeSpecialScreen}
-          onOpenEmbedded={openEmbedded}
-          followedTeams={followedTeams}
-          onToggleFollowTeam={toggleFollowTeam}
-        />
-        <AudioMiniPlayer
-          isPlaying={isPlaying}
-          isLoading={isLoading}
-          onToggle={toggleAudio}
-        />
-      </SafeAreaView>
+        {activeTab === 'teams' ? (
+          <TeamsScreen
+            onOpenSport={openSport}
+            schoolDisplayName={appDisplayName}
+            themeMode={themeMode}
+          />
+        ) : null}
+
+        {activeTab === 'media' ? (
+          <MediaScreen
+            onOpenEmbedded={openEmbedded}
+            onOpenExternal={openExternalUrl}
+            onOpenSchedule={openScheduleScreen}
+            onToggleAudio={toggleAudio}
+            watchUrl={schoolConfig.watchUrl}
+            listenUrl={schoolConfig.listenUrl}
+            scheduleUrl={schoolConfig.scheduleUrl}
+            mainSiteUrl={schoolConfig.mainSiteUrl}
+            displayName={appDisplayName}
+            isAudioPlaying={isPlaying}
+            liveStatus={liveStatus}
+            themeMode={themeMode}
+            scheduleAvailable={eventsLoading || allEvents.length > 0}
+          />
+        ) : null}
+
+        {activeTab === 'tickets' ? (
+          <TicketsScreen
+            onOpenEmbedded={openEmbedded}
+            ticketsUrl={schoolConfig.ticketsUrl}
+            themeMode={themeMode}
+          />
+        ) : null}
+
+        {activeTab === 'more' ? (
+          <MoreScreen
+            schoolConfig={schoolConfig}
+            followedTeamsCount={followedTeams.length}
+            themeMode={themeMode}
+            onOpenManageTeams={() => setScreenMode('manageTeams')}
+            onOpenSettings={() => setScreenMode('settings')}
+            onOpenSavedEvents={() => setScreenMode('savedEvents')}
+            onOpenEmbedded={openEmbedded}
+          />
+        ) : null}
+      </>
     );
   }
 
   return (
-    <SafeAreaView style={styles.appShell}>
+    <SafeAreaView style={[styles.appShell, themeMode === 'light' ? styles.appShellLight : null]}>
       <StatusBar barStyle="light-content" />
-
-      {activeTab === 'home' ? (
-        <HomeScreen
-  onOpenEmbedded={openEmbedded}
-  onOpenSport={openSport}
-  onToggleAudio={toggleAudio}
-  onGoToAsn={() => setActiveTab('asn')}
-  newsItems={newsItems}
-  newsLoading={newsLoading}
-  recentEvents={recentEvents}
-  upcomingEvents={upcomingEvents}
-  eventsLoading={eventsLoading}
-  onRefresh={onRefresh}
-  refreshing={refreshing}
-  showNotificationPrompt={showNotificationPrompt}
-  notificationsEnabled={notificationsEnabled}
-  onEnableNotifications={handleEnableNotifications}
-  onDismissNotificationPrompt={async () => {
-    setShowNotificationPrompt(false);
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.notificationsPromptDismissed,
-      'true'
-    );
-  }}
-  liveStatus={liveStatus}
-  schoolConfig={schoolConfig}
-/>
-      ) : null}
-
-      {activeTab === 'teams' ? (
-        <TeamsScreen onOpenSport={openSport} />
-      ) : null}
-
-      {activeTab === 'asn' ? (
-        <ASNScreen
-  onOpenEmbedded={openEmbedded}
-  onOpenExternal={(url) => Linking.openURL(url)}
-  onToggleAsnAudio={toggleAsnAudio}
-  asnAudioPlaying={asnAudioPlaying}
-  liveStatus={liveStatus}
-/>
-      ) : null}
-
-     {activeTab === 'tickets' ? (
-  <TicketsScreen onOpenEmbedded={openEmbedded} />
-) : null}
-
-      {activeTab === 'scs' ? (
-  <EmbeddedWebView
-    title="Pike Road City Schools"
-    url={SCS_SITE_URL}
-    onBack={() => setActiveTab('home')}
-  />
-) : null}
+      <View style={styles.appContent}>{mainContent}</View>
 
       <AudioMiniPlayer
         isPlaying={isPlaying}
         isLoading={isLoading}
+        title={appDisplayName}
+        enabled={audioPlayerVisible && hasListenUrl}
         onToggle={toggleAudio}
       />
-      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
+      <BottomNav
+        activeTab={activeTab}
+        onChange={handleBottomNavChange}
+        themeMode={themeMode}
+        centerLogoUrl={schoolConfig.logoUrl}
+      />
     </SafeAreaView>
   );
 }
@@ -2695,13 +4773,117 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND.background,
   },
 
+  appContent: {
+    flex: 1,
+  },
+
+  appShellLight: {
+    backgroundColor: '#F5F7FB',
+  },
+
+  prerollScreen: {
+    flex: 1,
+    backgroundColor: BRAND.black,
+  },
+
+  prerollVideo: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  prerollOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  prerollSafeArea: {
+    flex: 1,
+    backgroundColor: BRAND.black,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 28,
+  },
+
+  prerollTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+
+  prerollSponsorWrap: {
+    maxWidth: '72%',
+  },
+
+  prerollSponsorEyebrow: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+
+  prerollSponsorLogo: {
+    width: 132,
+    height: 42,
+  },
+
+  prerollSponsorName: {
+    color: BRAND.white,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  prerollSkipButton: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+
+  prerollSkipButtonText: {
+    color: BRAND.white,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  prerollTapHint: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    backgroundColor: 'rgba(0,0,0,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+
+  prerollTapHintText: {
+    color: BRAND.white,
+    fontSize: 14,
+    fontWeight: '800',
+    marginRight: 6,
+  },
+
   screen: {
     flex: 1,
     backgroundColor: BRAND.background,
   },
 
+  screenLight: {
+    backgroundColor: '#F5F7FB',
+  },
+
   screenContent: {
+    flexGrow: 1,
     paddingBottom: 28,
+    backgroundColor: BRAND.background,
+  },
+
+  screenContentLight: {
+    backgroundColor: '#F5F7FB',
   },
 
   loadingWrap: {
@@ -2798,34 +4980,54 @@ splashSponsorLogo: {
 },
 
   homeHeader: {
-    paddingTop: 18,
+    paddingTop: 8,
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: 10,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+
+  heroBackdropGlow: {
+    position: 'absolute',
+    top: -36,
+    right: -28,
+    width: 180,
+    height: 180,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
 
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    flex: 1,
+    paddingRight: 12,
   },
 
   teamLogoBox: {
-    width: 74,
-    height: 74,
-    borderRadius: 18,
+    width: 60,
+    height: 60,
+    borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
 
   headerTeamLogo: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
   },
 
   headerTitleWrap: {
@@ -2834,21 +5036,48 @@ splashSponsorLogo: {
 
   appTitle: {
     color: BRAND.white,
-    fontSize: 28,
+    fontSize: 25,
     fontWeight: '900',
     letterSpacing: 0.2,
   },
 
   appSubtitle: {
-    color: BRAND.lightGray,
-    fontSize: 14,
+    color: 'rgba(217,223,234,0.78)',
+    fontSize: 11,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 1,
+  },
+
+  heroSponsorInlineText: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+
+  heroSponsorLogoWrap: {
+    width: 96,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  heroSponsorLogo: {
+    width: '100%',
+    height: '100%',
   },
 
   heroButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 0,
+  },
+
+  heroButtonRowCompact: {
+    gap: 8,
   },
 
   topIconWrap: {
@@ -2857,26 +5086,200 @@ splashSponsorLogo: {
   },
 
   topIconCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 999,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: BRAND.black,
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
 
   topIconLabel: {
     color: BRAND.white,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
     textAlign: 'center',
+    marginTop: 1,
+  },
+
+  promotionCard: {
+    marginHorizontal: 16,
+    minHeight: 248,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+
+  promotionCardImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+
+  promotionCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  promotionCardContent: {
+    minHeight: 248,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
+  },
+
+  promotionPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+
+  promotionPillText: {
+    color: BRAND.white,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+
+  promotionCardTitle: {
+    color: BRAND.white,
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '900',
+  },
+
+  promotionCardSubtitle: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+
+  promotionCardButton: {
+    alignSelf: 'flex-start',
+    marginTop: 16,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: BRAND.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  promotionCardButtonText: {
+    color: BRAND.white,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  athleteOfWeekCard: {
+    marginHorizontal: 16,
+    minHeight: 248,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+
+  athleteOfWeekImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+
+  athleteOfWeekOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  athleteOfWeekContent: {
+    minHeight: 248,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
+  },
+
+  athleteOfWeekTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  athleteOfWeekSponsorText: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 12,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+
+  athleteOfWeekName: {
+    color: BRAND.lightGray,
+    fontSize: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 8,
+  },
+
+  athleteOfWeekTitle: {
+    color: BRAND.white,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '900',
+  },
+
+  athleteOfWeekSubtitle: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+
+  athleteOfWeekButton: {
+    alignSelf: 'flex-start',
+    marginTop: 16,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: BRAND.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  athleteOfWeekButtonText: {
+    color: BRAND.white,
+    fontSize: 13,
+    fontWeight: '800',
   },
 
   liveNowCard: {
-    marginTop: 16,
+    marginTop: 12,
     marginHorizontal: 16,
-    borderRadius: 22,
-    padding: 18,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: BRAND.surface,
     borderWidth: 1,
     borderColor: BRAND.border,
@@ -2886,28 +5289,28 @@ splashSponsorLogo: {
 
   liveNowLeft: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 10,
   },
 
   liveNowEyebrow: {
     color: BRAND.red,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '800',
     textTransform: 'uppercase',
-    marginBottom: 6,
+    marginBottom: 2,
   },
 
   liveNowTitle: {
     color: BRAND.white,
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '900',
-    marginBottom: 6,
+    marginBottom: 2,
   },
 
   liveNowText: {
-    color: BRAND.gray,
-    fontSize: 14,
-    lineHeight: 20,
+    color: 'rgba(170,178,197,0.82)',
+    fontSize: 11,
+    lineHeight: 16,
   },
 
   liveBadge: {
@@ -2944,7 +5347,7 @@ splashSponsorLogo: {
     backgroundColor: BRAND.surface,
     borderWidth: 1,
     borderColor: BRAND.border,
-    padding: 16,
+    padding: 14,
   },
 
   flashBackgroundImage: {
@@ -2976,7 +5379,7 @@ flashOverlay: {
   notificationSignupText: {
     color: BRAND.gray,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 
   notificationButtonRow: {
@@ -2986,29 +5389,29 @@ flashOverlay: {
   notificationPrimaryButton: {
     backgroundColor: BRAND.primary,
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     marginRight: 10,
   },
 
   notificationPrimaryButtonText: {
     color: BRAND.white,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
   },
 
   notificationSecondaryButton: {
     backgroundColor: BRAND.surfaceAlt,
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderWidth: 1,
     borderColor: BRAND.border,
   },
 
   notificationSecondaryButtonText: {
     color: BRAND.white,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
 
@@ -3037,6 +5440,10 @@ flashOverlay: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+
+  sectionHeaderTightTop: {
+    marginTop: 16,
   },
 
   bannerWrap: {
@@ -3091,51 +5498,224 @@ bannerImage: {
     bottom: 16,
   },
 
-  teamGamesRow: {
-  paddingHorizontal: 16,
-  paddingRight: 24,
-},
+  storyCarouselRow: {
+    paddingLeft: 16,
+    paddingRight: 6,
+  },
 
-teamGameCard: {
-  width: 220,
-  minHeight: 140,
-  backgroundColor: BRAND.surface,
-  borderWidth: 1,
-  borderColor: BRAND.border,
-  borderRadius: 22,
-  paddingHorizontal: 18,
-  paddingVertical: 16,
-  marginRight: 12,
-  justifyContent: 'space-between',
-},
+  storyCarouselCard: {
+    width: 308,
+    height: 224,
+    marginRight: 12,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
 
-teamGameTime: {
-  color: BRAND.gray,
-  fontSize: 13,
-  fontWeight: '600',
-  marginTop: 4,
-},
+  storyCarouselImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
 
-teamGameMatchup: {
-  color: BRAND.white,
-  fontSize: 17,
-  fontWeight: '900',
-  lineHeight: 22,
-  marginBottom: 14,
-},
+  storyCarouselOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
 
-teamGameDate: {
-  color: BRAND.lightGray,
-  fontSize: 15,
-  fontWeight: '800',
-},
+  storyCarouselContent: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 14,
+  },
 
-teamGameTime: {
-  color: BRAND.gray,
-  fontSize: 14,
-  fontWeight: '600',
-  marginTop: 4,
-},
+  storyCarouselMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  storyCarouselMeta: {
+    color: '#E5E7EB',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 12,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+
+  storyCarouselTitle: {
+    color: BRAND.white,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: '900',
+  },
+
+  videoCarouselRow: {
+    paddingLeft: 16,
+    paddingRight: 6,
+  },
+
+  videoCarouselCard: {
+    width: 286,
+    height: 190,
+    marginRight: 12,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+
+  videoCarouselImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+
+  videoCarouselOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  videoPlayBadge: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  videoCarouselContent: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+  },
+
+  videoCarouselMeta: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+
+  videoCarouselTitle: {
+    color: BRAND.white,
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: '900',
+  },
+
+  galleryCarouselRow: {
+    paddingLeft: 16,
+    paddingRight: 6,
+  },
+
+  galleryCarouselCard: {
+    width: 300,
+    height: 208,
+    marginRight: 12,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+
+  galleryCarouselImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+
+  galleryCarouselOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  galleryCarouselContent: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+  },
+
+  galleryCarouselMeta: {
+    color: '#E5E7EB',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+
+  galleryCarouselTitle: {
+    color: BRAND.white,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: '900',
+  },
+
+  sponsorCarouselRow: {
+    paddingLeft: 16,
+    paddingRight: 6,
+  },
+
+  sponsorCarouselCard: {
+    width: SPONSOR_CAROUSEL_CARD_WIDTH,
+    minHeight: 98,
+    marginRight: SPONSOR_CAROUSEL_CARD_GAP,
+    borderRadius: 22,
+    backgroundColor: '#1B2438',
+    borderWidth: 1,
+    borderColor: '#34415F',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+
+  sponsorCarouselCardContent: {
+    minHeight: 98,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  promotionModuleBottomSpacing: {
+    marginBottom: 8,
+  },
+
+  sponsorCarouselLogoWrap: {
+    width: '100%',
+    minHeight: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sponsorCarouselLogo: {
+    width: '94%',
+    maxWidth: 208,
+    height: 70,
+  },
+
+  sponsorCarouselName: {
+    color: BRAND.white,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
 
   featuredPill: {
     alignSelf: 'flex-start',
@@ -3165,6 +5745,55 @@ teamGameTime: {
     color: '#E5E7EB',
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  storyDetailTitle: {
+    color: BRAND.white,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+
+  storyDetailDate: {
+    color: BRAND.lightGray,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+
+  storyDetailImage: {
+    width: '100%',
+    height: 240,
+  },
+
+  storyDetailCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderRadius: 22,
+    padding: 18,
+  },
+
+  storyDetailSection: {
+    marginBottom: 18,
+  },
+
+  storyDetailSectionTitle: {
+    color: BRAND.white,
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+
+  storyDetailBody: {
+    color: BRAND.lightGray,
+    fontSize: 15,
+    lineHeight: 23,
   },
 
   eventsRow: {
@@ -3212,7 +5841,7 @@ teamGameTime: {
 
 liveNowCTAText: {
   color: BRAND.red,
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: '800',
   marginRight: 4,
 },
@@ -3249,13 +5878,14 @@ liveNowCTAText: {
 },
 
 heroStatusPill: {
-  minWidth: 140,
+  minWidth: 118,
   borderRadius: 999,
-  paddingHorizontal: 12,
-  paddingVertical: 10,
+  paddingHorizontal: 9,
+  paddingVertical: 7,
   flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'center',
+  alignSelf: 'center',
 },
 
 pulseDot: {
@@ -3279,12 +5909,12 @@ heroStatusPillOff: {
 },
 
 heroStatusIcon: {
-  marginRight: 6,
+  marginRight: 5,
 },
 
 heroStatusText: {
   color: BRAND.white,
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: '800',
 },
 
@@ -3439,14 +6069,15 @@ heroStatusText: {
 
   sponsorText: {
     color: '#F3F4F6',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
 
   sponsorLogo: {
     width: 100,
     height: 100,
     marginLeft: 10,
+    alignSelf: 'center',
   },
 
   emptyCard: {
@@ -3455,19 +6086,20 @@ heroStatusText: {
     borderWidth: 1,
     borderColor: BRAND.border,
     borderRadius: 20,
-    padding: 18,
+    padding: 16,
   },
 
   emptyTitle: {
     color: BRAND.white,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
 
   emptyText: {
     color: BRAND.gray,
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 5,
   },
 
   tabHero: {
@@ -3479,6 +6111,11 @@ heroStatusText: {
     borderWidth: 1,
     borderColor: BRAND.border,
     padding: 18,
+  },
+
+  tabHeroLight: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D0D5DD',
   },
 
   tabHeroEyebrow: {
@@ -3500,6 +6137,14 @@ heroStatusText: {
     color: BRAND.white,
     fontSize: 14,
     lineHeight: 21,
+  },
+
+  textPrimaryLight: {
+    color: '#101828',
+  },
+
+  textSecondaryLight: {
+    color: '#475467',
   },
 
   teamsList: {
@@ -3528,6 +6173,39 @@ heroStatusText: {
   teamListSub: {
     color: BRAND.gray,
     fontSize: 13,
+  },
+
+  moreRowTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  inlineFollowButton: {
+    minWidth: 92,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: BRAND.surfaceAlt,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    alignItems: 'center',
+  },
+
+  inlineFollowButtonActive: {
+    backgroundColor: BRAND.red,
+    borderColor: BRAND.primary,
+  },
+
+  inlineFollowButtonText: {
+    color: BRAND.white,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  settingsValueText: {
+    color: BRAND.primary,
+    fontSize: 13,
+    fontWeight: '800',
   },
 
   watchPrimaryCard: {
@@ -3571,15 +6249,15 @@ heroStatusText: {
   },
 
   scheduleHero: {
-    paddingTop: 20,
-    paddingBottom: 22,
+    paddingTop: 16,
+    paddingBottom: 18,
     paddingHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: 12,
   },
 
   scheduleHeroLogoWrap: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   scheduleHeroLogo: {
@@ -3589,17 +6267,17 @@ heroStatusText: {
 
   scheduleHeroTitle: {
     color: BRAND.white,
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '800',
     textAlign: 'center',
   },
 
   scheduleHeroSub: {
     color: BRAND.lightGray,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 3,
   },
 
   scheduleLoadingText: {
@@ -4090,6 +6768,11 @@ resultScore: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
+  },
+
+  centerNavLogo: {
+    width: 32,
+    height: 32,
   },
 
   asnTabWrapActive: {

@@ -49,6 +49,8 @@
       "expo-video"
     ],
     "extra": {
+      "schoolSlug": "pike-road",
+      "youtubeApiKey": "AIzaSyAbZ_d503d_Lu4RCUqaBHxk-Qq30uOyJZY",
       "router": {},
       "eas": {
         "projectId": "REPLACE-WITH-NEW-EAS-PROJECT-ID"
