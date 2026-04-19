@@ -31,7 +31,13 @@ import {
 import { WebView } from 'react-native-webview';
 import {
   type AthleticOSAppHomeModule,
+  type AthleticOSAppThemeConfig,
+  type AthleticOSBottomNavItem,
+  type AthleticOSRosterAthlete,
+  type AthleticOSResolvedTheme,
+  type AthleticOSTeamNavItem,
   type AthleticOSAthleteOfTheWeek,
+  type AthleticOSAppLiveCoverageConfig,
   type AthleticOSAppPrerollConfig,
   type AthleticOSAppVideosConfig,
   type AthleticOSPromotionCard,
@@ -39,7 +45,11 @@ import {
   type AthleticOSSport,
   type AthleticOSSportAppConfig,
   getAthleteOfTheWeekBySchoolId,
+  getAppBottomNavItemsBySchoolId,
   getAppPrerollConfigBySchoolId,
+  getAppThemeConfigBySchoolId,
+  getTeamNavBySportId,
+  getAppLiveCoverageConfigBySchoolId,
   getAppVideosConfigBySchoolId,
   getDefaultSchoolConfig,
   getAppHomeModulesBySchoolId,
@@ -47,6 +57,7 @@ import {
   getPromotionCardBySchoolId,
   getSchoolConfigById,
   getScheduleEventsBySchoolId,
+  getRosterBySchoolIdAndSportId,
   getSchoolAppConfigById,
   getSportAppConfigBySchoolId,
   getSportBySchoolIdAndKey,
@@ -57,6 +68,7 @@ import {
   getStoriesBySchoolId,
   mapScheduleEventToHomeEventItem,
   mapStoryToHomeNewsItem,
+  resolveAthleticOSTheme,
 } from './lib/athleticos';
 import { getSchoolIdFromSlug } from './lib/getSchool';
 import { subscribeToTeam, unsubscribeFromTeam } from './lib/pushos';
@@ -88,6 +100,15 @@ const STORAGE_KEYS = {
 
 const SPONSOR_CAROUSEL_CARD_WIDTH = 248;
 const SPONSOR_CAROUSEL_CARD_GAP = 12;
+const DEFAULT_APP_THEME = resolveAthleticOSTheme();
+
+function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
+  return [theme.colors.heroStart, theme.colors.heroEnd, theme.colors.cardAlt];
+}
+
+function getThemeDarkHeroGradient(theme: AthleticOSResolvedTheme) {
+  return [BRAND.black, theme.colors.heroEnd, theme.colors.cardAlt];
+}
 
 function normalizeConfiguredSchoolSlug(value?: string) {
   return (value ?? '')
@@ -196,11 +217,45 @@ function getResolvedHomeModules(modules: AthleticOSAppHomeModule[]) {
     });
 }
 
+function normalizeBottomNavDestinationType(value?: string) {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function resolveBottomNavIcon(iconKey?: string): keyof typeof Ionicons.glyphMap {
+  switch ((iconKey ?? '').trim().toLowerCase()) {
+    case 'broadcast':
+      return 'radio-outline';
+    case 'teams':
+      return 'people';
+    case 'tickets':
+      return 'ticket-outline';
+    case 'schedule':
+      return 'calendar-outline';
+    case 'news':
+      return 'newspaper-outline';
+    case 'standings':
+      return 'stats-chart-outline';
+    case 'shop':
+      return 'bag-handle-outline';
+    case 'watch':
+    case 'livestream':
+      return 'videocam-outline';
+    case 'media':
+      return 'play-circle-outline';
+    default:
+      return 'ellipse-outline';
+  }
+}
+
 type TabKey = 'home' | 'teams' | 'media' | 'tickets' | 'more';
+type BottomNavSlot = 1 | 2 | 4;
 type ScreenMode =
   | 'tabs'
   | 'sportDetail'
+  | 'roster'
+  | 'athleteProfile'
   | 'athleteOfWeekDetail'
+  | 'newsList'
   | 'storyDetail'
   | 'embedded'
   | 'schedule'
@@ -221,6 +276,8 @@ type NewsItem = {
   description: string;
   summary?: string;
   body?: string;
+  sportId?: string;
+  sportLabel?: string | null;
   sportName?: string;
   image?: string;
   rawDate?: string;
@@ -247,30 +304,87 @@ type GalleryItem = {
 
 type EventItem = {
   id: string;
+  schoolId?: string;
+  sportId?: string;
+  teamId?: string;
+  homeTeamId?: string;
+  awayTeamId?: string;
   title: string;
   link: string;
   date: string;
   description: string;
+  opponentName?: string;
+  opponentLogoUrl?: string;
+  eventDate?: string;
+  eventTimeText?: string;
+  startDateTime?: string;
+  eventDateTime?: string;
   rawDate?: string;
   sportName?: string;
+  homeAway?: string;
   status?: string;
+  result?: string;
+  isFinal?: boolean;
+  homeScore?: number;
+  awayScore?: number;
+  teamScore?: number | null;
+  opponentScore?: number | null;
+  resultLabel?: 'W' | 'L';
+  location?: string;
+  stadiumName?: string;
+  locationCity?: string;
+  locationState?: string;
 };
+
+type ScheduleScreenVariant = 'school' | 'team';
 
 type NormalizedScheduleItem = {
   id: string;
   title: string;
   sport: string;
   opponent: string;
+  opponentLogoUrl?: string;
   displayDate: string;
   timeLabel: string;
   link: string;
   homeAway?: string;
+  statusLabel?: string;
+  locationLabel?: string;
+  hasScore?: boolean;
+  teamScore?: string;
+  opponentScore?: string;
+  result?: 'W' | 'L' | '';
 };
 
 type FollowableSport = {
   id: string;
   label: string;
 };
+
+type TeamNavAction = {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+};
+
+type OpenRosterOptions = {
+  sport: SportType;
+  sportId: string;
+  headerTitle: string;
+  headerSubtitle?: string;
+  schoolLogoUrl?: string;
+};
+
+type BottomNavRenderItem = {
+  key: string;
+  label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  active: boolean;
+};
+
+type RosterSortKey = 'number' | 'name' | 'position';
 
 const SPORTS: SportType[] = [
   {
@@ -417,6 +531,59 @@ function safeDate(raw?: string) {
   if (!Number.isNaN(fallback)) return new Date(fallback);
 
   return null;
+}
+
+function hasExplicitTime(raw?: string) {
+  if (!raw) return false;
+
+  return (
+    /t\d{2}:\d{2}/i.test(raw) ||
+    /\b\d{1,2}:\d{2}\b/.test(raw) ||
+    /\b\d{1,2}\s?(am|pm)\b/i.test(raw)
+  );
+}
+
+function getScheduleStatusLabel(item: EventItem) {
+  if (item.isFinal) {
+    return 'Final';
+  }
+
+  const status = (item.status ?? '').trim().toLowerCase();
+
+  if (status === 'postponed') {
+    return 'Postponed';
+  }
+
+  if (status === 'canceled' || status === 'cancelled') {
+    return 'Canceled';
+  }
+
+  if (status === 'live' || status === 'in_progress' || status === 'in-progress') {
+    return 'Live';
+  }
+
+  return '';
+}
+
+function getScheduleLocationLabel(item: EventItem) {
+  const stadiumName = item.stadiumName?.trim() || '';
+  const location = item.location?.trim() || '';
+  const city = item.locationCity?.trim() || '';
+  const state = item.locationState?.trim() || '';
+  const cityState =
+    city && state ? `${city}, ${state}` : city || state;
+
+  const candidates = [stadiumName, location, cityState].filter(Boolean);
+
+  const deduped: string[] = [];
+  for (const value of candidates) {
+    const normalizedValue = value.toLowerCase();
+    if (!deduped.some((existing) => existing.toLowerCase() === normalizedValue)) {
+      deduped.push(value);
+    }
+  }
+
+  return deduped[0] ?? '';
 }
 
 function formatDate(raw?: string) {
@@ -771,11 +938,20 @@ function inferSportFromTitle(title: string) {
   if (lower.includes('tennis')) return 'Tennis';
   if (lower.includes('track')) return 'Track';
   if (lower.includes('golf')) return 'Golf';
-  return 'School Event';
+  return '';
 }
 
 function normalizeScheduleItem(item: EventItem) {
-  const parsed = safeDate(item.rawDate);
+  const eventDateTime =
+    item.startDateTime?.trim() ||
+    item.eventDateTime?.trim() ||
+    item.rawDate ||
+    item.eventDate?.trim() ||
+    '';
+  const parsed = safeDate(eventDateTime || item.eventDate);
+  const explicitTimeText = item.eventTimeText?.trim() || '';
+  const derivedHasTime = hasExplicitTime(eventDateTime);
+  const hasTime = Boolean(explicitTimeText) || derivedHasTime;
 
   const displayDate = parsed
     ? parsed.toLocaleDateString('en-US', {
@@ -783,57 +959,57 @@ function normalizeScheduleItem(item: EventItem) {
         month: 'short',
         day: 'numeric',
       })
-    : item.date;
+    : item.date || item.eventDate || '';
 
-  const timeLabel = parsed
-    ? parsed.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : 'TBA';
+  const timeLabel = explicitTimeText
+    ? explicitTimeText
+    : parsed && hasTime
+      ? parsed.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : '';
 
-  const title = item.title || 'Upcoming Event';
+  const title = item.title || '';
   const cleanedTitle = title.replace(/\s+/g, ' ').trim();
 
-  let sport = item.sportName || inferSportFromTitle(cleanedTitle);
-  let opponent = item.description?.trim() || cleanedTitle;
-  let homeAway: 'vs.' | 'at' = 'vs.';
+  let sport = item.sportName?.trim() || inferSportFromTitle(cleanedTitle);
+  if (!sport) {
+    sport = 'Athletics';
+  }
+  let opponent =
+    item.opponentName?.trim() ||
+    item.description?.trim() ||
+    cleanedTitle ||
+    '';
+  let homeAway: 'vs.' | 'at' | '' =
+    item.homeAway === 'at' || item.homeAway === 'vs.' ? item.homeAway : '';
   let teamScore = '';
   let opponentScore = '';
   let hasScore = false;
   let result: 'W' | 'L' | '' = '';
 
-  if (cleanedTitle.includes(' vs. ')) {
+  if (!homeAway && cleanedTitle.includes(' vs. ')) {
     const parts = cleanedTitle.split(' vs. ');
     opponent = item.description?.trim() || parts[1] || opponent;
     homeAway = 'vs.';
-  } else if (cleanedTitle.includes(' at ')) {
+  } else if (!homeAway && cleanedTitle.includes(' at ')) {
     const parts = cleanedTitle.split(' at ');
     opponent = item.description?.trim() || parts[1] || opponent;
     homeAway = 'at';
   }
 
-  const wlScoreMatch = cleanedTitle.match(/([WL]),\s*(\d+)-(\d+)/i);
-  if (wlScoreMatch) {
+  if (
+    item.isFinal &&
+    typeof item.teamScore === 'number' &&
+    typeof item.opponentScore === 'number'
+  ) {
     hasScore = true;
-    result = wlScoreMatch[1].toUpperCase() as 'W' | 'L';
-    teamScore = wlScoreMatch[2];
-    opponentScore = wlScoreMatch[3];
-  } else {
-    const plainScoreMatch = cleanedTitle.match(/(\d+)\s*-\s*(\d+)/);
-    if (plainScoreMatch) {
-      hasScore = true;
-      teamScore = plainScoreMatch[1];
-      opponentScore = plainScoreMatch[2];
-
-      const teamNum = Number(teamScore);
-      const oppNum = Number(opponentScore);
-
-      if (teamNum > oppNum) {
-        result = 'W';
-      } else if (teamNum < oppNum) {
-        result = 'L';
-      }
+    teamScore = String(item.teamScore);
+    opponentScore = String(item.opponentScore);
+    const normalizedResult = (item.resultLabel ?? item.result ?? '').trim().toUpperCase();
+    if (normalizedResult === 'W' || normalizedResult === 'L') {
+      result = normalizedResult;
     }
   }
 
@@ -845,14 +1021,22 @@ function normalizeScheduleItem(item: EventItem) {
     .replace(/\s+/g, ' ')
     .trim();
 
+  if (!opponent) {
+    opponent = item.opponentName?.trim() || cleanedTitle || sport;
+  }
+
   return {
     id: item.id,
+    title: cleanedTitle,
     sport,
     opponent,
+    opponentLogoUrl: item.opponentLogoUrl?.trim() || '',
     displayDate,
     timeLabel,
     link: item.link,
     homeAway,
+    statusLabel: getScheduleStatusLabel(item),
+    locationLabel: getScheduleLocationLabel(item),
     hasScore,
     teamScore,
     opponentScore,
@@ -1175,11 +1359,15 @@ function NewsCard({
   item,
   onPress,
   featured = false,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: NewsItem;
   onPress: () => void;
   featured?: boolean;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  const sportLabel = item.sportLabel?.trim() || 'Athletics';
+
   if (featured) {
     return (
       <Pressable style={styles.featuredStoryCard} onPress={onPress}>
@@ -1198,8 +1386,10 @@ function NewsCard({
         />
 
         <View style={styles.featuredStoryContent}>
-          <View style={styles.featuredPill}>
-            <Text style={styles.featuredPillText}>Latest Story</Text>
+          <View style={[styles.featuredPill, { backgroundColor: theme.colors.pillBackground }]}>
+            <Text style={[styles.featuredPillText, { color: theme.colors.pillText }]}>
+              {sportLabel}
+            </Text>
           </View>
           <Text style={styles.featuredStoryTitle} numberOfLines={3}>
             {item.title}
@@ -1227,6 +1417,11 @@ function NewsCard({
       )}
 
       <View style={styles.newsCardBody}>
+        <View style={[styles.featuredPill, { backgroundColor: theme.colors.pillBackground }]}>
+          <Text style={[styles.featuredPillText, { color: theme.colors.pillText }]}>
+            {sportLabel}
+          </Text>
+        </View>
         <Text style={styles.newsCardTitle} numberOfLines={2}>
           {item.title}
         </Text>
@@ -1246,24 +1441,33 @@ function NewsCard({
 function StoryDetailScreen({
   item,
   onBack,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: NewsItem;
   onBack: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const summary = item.summary?.trim() || item.description?.trim() || '';
   const body = item.body?.trim() || '';
-  const sportName = item.sportName?.trim() || '';
+  const articleText = body || summary;
+  const sportName = item.sportLabel?.trim() || 'Athletics';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
-        <Pressable style={styles.backButton} onPress={onBack}>
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={styles.storyDetailHero}
+      >
+        <Pressable style={styles.storyDetailBackButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={20} color={BRAND.white} />
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
-        {sportName ? <Text style={styles.sportHeaderSub}>{sportName}</Text> : null}
-        <Text style={styles.storyDetailTitle}>{item.title}</Text>
-        {item.date ? <Text style={styles.storyDetailDate}>{item.date}</Text> : null}
+
+        <View style={styles.storyDetailHeroContent}>
+          {sportName ? <Text style={styles.storyDetailKicker}>{sportName}</Text> : null}
+          {item.date ? <Text style={styles.storyDetailDate}>{item.date}</Text> : null}
+          <Text style={styles.storyDetailTitle}>{item.title}</Text>
+        </View>
       </LinearGradient>
 
       {item.image ? (
@@ -1274,21 +1478,11 @@ function StoryDetailScreen({
         />
       ) : null}
 
-      <View style={styles.storyDetailCard}>
-        {summary ? (
-          <View style={styles.storyDetailSection}>
-            <Text style={styles.storyDetailSectionTitle}>Summary</Text>
-            <Text style={styles.storyDetailBody}>{summary}</Text>
-          </View>
-        ) : null}
-
-        {body ? (
-          <View style={styles.storyDetailSection}>
-            <Text style={styles.storyDetailSectionTitle}>Story</Text>
-            <Text style={styles.storyDetailBody}>{body}</Text>
-          </View>
-        ) : null}
-      </View>
+      {articleText ? (
+        <View style={styles.storyDetailArticlePanel}>
+          <Text style={styles.storyDetailBody}>{articleText}</Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -1296,10 +1490,14 @@ function StoryDetailScreen({
 function StoryCarouselCard({
   item,
   onPress,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: NewsItem;
   onPress: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  const sportLabel = item.sportLabel?.trim() || 'Athletics';
+
   return (
     <Pressable style={styles.storyCarouselCard} onPress={onPress}>
       {item.image ? (
@@ -1318,8 +1516,10 @@ function StoryCarouselCard({
 
       <View style={styles.storyCarouselContent}>
         <View style={styles.storyCarouselMetaRow}>
-          <View style={styles.featuredPill}>
-            <Text style={styles.featuredPillText}>Story</Text>
+          <View style={[styles.featuredPill, { backgroundColor: theme.colors.pillBackground }]}>
+            <Text style={[styles.featuredPillText, { color: theme.colors.pillText }]}>
+              {sportLabel}
+            </Text>
           </View>
           <Text style={styles.storyCarouselMeta}>{item.date || 'Latest News'}</Text>
         </View>
@@ -1728,12 +1928,12 @@ function EventCard({
   item,
   onPress,
   showTime = true,
-  teamName,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: EventItem;
   onPress: () => void;
   showTime?: boolean;
-  teamName?: string;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const normalized = normalizeScheduleItem(item);
 
@@ -1741,29 +1941,61 @@ function EventCard({
     normalized.result === 'W' || normalized.result === 'L'
       ? normalized.result
       : null;
+  const matchupLabel =
+    normalized.homeAway && normalized.opponent
+      ? `${normalized.homeAway} ${normalized.opponent}`
+      : normalized.opponent;
 
   return (
-    <Pressable style={styles.eventCard} onPress={onPress}>
+    <Pressable
+      style={[styles.eventCard, normalized.hasScore ? styles.resultEventCard : null]}
+      onPress={onPress}
+    >
       {!normalized.hasScore ? (
         <>
           <View style={styles.eventTopRow}>
-            <Text style={styles.eventSportLine}>{normalized.sport}</Text>
-            <Text style={styles.eventVsLine}>{normalized.homeAway}</Text>
+            <Text style={[styles.eventSportLine, { color: theme.colors.pillBackground }]}>
+              {normalized.sport}
+            </Text>
+            {normalized.homeAway ? (
+              <Text style={styles.eventVsLine}>{normalized.homeAway}</Text>
+            ) : null}
           </View>
 
-          <Text style={styles.eventOpponentLine} numberOfLines={2}>
-            {normalized.opponent}
-          </Text>
+          <View style={styles.eventMainRow}>
+            <View style={styles.eventTextWrap}>
+              <Text style={styles.eventOpponentLine} numberOfLines={2}>
+                {normalized.opponent}
+              </Text>
 
-          <Text style={styles.eventMeta}>{normalized.displayDate}</Text>
-          {showTime ? (
-            <Text style={styles.eventMetaSecondary}>{normalized.timeLabel}</Text>
-          ) : null}
+              <Text style={styles.eventMeta}>{normalized.displayDate}</Text>
+              {showTime && normalized.timeLabel ? (
+                <Text style={styles.eventMetaSecondary}>{normalized.timeLabel}</Text>
+              ) : null}
+              {normalized.locationLabel ? (
+                <Text style={styles.eventMetaSecondary} numberOfLines={1}>
+                  {normalized.locationLabel}
+                </Text>
+              ) : null}
+            </View>
+
+            {normalized.opponentLogoUrl ? (
+              <View style={styles.eventLogoPlate}>
+                <Image
+                  source={{ uri: normalized.opponentLogoUrl }}
+                  style={styles.eventLogo}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : null}
+          </View>
         </>
       ) : (
         <>
           <View style={styles.resultHeaderRow}>
-            <Text style={styles.eventSportLine}>{normalized.sport}</Text>
+            <Text style={[styles.eventSportLine, { color: theme.colors.pillBackground }]}>
+              {normalized.sport}
+            </Text>
 
             {resultLabel ? (
               <View style={styles.resultBadgeTopRight}>
@@ -1772,16 +2004,24 @@ function EventCard({
             ) : null}
           </View>
 
-          <View style={styles.resultRow}>
-            <Text style={styles.resultTeamName}>{teamName || 'Home Team'}</Text>
-            <Text style={styles.resultScore}>{normalized.teamScore}</Text>
-          </View>
-
-          <View style={styles.resultRow}>
-            <Text style={styles.resultOpponentName} numberOfLines={1}>
-              {normalized.opponent}
+          <View style={styles.resultMainRow}>
+            <View style={styles.resultTeamRowLeft}>
+              {normalized.opponentLogoUrl ? (
+                <View style={styles.resultLogoPlate}>
+                  <Image
+                    source={{ uri: normalized.opponentLogoUrl }}
+                    style={styles.resultLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : null}
+              <Text style={styles.resultOpponentName} numberOfLines={2}>
+                {matchupLabel}
+              </Text>
+            </View>
+            <Text style={styles.resultScore}>
+              {normalized.teamScore} - {normalized.opponentScore}
             </Text>
-            <Text style={styles.resultScore}>{normalized.opponentScore}</Text>
           </View>
 
           <Text style={styles.eventMeta}>{normalized.displayDate}</Text>
@@ -1872,6 +2112,7 @@ function TeamTile({
 
 function HomeScreen({
   onOpenEmbedded,
+  onOpenStoryDetail,
   onOpenExternal,
   onOpenSchedule,
   onOpenSport,
@@ -1892,6 +2133,7 @@ function HomeScreen({
   schoolConfig,
   appDisplayName,
   homeModules,
+  liveCoverageConfig,
   promotionCard,
   athleteOfWeek,
   sponsorPlacements,
@@ -1899,8 +2141,10 @@ function HomeScreen({
   galleryItems,
   homeSports,
   scheduleAvailable,
+  theme = DEFAULT_APP_THEME,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
+  onOpenStoryDetail: (item: NewsItem) => void;
   onOpenExternal: (url: string) => void;
   onOpenSchedule: () => void;
   onOpenSport: (sport: SportType) => void;
@@ -1936,6 +2180,7 @@ function HomeScreen({
   };
   appDisplayName: string;
   homeModules: AthleticOSAppHomeModule[];
+  liveCoverageConfig: AthleticOSAppLiveCoverageConfig | null;
   promotionCard: AthleticOSPromotionCard | null;
   athleteOfWeek: AthleticOSAthleteOfTheWeek | null;
   sponsorPlacements: AthleticOSAppSponsorPlacement[];
@@ -1943,6 +2188,7 @@ function HomeScreen({
   galleryItems: GalleryItem[];
   homeSports: SportType[];
   scheduleAvailable: boolean;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
@@ -2037,6 +2283,13 @@ function HomeScreen({
   ].filter(Boolean).length;
   const heroBrandTitle = getHeroBrandTitle(schoolConfig);
   const heroBrandSubtitle = getHeroBrandSubtitle(schoolConfig);
+  const hasLiveCoverageModule = useMemo(
+    () =>
+      resolvedModules.some(
+        (module) => normalizeModuleKey(module.module_key) === 'live_coverage'
+      ),
+    [resolvedModules]
+  );
 
   useEffect(() => {
     if (sponsorCarouselPlacements.length < 2) {
@@ -2095,6 +2348,102 @@ function HomeScreen({
     heroCta = 'Listen Live';
   }
 
+  const handleOpenLiveCoverage = () => {
+    const destinationType = normalizeModuleKey(liveCoverageConfig?.destination_type);
+    const destinationValue = liveCoverageConfig?.destination_value?.trim() || '';
+
+    if (destinationType === 'custom_url' && hasResolvedUrl(destinationValue)) {
+      onOpenEmbedded(
+        liveCoverageConfig?.headline?.trim() || heroTitle,
+        destinationValue
+      );
+      return;
+    }
+
+    if (destinationType === 'watch_tab') {
+      onGoToMedia();
+      return;
+    }
+
+    if (destinationType === 'broadcast_page' || !destinationType) {
+      onGoToMedia();
+      return;
+    }
+
+    onGoToMedia();
+  };
+
+  const renderLiveCoverageModule = () => {
+    if (!hasLiveCoverageModule || !liveCoverageConfig?.is_enabled) {
+      return null;
+    }
+
+    const eyebrow = liveCoverageConfig.eyebrow?.trim() || heroEyebrow;
+    const title = liveCoverageConfig.headline?.trim() || heroTitle;
+    const bodyCopy = liveCoverageConfig.body_copy?.trim() || '';
+    const ctaLabel = liveCoverageConfig.cta_label?.trim() || heroCta;
+    const showStatusPill = liveCoverageConfig.show_status_pill !== false;
+
+    return (
+      <Pressable
+        key="live_coverage"
+        style={({ pressed }) => [
+          styles.liveNowCard,
+          isAnythingLive ? styles.liveNowCardLive : null,
+          pressed ? { opacity: 0.88, transform: [{ scale: 0.985 }] } : null,
+        ]}
+        onPress={handleOpenLiveCoverage}
+      >
+        <View style={styles.liveNowLeft}>
+          <Text style={styles.liveNowEyebrow}>{eyebrow}</Text>
+          <Text style={styles.liveNowTitle}>{title}</Text>
+          {bodyCopy ? <Text style={styles.liveNowText}>{bodyCopy}</Text> : null}
+
+          <View style={styles.liveNowCTA}>
+            <Text style={styles.liveNowCTAText}>{ctaLabel}</Text>
+            <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
+          </View>
+        </View>
+
+        {showStatusPill ? (
+          <View style={styles.liveNowRight}>
+            <View
+              style={[
+                styles.heroStatusPill,
+                isAnythingLive ? styles.heroStatusPillLive : styles.heroStatusPillOff,
+              ]}
+            >
+              {isAnythingLive ? <PulseDot /> : null}
+
+              <Ionicons
+                name={
+                  isVideoLive
+                    ? 'videocam'
+                    : isAudioLive
+                    ? 'headset'
+                    : 'radio-outline'
+                }
+                size={16}
+                color={BRAND.white}
+                style={styles.heroStatusIcon}
+              />
+
+              <Text style={styles.heroStatusText}>
+                {isVideoLive && isAudioLive
+                  ? 'Live Audio + Video'
+                  : isVideoLive
+                  ? 'Live Video'
+                  : isAudioLive
+                  ? 'Live Audio'
+                  : 'Not Currently Live'}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </Pressable>
+    );
+  };
+
   const renderStoriesModule = (title: string) => (
     <React.Fragment key="stories">
       <OptionalSectionHeader
@@ -2126,7 +2475,8 @@ function HomeScreen({
             <StoryCarouselCard
               key={`${item.link}-${item.title}-${index}`}
               item={item}
-              onPress={() => openStoryDetail(item)}
+              theme={theme}
+              onPress={() => onOpenStoryDetail(item)}
             />
           ))}
         </ScrollView>
@@ -2214,13 +2564,9 @@ function HomeScreen({
             <EventCard
               key={item.id}
               item={item}
-              teamName={appDisplayName}
               showTime={false}
-              onPress={() =>
-                hasResolvedUrl(item.link)
-                  ? onOpenEmbedded(item.title, item.link)
-                  : onOpenSchedule()
-              }
+              theme={theme}
+              onPress={() => onOpenSchedule()}
             />
           ))}
         </ScrollView>
@@ -2254,12 +2600,8 @@ function HomeScreen({
             <EventCard
               key={item.id}
               item={item}
-              teamName={appDisplayName}
-              onPress={() =>
-                hasResolvedUrl(item.link)
-                  ? onOpenEmbedded(item.title, item.link)
-                  : onOpenSchedule()
-              }
+              theme={theme}
+              onPress={() => onOpenSchedule()}
             />
           ))}
         </ScrollView>
@@ -2278,12 +2620,8 @@ function HomeScreen({
         <View style={styles.newsList}>
           <EventCard
             item={firstUpcomingEvent}
-            teamName={appDisplayName}
-            onPress={() =>
-              hasResolvedUrl(firstUpcomingEvent.link)
-                ? onOpenEmbedded(firstUpcomingEvent.title, firstUpcomingEvent.link)
-                : onOpenSchedule()
-            }
+            theme={theme}
+            onPress={() => onOpenSchedule()}
           />
         </View>
       ) : (
@@ -2505,6 +2843,8 @@ function HomeScreen({
         return renderUpcomingGamesModule(title);
       case 'next_game':
         return renderNextGameModule(title);
+      case 'live_coverage':
+        return renderLiveCoverageModule();
       case 'athlete_of_week':
       case 'athlete_of_the_week':
         return renderAthleteOfWeekModule(title);
@@ -2529,12 +2869,12 @@ function HomeScreen({
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={BRAND.primary}
+          tintColor={theme.colors.primary}
         />
       }
     >
       <LinearGradient
-        colors={['#D3183B', '#10131D', '#102754']}
+        colors={getThemeHeroGradient(theme)}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.homeHeader}
@@ -2626,60 +2966,6 @@ function HomeScreen({
         </View>
       </LinearGradient>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.liveNowCard,
-          isAnythingLive ? styles.liveNowCardLive : null,
-          pressed ? { opacity: 0.88, transform: [{ scale: 0.985 }] } : null,
-        ]}
-        onPress={onGoToMedia}
-      >
-        <View style={styles.liveNowLeft}>
-          <Text style={styles.liveNowEyebrow}>{heroEyebrow}</Text>
-          <Text style={styles.liveNowTitle}>{heroTitle}</Text>
-          <Text style={styles.liveNowText}>{heroText}</Text>
-
-          <View style={styles.liveNowCTA}>
-            <Text style={styles.liveNowCTAText}>{heroCta}</Text>
-            <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
-          </View>
-        </View>
-
-        <View style={styles.liveNowRight}>
-          <View
-            style={[
-              styles.heroStatusPill,
-              isAnythingLive ? styles.heroStatusPillLive : styles.heroStatusPillOff,
-            ]}
-          >
-            {isAnythingLive ? <PulseDot /> : null}
-
-            <Ionicons
-              name={
-                isVideoLive
-                  ? 'videocam'
-                  : isAudioLive
-                  ? 'headset'
-                  : 'radio-outline'
-              }
-              size={16}
-              color={BRAND.white}
-              style={styles.heroStatusIcon}
-            />
-
-            <Text style={styles.heroStatusText}>
-              {isVideoLive && isAudioLive
-                ? 'Live Audio + Video'
-                : isVideoLive
-                ? 'Live Video'
-                : isAudioLive
-                ? 'Live Audio'
-                : 'Not Currently Live'}
-            </Text>
-          </View>
-        </View>
-      </Pressable>
-
       {showNotificationPrompt && !notificationsEnabled && (
         <View style={styles.notificationSignupCard}>
           <View style={styles.notificationTextWrap}>
@@ -2717,44 +3003,108 @@ function HomeScreen({
 function TeamsScreen({
   onOpenSport,
   schoolDisplayName,
+  mascotName,
+  schoolLogoUrl,
   themeMode,
+  theme = DEFAULT_APP_THEME,
 }: {
   onOpenSport: (sport: SportType) => void;
   schoolDisplayName?: string;
+  mascotName?: string;
+  schoolLogoUrl?: string;
   themeMode: 'light' | 'dark';
+  theme?: AthleticOSResolvedTheme;
 }) {
-  const isLightMode = themeMode === 'light';
+  const heroSchoolName =
+    schoolDisplayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
+    'Athletics';
+  const heroMascot = mascotName?.trim() || '';
+  const heroText = heroMascot
+    ? `Explore ${heroMascot} athletics, team pages, schedules, rosters, and coverage.`
+    : 'Explore team pages, schedules, rosters, and coverage.';
 
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.screenContent,
-        isLightMode ? styles.screenContentLight : null,
+        { backgroundColor: theme.colors.background },
       ]}
     >
-      <View style={[styles.tabHero, isLightMode ? styles.tabHeroLight : null]}>
-        <Text style={styles.tabHeroEyebrow}>Teams</Text>
-        <Text style={[styles.tabHeroTitle, isLightMode ? styles.textPrimaryLight : null]}>
-          {schoolDisplayName || 'Athletics'}
-        </Text>
-        <Text style={[styles.tabHeroText, isLightMode ? styles.textSecondaryLight : null]}>
-          Tap into schedules, rosters, news, and team pages.
-        </Text>
-      </View>
+      <LinearGradient
+        colors={[
+          `${theme.colors.secondary}22`,
+          `${theme.colors.primary}12`,
+          theme.colors.background,
+        ]}
+        style={styles.teamsScreenBackdrop}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={[theme.colors.primary, theme.colors.secondary]}
+        style={styles.teamsHubHero}
+      >
+        <View
+          style={[
+            styles.teamsHubAccentRail,
+            { backgroundColor: theme.colors.accent },
+          ]}
+        />
 
-      <View style={styles.teamsList}>
+        {hasResolvedUrl(schoolLogoUrl) ? (
+          <Image
+            source={{ uri: schoolLogoUrl }}
+            style={styles.teamsHubLogo}
+            resizeMode="contain"
+          />
+        ) : null}
+
+        <View style={styles.teamsHubContent}>
+          <Text style={styles.teamsHubEyebrow}>Teams</Text>
+          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
+          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
+          <Text style={styles.teamsHubText}>{heroText}</Text>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.teamsListPremium}>
         {SPORTS.map((sport) => (
           <Pressable
             key={sport.key}
-            style={styles.teamListCard}
+            style={[
+              styles.teamDirectoryCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
             onPress={() => onOpenSport(sport)}
           >
-            <View>
-              <Text style={styles.teamListTitle}>{sport.shortLabel || sport.label}</Text>
-              <Text style={styles.teamListSub}>Open team page</Text>
+            <View
+              style={[
+                styles.teamDirectoryAccent,
+                { backgroundColor: theme.colors.accent },
+              ]}
+            />
+            <View style={styles.teamDirectoryContent}>
+              <Text style={styles.teamDirectoryTitle}>{sport.shortLabel || sport.label}</Text>
+              <Text style={styles.teamDirectorySub}>Open team page</Text>
             </View>
-            <Ionicons name="chevron-forward" size={22} color={BRAND.gray} />
+            <View
+              style={[
+                styles.teamDirectoryChevronWrap,
+                {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={BRAND.white}
+              />
+            </View>
           </Pressable>
         ))}
       </View>
@@ -2772,10 +3122,13 @@ function MediaScreen({
   scheduleUrl,
   mainSiteUrl,
   displayName,
+  mascotName,
+  schoolLogoUrl,
   isAudioPlaying,
   liveStatus,
   themeMode,
   scheduleAvailable,
+  theme = DEFAULT_APP_THEME,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
   onOpenExternal: (url: string) => void;
@@ -2786,6 +3139,8 @@ function MediaScreen({
   scheduleUrl: string;
   mainSiteUrl: string;
   displayName?: string;
+  mascotName?: string;
+  schoolLogoUrl?: string;
   isAudioPlaying: boolean;
   liveStatus: {
     audio: boolean;
@@ -2793,31 +3148,114 @@ function MediaScreen({
   };
   themeMode: 'light' | 'dark';
   scheduleAvailable: boolean;
+  theme?: AthleticOSResolvedTheme;
 }) {
-  const isLightMode = themeMode === 'light';
   const hasWatchUrl = hasResolvedUrl(watchUrl);
   const hasListenUrl = hasResolvedUrl(listenUrl);
   const hasScheduleUrl = scheduleAvailable;
   const hasMainSiteUrl = hasResolvedUrl(mainSiteUrl);
   const hasActions = hasWatchUrl || hasListenUrl || hasScheduleUrl || hasMainSiteUrl;
+  const heroSchoolName =
+    displayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
+    'Media';
+  const heroMascot = mascotName?.trim() || '';
+
+  const renderMediaAction = (
+    key: string,
+    icon: keyof typeof Ionicons.glyphMap,
+    title: string,
+    subtitle: string,
+    onPress: () => void
+  ) => (
+    <Pressable
+      key={key}
+      style={[
+        styles.mediaActionCard,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <View
+        style={[
+          styles.mediaActionAccent,
+          { backgroundColor: theme.colors.accent },
+        ]}
+      />
+      <View
+        style={[
+          styles.mediaActionIconWrap,
+          {
+            backgroundColor: theme.colors.cardAlt,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={22} color={BRAND.white} />
+      </View>
+      <View style={styles.mediaActionBody}>
+        <Text style={styles.mediaActionTitle}>{title}</Text>
+        <Text style={styles.mediaActionText}>{subtitle}</Text>
+      </View>
+      <View
+        style={[
+          styles.mediaActionChevronWrap,
+          {
+            backgroundColor: theme.colors.cardAlt,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Ionicons name="chevron-forward" size={18} color={BRAND.white} />
+      </View>
+    </Pressable>
+  );
 
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.screenContent,
-        isLightMode ? styles.screenContentLight : null,
+        { backgroundColor: theme.colors.background },
       ]}
     >
-      <View style={[styles.tabHero, isLightMode ? styles.tabHeroLight : null]}>
-        <Text style={styles.tabHeroEyebrow}>Watch + Listen</Text>
-        <Text style={[styles.tabHeroTitle, isLightMode ? styles.textPrimaryLight : null]}>
-          {displayName || 'Media'}
-        </Text>
-        <Text style={[styles.tabHeroText, isLightMode ? styles.textSecondaryLight : null]}>
-          Open live coverage, schedules, and school links when available.
-        </Text>
-      </View>
+      <LinearGradient
+        colors={[
+          `${theme.colors.secondary}22`,
+          `${theme.colors.primary}12`,
+          theme.colors.background,
+        ]}
+        style={styles.teamsScreenBackdrop}
+        pointerEvents="none"
+      />
+
+      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={styles.teamsHubHero}>
+        <View
+          style={[
+            styles.teamsHubAccentRail,
+            { backgroundColor: theme.colors.accent },
+          ]}
+        />
+
+        {hasResolvedUrl(schoolLogoUrl) ? (
+          <Image
+            source={{ uri: schoolLogoUrl }}
+            style={styles.teamsHubLogo}
+            resizeMode="contain"
+          />
+        ) : null}
+
+        <View style={styles.teamsHubContent}>
+          <Text style={styles.teamsHubEyebrow}>Watch + Listen</Text>
+          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
+          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
+          <Text style={styles.teamsHubText}>
+            Open live coverage, schedules, and school links when available.
+          </Text>
+        </View>
+      </LinearGradient>
 
       {!hasActions ? (
         <View style={styles.emptyCard}>
@@ -2826,61 +3264,47 @@ function MediaScreen({
       ) : null}
 
       {hasWatchUrl ? (
-        <Pressable
-          style={styles.watchPrimaryCard}
-          onPress={() => onOpenExternal(watchUrl)}
-        >
-          <Ionicons name="videocam" size={28} color={BRAND.white} />
-          <View style={styles.watchCardBody}>
-            <Text style={styles.watchCardTitle}>
-              {liveStatus.video ? 'Watch Live Now' : 'Watch Live'}
-            </Text>
-            <Text style={styles.watchCardText}>Open the live video stream.</Text>
-          </View>
-        </Pressable>
+        renderMediaAction(
+          'watch',
+          'videocam',
+          liveStatus.video ? 'Watch Live Now' : 'Watch Live',
+          'Open the live video stream.',
+          () => onOpenExternal(watchUrl)
+        )
       ) : null}
 
       {hasListenUrl ? (
-        <Pressable style={styles.watchSecondaryCard} onPress={onToggleAudio}>
-          <Ionicons
-            name={isAudioPlaying ? 'pause-circle' : 'headset'}
-            size={26}
-            color={BRAND.white}
-          />
-          <View style={styles.watchCardBody}>
-            <Text style={styles.watchCardTitle}>
-              {isAudioPlaying
-                ? 'Pause Live Audio'
-                : liveStatus.audio
-                ? 'Listen Live Now'
-                : 'Listen Live'}
-            </Text>
-            <Text style={styles.watchCardText}>Start or pause the live audio stream.</Text>
-          </View>
-        </Pressable>
+        renderMediaAction(
+          'listen',
+          isAudioPlaying ? 'pause-circle' : 'headset',
+          isAudioPlaying
+            ? 'Pause Live Audio'
+            : liveStatus.audio
+            ? 'Listen Live Now'
+            : 'Listen Live',
+          'Start or pause the live audio stream.',
+          onToggleAudio
+        )
       ) : null}
 
       {hasScheduleUrl ? (
-        <Pressable style={styles.watchSecondaryCard} onPress={onOpenSchedule}>
-          <Ionicons name="calendar" size={26} color={BRAND.white} />
-          <View style={styles.watchCardBody}>
-            <Text style={styles.watchCardTitle}>View Schedule</Text>
-            <Text style={styles.watchCardText}>Open the in-app school schedule.</Text>
-          </View>
-        </Pressable>
+        renderMediaAction(
+          'schedule',
+          'calendar',
+          'View Schedule',
+          'Open the in-app school schedule.',
+          onOpenSchedule
+        )
       ) : null}
 
       {hasMainSiteUrl ? (
-        <Pressable
-          style={styles.watchSecondaryCard}
-          onPress={() => onOpenEmbedded('Website', mainSiteUrl)}
-        >
-          <Ionicons name="globe-outline" size={26} color={BRAND.white} />
-          <View style={styles.watchCardBody}>
-            <Text style={styles.watchCardTitle}>Open Website</Text>
-            <Text style={styles.watchCardText}>Open the school site.</Text>
-          </View>
-        </Pressable>
+        renderMediaAction(
+          'website',
+          'globe-outline',
+          'Open Website',
+          'Open the school site.',
+          () => onOpenEmbedded('Website', mainSiteUrl)
+        )
       ) : null}
     </ScrollView>
   );
@@ -2889,30 +3313,105 @@ function MediaScreen({
 function ScheduleScreen({
   scheduleEvents,
   eventsLoading,
-  onOpenEmbedded,
   onBack,
-  schoolDisplayName,
+  headerTitle,
+  headerSubtitle,
   schoolLogoUrl,
+  schoolId,
+  variant = 'school',
+  accentColor,
+  theme = DEFAULT_APP_THEME,
 }: {
   scheduleEvents: EventItem[];
   eventsLoading: boolean;
-  onOpenEmbedded: (title: string, url: string) => void;
   onBack: () => void;
-  schoolDisplayName?: string;
+  headerTitle?: string;
+  headerSubtitle?: string;
   schoolLogoUrl?: string;
+  schoolId?: string | number | null;
+  variant?: ScheduleScreenVariant;
+  accentColor?: string;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  const isTeamVariant = variant === 'team';
+  const scheduleScrollRef = useRef<ScrollView | null>(null);
+  const compositeOffsetsRef = useRef<Record<number, number>>({});
+  const hasAutoScrolledRef = useRef(false);
+  const visibleScheduleEvents = useMemo(() => {
+    if (isTeamVariant) {
+      return [...scheduleEvents].sort((a, b) => {
+        const aTime = new Date(
+          a.eventDateTime || a.startDateTime || a.eventDate || 0
+        ).getTime();
+
+        const bTime = new Date(
+          b.eventDateTime || b.startDateTime || b.eventDate || 0
+        ).getTime();
+
+        return aTime - bTime;
+      });
+    }
+
+    const now = new Date();
+    const pastLimit = new Date();
+    pastLimit.setDate(now.getDate() - 30);
+
+    const futureLimit = new Date();
+    futureLimit.setDate(now.getDate() + 30);
+
+    return [...scheduleEvents]
+      .filter((event) => {
+        const eventDate = safeDate(
+          event.eventDateTime || event.startDateTime || event.eventDate
+        );
+        return Boolean(eventDate && eventDate >= pastLimit && eventDate <= futureLimit);
+      })
+      .sort((a, b) => {
+        const aDate =
+          safeDate(a.eventDateTime || a.startDateTime || a.eventDate)?.getTime() ?? 0;
+        const bDate =
+          safeDate(b.eventDateTime || b.startDateTime || b.eventDate)?.getTime() ?? 0;
+        return aDate - bDate;
+      });
+  }, [isTeamVariant, scheduleEvents]);
   const normalized = useMemo(
-    () => scheduleEvents.slice(0, 40).map(normalizeScheduleItem),
-    [scheduleEvents]
+    () => visibleScheduleEvents.map(normalizeScheduleItem),
+    [visibleScheduleEvents]
   );
+  const todayIndex = useMemo(() => {
+    if (isTeamVariant) {
+      return -1;
+    }
+
+    const now = new Date();
+    const foundIndex = visibleScheduleEvents.findIndex((event) => {
+      const eventDate = safeDate(
+        event.eventDateTime || event.startDateTime || event.eventDate
+      );
+      return Boolean(eventDate && eventDate >= now);
+    });
+
+    if (foundIndex >= 0) {
+      return foundIndex;
+    }
+
+    return visibleScheduleEvents.length > 0 ? visibleScheduleEvents.length - 1 : -1;
+  }, [isTeamVariant, visibleScheduleEvents]);
+  const resolvedAccentColor = accentColor?.trim() || theme.colors.accent || BRAND.primary;
+
+  useEffect(() => {
+    compositeOffsetsRef.current = {};
+    hasAutoScrolledRef.current = false;
+  }, [todayIndex, visibleScheduleEvents]);
 
   return (
     <ScrollView
+      ref={scheduleScrollRef}
       style={styles.screen}
       contentContainerStyle={styles.screenContent}
     >
       <LinearGradient
-        colors={[BRAND.primaryDark, BRAND.black]}
+        colors={getThemeDarkHeroGradient(theme)}
         style={styles.scheduleHero}
       >
         <Pressable style={styles.backButton} onPress={onBack}>
@@ -2930,9 +3429,9 @@ function ScheduleScreen({
           </View>
         ) : null}
 
-        <Text style={styles.scheduleHeroTitle}>Schedule</Text>
-        {schoolDisplayName ? (
-          <Text style={styles.scheduleHeroSub}>{schoolDisplayName}</Text>
+        <Text style={styles.scheduleHeroTitle}>{headerTitle || 'Schedule'}</Text>
+        {headerSubtitle ? (
+          <Text style={styles.scheduleHeroSub}>{headerSubtitle}</Text>
         ) : null}
       </LinearGradient>
 
@@ -2947,38 +3446,421 @@ function ScheduleScreen({
           <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
         </View>
       ) : (
-        normalized.map((item) => (
-          <Pressable
-            key={item.id}
-            style={styles.scheduleCard}
-            onPress={() => {
-              if (hasResolvedUrl(item.link)) {
-                onOpenEmbedded(item.title, item.link);
-              }
-            }}
-          >
-            <View style={styles.scheduleCardLeft}>
-              <View
-                style={[
-                  styles.scheduleSportTag,
-                  { backgroundColor: getSportColor(item.sport) },
-                ]}
-              >
-                <Text style={styles.scheduleSportTagText}>{item.sport}</Text>
+        normalized.map((item, index) => (
+          isTeamVariant ? (() => {
+            return (
+              <View key={item.id} style={styles.teamScheduleCard}>
+                <View style={styles.teamScheduleLogoColumn}>
+                  {item.opponentLogoUrl ? (
+                    <View style={styles.teamScheduleLogoPlate}>
+                      <Image
+                        source={{ uri: item.opponentLogoUrl }}
+                        style={styles.teamScheduleLogo}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.teamScheduleCenterColumn}>
+                  <View
+                    style={[
+                      styles.scheduleSportTag,
+                      styles.teamScheduleSportTag,
+                      { backgroundColor: resolvedAccentColor },
+                    ]}
+                  >
+                    <Text style={[styles.scheduleSportTagText, { color: theme.colors.pillText }]}>
+                      {item.sport}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.teamScheduleMatchup} numberOfLines={2}>
+                    {item.homeAway ? `${item.homeAway} ${item.opponent}` : item.opponent}
+                  </Text>
+
+                  {item.statusLabel ? (
+                    <Text style={styles.teamScheduleStatus}>{item.statusLabel}</Text>
+                  ) : null}
+
+                  {item.hasScore && item.teamScore && item.opponentScore ? (
+                    <Text style={styles.scoreText}>
+                      {item.result} {item.teamScore} - {item.opponentScore}
+                    </Text>
+                  ) : null}
+
+                  {item.locationLabel ? (
+                    <Text style={styles.teamScheduleLocation} numberOfLines={1}>
+                      {item.locationLabel}
+                    </Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.teamScheduleRightColumn}>
+                  <Text style={styles.teamScheduleDate}>{item.displayDate}</Text>
+                  {item.timeLabel ? (
+                    <Text style={styles.teamScheduleTime}>{item.timeLabel}</Text>
+                  ) : null}
+                </View>
               </View>
+            );
+          })() : (
+            (() => {
+              return (
+                <View
+                  key={item.id}
+                  style={styles.teamScheduleCard}
+                  onLayout={
+                    !isTeamVariant
+                      ? (layoutEvent) => {
+                          compositeOffsetsRef.current[index] = layoutEvent.nativeEvent.layout.y;
 
-              <Text style={styles.scheduleOpponent} numberOfLines={2}>
-                {item.homeAway ? `${item.homeAway} ${item.opponent}` : item.opponent}
-              </Text>
+                          if (
+                            !hasAutoScrolledRef.current &&
+                            index === todayIndex &&
+                            scheduleScrollRef.current
+                          ) {
+                            hasAutoScrolledRef.current = true;
+                            scheduleScrollRef.current.scrollTo({
+                              y: Math.max(layoutEvent.nativeEvent.layout.y - 12, 0),
+                              animated: false,
+                            });
+                          }
+                        }
+                      : undefined
+                  }
+                >
+                  <View style={styles.teamScheduleLogoColumn}>
+                    {item.opponentLogoUrl ? (
+                      <View style={styles.teamScheduleLogoPlate}>
+                        <Image
+                          source={{ uri: item.opponentLogoUrl }}
+                          style={styles.teamScheduleLogo}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    ) : null}
+                  </View>
 
-              <Text style={styles.scheduleMeta}>{item.displayDate}</Text>
-              <Text style={styles.scheduleMetaSecondary}>{item.timeLabel}</Text>
-            </View>
+                  <View style={styles.teamScheduleCenterColumn}>
+                    <View
+                      style={[
+                        styles.scheduleSportTag,
+                        styles.teamScheduleSportTag,
+                        { backgroundColor: resolvedAccentColor },
+                      ]}
+                    >
+                      <Text style={[styles.scheduleSportTagText, { color: theme.colors.pillText }]}>
+                        {item.sport}
+                      </Text>
+                    </View>
 
-            <Ionicons name="chevron-forward" size={22} color={BRAND.primary} />
-          </Pressable>
+                    <Text style={styles.teamScheduleMatchup} numberOfLines={2}>
+                      {item.homeAway ? `${item.homeAway} ${item.opponent}` : item.opponent}
+                    </Text>
+
+                    {item.statusLabel ? (
+                      <Text style={styles.teamScheduleStatus}>{item.statusLabel}</Text>
+                    ) : null}
+
+                    {item.hasScore && item.teamScore && item.opponentScore ? (
+                      <Text style={styles.teamScheduleScore}>
+                        {item.result} {item.teamScore} - {item.opponentScore}
+                      </Text>
+                    ) : null}
+
+                    {!item.hasScore && item.locationLabel ? (
+                      <Text style={styles.teamScheduleLocation} numberOfLines={1}>
+                        {item.locationLabel}
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.teamScheduleRightColumn}>
+                    <Text style={styles.teamScheduleDate}>{item.displayDate}</Text>
+                    {item.timeLabel ? (
+                      <Text style={styles.teamScheduleTime}>{item.timeLabel}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })()
+          )
         ))
       )}
+    </ScrollView>
+  );
+}
+
+function RosterScreen({
+  athletes,
+  loading,
+  onBack,
+  onOpenAthlete,
+  headerTitle,
+  headerSubtitle,
+  schoolLogoUrl,
+  theme = DEFAULT_APP_THEME,
+}: {
+  athletes: AthleticOSRosterAthlete[];
+  loading: boolean;
+  onBack: () => void;
+  onOpenAthlete: (athlete: AthleticOSRosterAthlete) => void;
+  headerTitle: string;
+  headerSubtitle?: string;
+  schoolLogoUrl?: string;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const [sortKey, setSortKey] = useState<RosterSortKey>('number');
+  const rosterEntries = athletes ?? [];
+  const sortedRoster = useMemo(() => {
+    const items = [...rosterEntries];
+
+    if (sortKey === 'name') {
+      return items.sort((a, b) => {
+        const lastCompare = (a.lastName || '').localeCompare(b.lastName || '');
+        if (lastCompare !== 0) {
+          return lastCompare;
+        }
+
+        const firstCompare = (a.firstName || '').localeCompare(b.firstName || '');
+        if (firstCompare !== 0) {
+          return firstCompare;
+        }
+
+        return (a.fullName || '').localeCompare(b.fullName || '');
+      });
+    }
+
+    if (sortKey === 'position') {
+      return items.sort((a, b) => {
+        const positionCompare = (a.position || '').localeCompare(b.position || '');
+        if (positionCompare !== 0) {
+          return positionCompare;
+        }
+
+        const lastCompare = (a.lastName || '').localeCompare(b.lastName || '');
+        if (lastCompare !== 0) {
+          return lastCompare;
+        }
+
+        return (a.firstName || '').localeCompare(b.firstName || '');
+      });
+    }
+
+    return items.sort((a, b) => {
+      const aNumber = Number(a.jerseyNumber ?? a.number ?? '');
+      const bNumber = Number(b.jerseyNumber ?? b.number ?? '');
+      const aHasNumber = Number.isFinite(aNumber);
+      const bHasNumber = Number.isFinite(bNumber);
+
+      if (aHasNumber && bHasNumber && aNumber !== bNumber) {
+        return aNumber - bNumber;
+      }
+
+      if (aHasNumber !== bHasNumber) {
+        return aHasNumber ? -1 : 1;
+      }
+
+      const lastCompare = (a.lastName || '').localeCompare(b.lastName || '');
+      if (lastCompare !== 0) {
+        return lastCompare;
+      }
+
+      return (a.firstName || '').localeCompare(b.firstName || '');
+    });
+  }, [rosterEntries, sortKey]);
+
+  console.log('ROSTER UI DEBUG', {
+    incomingRoster: rosterEntries?.length ?? 0,
+    sortedRoster: sortedRoster?.length ?? 0,
+    sortKey,
+  });
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+      <LinearGradient colors={getThemeDarkHeroGradient(theme)} style={styles.scheduleHero}>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+
+        {hasResolvedUrl(schoolLogoUrl) ? (
+          <View style={styles.scheduleHeroLogoWrap}>
+            <Image
+              source={{ uri: schoolLogoUrl }}
+              style={styles.scheduleHeroLogo}
+              resizeMode="contain"
+            />
+          </View>
+        ) : null}
+
+        <Text style={styles.scheduleHeroTitle}>{headerTitle}</Text>
+        {headerSubtitle ? <Text style={styles.scheduleHeroSub}>{headerSubtitle}</Text> : null}
+      </LinearGradient>
+
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={BRAND.primary} />
+          <Text style={styles.scheduleLoadingText}>Loading roster...</Text>
+        </View>
+      ) : !sortedRoster.length ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No roster entries are available.</Text>
+          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
+        </View>
+      ) : (
+        <View style={styles.rosterList}>
+          <View style={styles.rosterSortRow}>
+            {([
+              ['number', 'Number'],
+              ['name', 'Name'],
+              ['position', 'Position'],
+            ] as const).map(([key, label]) => {
+              const active = sortKey === key;
+
+              return (
+                <Pressable
+                  key={key}
+                  style={[
+                    styles.rosterSortChip,
+                    active
+                      ? {
+                          backgroundColor: theme.colors.buttonBackground,
+                          borderColor: theme.colors.buttonBackground,
+                        }
+                      : null,
+                  ]}
+                  onPress={() => setSortKey(key)}
+                >
+                  <Text
+                    style={[
+                      styles.rosterSortChipText,
+                      active ? { color: theme.colors.buttonText } : null,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {sortedRoster.map((athlete) => {
+            const numberLabel = athlete.jerseyNumber || athlete.number || '';
+            const metaBits = [athlete.position, athlete.classYear].filter(Boolean).join(' • ');
+            const sizeBits = [athlete.height, athlete.weight].filter(Boolean).join(' • ');
+            const imageUrl = athlete.photoUrl?.trim() || '';
+            const displayName =
+              athlete.fullName?.trim() ||
+              [athlete.firstName, athlete.lastName].filter(Boolean).join(' ').trim() ||
+              'Unknown Athlete';
+
+            return (
+              <Pressable
+                key={athlete.id}
+                style={styles.rosterCard}
+                onPress={() => onOpenAthlete(athlete)}
+              >
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.rosterPhoto}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.rosterPhotoFallback}>
+                    <Ionicons name="person" size={22} color={BRAND.white} />
+                  </View>
+                )}
+
+                <View style={styles.rosterBody}>
+                  <View style={styles.rosterTopRow}>
+                    <Text style={styles.rosterName} numberOfLines={1}>
+                      {displayName}
+                    </Text>
+                    {numberLabel ? (
+                      <Text style={styles.rosterNumber}>#{numberLabel}</Text>
+                    ) : null}
+                  </View>
+
+                  {metaBits ? <Text style={styles.rosterMeta}>{metaBits}</Text> : null}
+                  {sizeBits ? <Text style={styles.rosterMetaSecondary}>{sizeBits}</Text> : null}
+                </View>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={BRAND.gray}
+                  style={styles.newsChevron}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function AthleteProfileScreen({
+  athlete,
+  onBack,
+  theme = DEFAULT_APP_THEME,
+}: {
+  athlete: AthleticOSRosterAthlete;
+  onBack: () => void;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const imageUrl = athlete.photoUrl?.trim() || '';
+  const numberLabel = athlete.jerseyNumber || athlete.number || '';
+  const infoRows = [
+    numberLabel ? `No. ${numberLabel}` : '',
+    athlete.position || '',
+    athlete.classYear || '',
+  ].filter(Boolean);
+  const bodyRows = [
+    athlete.height ? `Height: ${athlete.height}` : '',
+    athlete.weight ? `Weight: ${athlete.weight}` : '',
+    athlete.hometown ? `Hometown: ${athlete.hometown}` : '',
+  ].filter(Boolean);
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+      <LinearGradient colors={getThemeDarkHeroGradient(theme)} style={styles.storyDetailHero}>
+        <Pressable style={styles.storyDetailBackButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+
+        <View style={styles.storyDetailHeroContent}>
+          <Text style={styles.storyDetailTitle}>{athlete.fullName}</Text>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.rosterProfileWrap}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.rosterProfileImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.rosterProfileImageFallback}>
+            <Ionicons name="person" size={40} color={BRAND.white} />
+          </View>
+        )}
+
+        <View style={styles.rosterProfileCard}>
+          {infoRows.length > 0 ? (
+            <Text style={styles.rosterProfileMeta}>{infoRows.join(' • ')}</Text>
+          ) : null}
+          {bodyRows.map((row) => (
+            <Text key={row} style={styles.rosterProfileDetail}>
+              {row}
+            </Text>
+          ))}
+          {athlete.bio ? (
+            <Text style={styles.rosterProfileBio}>{athlete.bio}</Text>
+          ) : null}
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -2988,10 +3870,15 @@ function SportDetailScreen({
   schoolId,
   schoolSlug,
   schoolConfig,
+  scheduleAccentColor,
   onBack,
   onOpenEmbedded,
+  onOpenRoster,
+  onOpenSchedule,
+  onOpenStoryDetail,
   followedTeams,
   onToggleFollowTeam,
+  theme = DEFAULT_APP_THEME,
 }: {
   sport: SportType;
   schoolId: string | number | null;
@@ -3000,14 +3887,30 @@ function SportDetailScreen({
     displayName: string;
     logoUrl: string;
     splashLogoUrl?: string;
+    ticketsUrl: string;
   };
+  scheduleAccentColor: string;
   onBack: () => void;
   onOpenEmbedded: (title: string, url: string) => void;
+  onOpenRoster: (options: OpenRosterOptions) => void;
+  onOpenSchedule: (options?: {
+    events?: EventItem[];
+    headerTitle?: string;
+    headerSubtitle?: string;
+    schoolLogoUrl?: string;
+    variant?: ScheduleScreenVariant;
+    accentColor?: string;
+  }) => void;
+  onOpenStoryDetail: (item: NewsItem) => void;
   followedTeams: string[];
   onToggleFollowTeam: (teamKey: string) => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [allTeamScheduleEvents, setAllTeamScheduleEvents] = useState<EventItem[]>([]);
+  const [teamNavItems, setTeamNavItems] = useState<AthleticOSTeamNavItem[]>([]);
+  const [teamSportId, setTeamSportId] = useState('');
   const [sportConfig, setSportConfig] = useState(() => ({
     key: sport.key,
     name: sport.shortLabel || sport.label,
@@ -3019,12 +3922,177 @@ function SportDetailScreen({
   }));
   const [loading, setLoading] = useState(true);
   const hasScheduleUrl = hasResolvedUrl(sportConfig.scheduleUrl);
-  const hasRosterUrl = hasResolvedUrl(sportConfig.rosterUrl);
+  const hasNativeRosterAccess = Boolean(teamSportId);
   const hasMainUrl = hasResolvedUrl(sportConfig.mainUrl);
   const hasRecruitingUrl = hasResolvedUrl(sportConfig.recruitingUrl);
-  const tappableEvents = events.filter((item) => hasResolvedUrl(item.link));
+  const visibleEvents = events;
+  const hasScheduleAccess = hasScheduleUrl || allTeamScheduleEvents.length > 0;
+  const handleOpenTeamRoster = () => {
+    console.log('TEAM PAGE ROSTER TAP -> handleOpenTeamRoster', {
+      sportKey: sport.key,
+      sportId: teamSportId,
+    });
+
+    if (!teamSportId) {
+      return;
+    }
+
+    console.log('TEAM PAGE ROSTER TAP -> onOpenRoster', {
+      sportKey: sport.key,
+      sportId: teamSportId,
+    });
+    onOpenRoster({
+      sport,
+      sportId: teamSportId,
+      headerTitle: `${sport.shortLabel || sport.label} Roster`,
+      headerSubtitle: schoolConfig.displayName,
+      schoolLogoUrl: schoolConfig.logoUrl,
+    });
+  };
 
   const isFollowing = followedTeams.includes(sport.key);
+  const fallbackTeamNavActions = useMemo(() => {
+    const actions: TeamNavAction[] = [];
+
+    if (hasScheduleAccess) {
+      actions.push({
+        key: 'schedule',
+        label: 'Schedule',
+        icon: 'calendar-outline',
+        onPress: () =>
+          onOpenSchedule({
+            events: allTeamScheduleEvents,
+            headerTitle: `${sport.shortLabel || sport.label} Schedule`,
+            headerSubtitle: schoolConfig.displayName,
+            schoolLogoUrl: schoolConfig.logoUrl,
+            variant: 'team',
+            accentColor: scheduleAccentColor,
+          }),
+      });
+    }
+
+    if (hasNativeRosterAccess) {
+      actions.push({
+        key: 'roster',
+        label: 'Roster',
+        icon: 'people-outline',
+        onPress: handleOpenTeamRoster,
+      });
+    }
+
+    if (hasRecruitingUrl || hasMainUrl) {
+      actions.push({
+        key: 'recruiting',
+        label: 'Recruiting',
+        icon: 'school-outline',
+        onPress: () =>
+          onOpenEmbedded(
+            `${sport.shortLabel || sport.label} Recruiting`,
+            sportConfig.recruitingUrl || sportConfig.mainUrl
+          ),
+      });
+    }
+
+    return actions;
+  }, [
+    handleOpenTeamRoster,
+    hasRecruitingUrl,
+    hasNativeRosterAccess,
+    hasScheduleAccess,
+    onOpenSchedule,
+    scheduleAccentColor,
+    schoolConfig.displayName,
+    schoolConfig.logoUrl,
+    sport.label,
+    sport.shortLabel,
+    sportConfig.recruitingUrl,
+    allTeamScheduleEvents,
+  ]);
+
+  const resolvedTeamNavActions = useMemo(() => {
+    if (teamNavItems.length === 0) {
+      return fallbackTeamNavActions;
+    }
+
+    const actions: TeamNavAction[] = [];
+
+    for (const item of teamNavItems) {
+      if (!item.isEnabled) {
+        continue;
+      }
+
+      switch (item.navKey) {
+        case 'schedule':
+          if (hasScheduleAccess) {
+            actions.push({
+              key: 'schedule',
+              label: item.label || 'Schedule',
+              icon: 'calendar-outline',
+              onPress: () =>
+                onOpenSchedule({
+                  events: allTeamScheduleEvents,
+                  headerTitle: `${sport.shortLabel || sport.label} Schedule`,
+                  headerSubtitle: schoolConfig.displayName,
+                  schoolLogoUrl: schoolConfig.logoUrl,
+                  variant: 'team',
+                  accentColor: scheduleAccentColor,
+                }),
+            });
+          }
+          break;
+        case 'roster':
+          if (hasNativeRosterAccess) {
+            actions.push({
+              key: 'roster',
+              label: item.label || 'Roster',
+              icon: 'people-outline',
+              onPress: handleOpenTeamRoster,
+            });
+          }
+          break;
+        case 'recruiting':
+          if (hasRecruitingUrl || hasMainUrl) {
+            actions.push({
+              key: 'recruiting',
+              label: item.label || 'Recruiting',
+              icon: 'school-outline',
+              onPress: () =>
+                onOpenEmbedded(
+                  `${sport.shortLabel || sport.label} Recruiting`,
+                  sportConfig.recruitingUrl || sportConfig.mainUrl
+                ),
+            });
+          }
+          break;
+        case 'news':
+        case 'coaches':
+        case 'stats':
+        case 'standings':
+        case 'tickets':
+        default:
+          break;
+      }
+    }
+
+    return actions.length > 0 ? actions : fallbackTeamNavActions;
+  }, [
+    fallbackTeamNavActions,
+    handleOpenTeamRoster,
+    hasMainUrl,
+    hasRecruitingUrl,
+    hasNativeRosterAccess,
+    hasScheduleAccess,
+    onOpenEmbedded,
+    onOpenSchedule,
+    scheduleAccentColor,
+    schoolConfig.displayName,
+    schoolConfig.logoUrl,
+    sport.label,
+    sport.shortLabel,
+    sportConfig.recruitingUrl,
+    teamNavItems,
+    allTeamScheduleEvents,
+  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -3046,23 +4114,33 @@ function SportDetailScreen({
           });
           setNewsItems([]);
           setEvents([]);
+          setAllTeamScheduleEvents([]);
+          setTeamNavItems([]);
+          setTeamSportId('');
           return;
         }
 
-        const [nextSportConfig, teamNews, teamSchedule] = await Promise.all([
+        const [nextSportConfig, teamNews, teamSchedule, teamSportRecord] = await Promise.all([
           getSportConfigBySchoolIdAndKey(schoolId, sport.key, schoolSlug),
           getSportStoriesBySchoolId(schoolId, sport.key),
           getSportScheduleEventsBySchoolId(schoolId, sport.key),
+          getSportBySchoolIdAndKey(schoolId, sport.key),
         ]);
 
         if (!mounted) return;
 
         setSportConfig(nextSportConfig);
+        setTeamSportId(
+          teamSportRecord?.id === undefined || teamSportRecord?.id === null
+            ? ''
+            : String(teamSportRecord.id)
+        );
         const mappedNews = teamNews
           .map((story) =>
             mapStoryToHomeNewsItem(
               story,
-              nextSportConfig.mainUrl || nextSportConfig.scheduleUrl
+              nextSportConfig.mainUrl || nextSportConfig.scheduleUrl,
+              teamSportRecord ? [teamSportRecord] : []
             )
           )
           .filter((item) => item.title && item.link)
@@ -3074,7 +4152,8 @@ function SportDetailScreen({
         const mappedEvents = teamSchedule.map((event) => {
           const mapped = mapScheduleEventToHomeEventItem(
             event,
-            nextSportConfig.scheduleUrl
+            nextSportConfig.scheduleUrl,
+            teamSportRecord ? [teamSportRecord] : []
           );
 
           return {
@@ -3083,8 +4162,27 @@ function SportDetailScreen({
           };
         });
 
+        const nextTeamNavItems =
+          teamSportRecord?.id !== undefined && teamSportRecord?.id !== null
+            ? await getTeamNavBySportId(schoolId, teamSportRecord.id)
+            : [];
+
+        const sortedTeamScheduleEvents = [...mappedEvents].sort((a, b) => {
+          const aTime = new Date(
+            a.eventDateTime || a.startDateTime || a.eventDate || 0
+          ).getTime();
+
+          const bTime = new Date(
+            b.eventDateTime || b.startDateTime || b.eventDate || 0
+          ).getTime();
+
+          return aTime - bTime;
+        });
+
         setNewsItems(mappedNews.slice(0, 6));
         setEvents(filterNextFourGames(mappedEvents));
+        setAllTeamScheduleEvents(sortedTeamScheduleEvents);
+        setTeamNavItems(nextTeamNavItems);
       } catch (error) {
         console.log(`Failed loading sport data for ${sport.key}:`, error);
 
@@ -3101,6 +4199,9 @@ function SportDetailScreen({
         });
         setNewsItems([]);
         setEvents([]);
+        setAllTeamScheduleEvents([]);
+        setTeamNavItems([]);
+        setTeamSportId('');
       } finally {
         if (mounted) {
           setLoading(false);
@@ -3121,7 +4222,7 @@ function SportDetailScreen({
       contentContainerStyle={styles.screenContent}
     >
       <LinearGradient
-        colors={[BRAND.black, BRAND.primaryDark]}
+        colors={getThemeDarkHeroGradient(theme)}
         style={styles.sportHeader}
       >
         <Pressable style={styles.backButton} onPress={onBack}>
@@ -3150,7 +4251,15 @@ function SportDetailScreen({
         <Pressable
           style={[
             styles.followTeamButton,
-            isFollowing ? styles.followTeamButtonActive : null,
+            isFollowing
+              ? [
+                  styles.followTeamButtonActive,
+                  {
+                    backgroundColor: theme.colors.buttonBackground,
+                    borderColor: theme.colors.buttonBackground,
+                  },
+                ]
+              : null,
           ]}
           onPress={() => onToggleFollowTeam(sport.key)}
         >
@@ -3167,54 +4276,28 @@ function SportDetailScreen({
         </Pressable>
       </LinearGradient>
 
-      {hasScheduleUrl || hasRosterUrl || hasMainUrl ? (
-        <View style={styles.sportActionGrid}>
-          {hasScheduleUrl ? (
+      {resolvedTeamNavActions.length > 0 ? (
+        <View
+          style={
+            resolvedTeamNavActions.length === 1
+              ? styles.sportActionSingleWrap
+              : styles.sportActionGrid
+          }
+        >
+          {resolvedTeamNavActions.map((action) => (
             <Pressable
-              style={styles.sportActionCard}
-              onPress={() =>
-                onOpenEmbedded(
-                  `${sport.shortLabel || sport.label} Schedule`,
-                  sportConfig.scheduleUrl
-                )
+              key={action.key}
+              style={
+                resolvedTeamNavActions.length === 1
+                  ? styles.sportActionCardFull
+                  : styles.sportActionCard
               }
+              onPress={action.onPress}
             >
-              <Ionicons name="calendar-outline" size={22} color={BRAND.white} />
-              <Text style={styles.sportActionText}>Schedule</Text>
+              <Ionicons name={action.icon} size={22} color={BRAND.white} />
+              <Text style={styles.sportActionText}>{action.label}</Text>
             </Pressable>
-          ) : null}
-
-          {hasRosterUrl || hasMainUrl ? (
-            <Pressable
-              style={styles.sportActionCard}
-              onPress={() =>
-                onOpenEmbedded(
-                  `${sport.label} Roster`,
-                  sportConfig.rosterUrl || sportConfig.mainUrl
-                )
-              }
-            >
-              <Ionicons name="people-outline" size={22} color={BRAND.white} />
-              <Text style={styles.sportActionText}>Roster</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-
-      {hasRecruitingUrl || hasMainUrl ? (
-        <View style={styles.sportActionSingleWrap}>
-          <Pressable
-            style={styles.sportActionCardFull}
-            onPress={() =>
-              onOpenEmbedded(
-                `${sport.shortLabel || sport.label} Recruiting`,
-                sportConfig.recruitingUrl || sportConfig.mainUrl
-              )
-            }
-          >
-            <Ionicons name="school-outline" size={22} color={BRAND.white} />
-            <Text style={styles.sportActionText}>Recruiting</Text>
-          </Pressable>
+          ))}
         </View>
       ) : null}
 
@@ -3223,7 +4306,7 @@ function SportDetailScreen({
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={BRAND.primary} />
         </View>
-      ) : tappableEvents.length === 0 ? (
+      ) : visibleEvents.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>No upcoming games found.</Text>
         </View>
@@ -3233,24 +4316,70 @@ function SportDetailScreen({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.teamGamesRow}
         >
-          {tappableEvents.map((item) => {
+          {visibleEvents.map((item) => {
             const normalized = normalizeScheduleItem(item);
-            const opponentText = item.description?.trim() || 'Opponent TBA';
-            const matchupLine = `${normalized.homeAway || 'vs.'} ${opponentText}`;
+            const matchupLine =
+              normalized.homeAway && normalized.opponent
+                ? `${normalized.homeAway} ${normalized.opponent}`
+                : normalized.opponent || normalized.sport;
+            const dateTimeLine = [normalized.displayDate, normalized.timeLabel]
+              .filter(Boolean)
+              .join(' • ');
 
             return (
               <Pressable
                 key={item.id}
                 style={styles.teamGameCard}
-                onPress={() => onOpenEmbedded(item.title, item.link)}
+                onPress={() =>
+                  onOpenSchedule({
+                    events: visibleEvents,
+                    headerTitle: `${sport.shortLabel || sport.label} Schedule`,
+                    headerSubtitle: schoolConfig.displayName,
+                    schoolLogoUrl: schoolConfig.logoUrl,
+                    variant: 'team',
+                    accentColor: scheduleAccentColor,
+                  })
+                }
               >
-                <Text style={styles.teamGameMatchup} numberOfLines={2}>
-                  {matchupLine}
-                </Text>
+                <View style={styles.teamGameMainRow}>
+                  <View style={styles.teamGameTextWrap}>
+                    <Text style={styles.teamGameSport} numberOfLines={1}>
+                      {normalized.sport}
+                    </Text>
+                    {normalized.statusLabel ? (
+                      <Text style={styles.teamGameStatus}>{normalized.statusLabel}</Text>
+                    ) : null}
+                    <Text style={styles.teamGameMatchup} numberOfLines={2}>
+                      {matchupLine}
+                    </Text>
 
-                <View>
-                  <Text style={styles.teamGameDate}>{normalized.displayDate}</Text>
-                  <Text style={styles.teamGameTime}>{normalized.timeLabel}</Text>
+                    {normalized.hasScore && normalized.teamScore && normalized.opponentScore ? (
+                      <View style={styles.teamGameScoreRow}>
+                        <Text style={styles.teamGameScoreValue}>{normalized.teamScore}</Text>
+                        <Text style={styles.teamGameScoreSeparator}>-</Text>
+                        <Text style={styles.teamGameScoreValue}>{normalized.opponentScore}</Text>
+                      </View>
+                    ) : null}
+
+                    {dateTimeLine ? (
+                      <Text style={styles.teamGameDate}>{dateTimeLine}</Text>
+                    ) : null}
+                    {normalized.locationLabel ? (
+                      <Text style={styles.teamGameVenue} numberOfLines={1}>
+                        {normalized.locationLabel}
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  {normalized.opponentLogoUrl ? (
+                    <View style={styles.teamGameLogoPlate}>
+                      <Image
+                        source={{ uri: normalized.opponentLogoUrl }}
+                        style={styles.teamGameLogo}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -3273,9 +4402,188 @@ function SportDetailScreen({
             <NewsCard
               key={`${item.link}-${item.title}`}
               item={item}
-              onPress={() => openStoryDetail(item)}
+              theme={theme}
+              onPress={() => onOpenStoryDetail(item)}
             />
           ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function NewsListScreen({
+  newsItems,
+  loading,
+  onBack,
+  onOpenStoryDetail,
+  schoolDisplayName,
+  mascotName,
+  schoolLogoUrl,
+  theme = DEFAULT_APP_THEME,
+}: {
+  newsItems: NewsItem[];
+  loading: boolean;
+  onBack: () => void;
+  onOpenStoryDetail: (item: NewsItem) => void;
+  schoolDisplayName?: string;
+  mascotName?: string;
+  schoolLogoUrl?: string;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const heroSchoolName =
+    schoolDisplayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
+    'Athletics';
+  const heroMascot = mascotName?.trim() || '';
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[
+        styles.screenContent,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
+      <LinearGradient
+        colors={[
+          `${theme.colors.secondary}22`,
+          `${theme.colors.primary}12`,
+          theme.colors.background,
+        ]}
+        style={styles.teamsScreenBackdrop}
+        pointerEvents="none"
+      />
+
+      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={styles.teamsHubHero}>
+        <View
+          style={[
+            styles.teamsHubAccentRail,
+            { backgroundColor: theme.colors.accent },
+          ]}
+        />
+
+        <Pressable style={styles.storyDetailBackButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+
+        {hasResolvedUrl(schoolLogoUrl) ? (
+          <Image
+            source={{ uri: schoolLogoUrl }}
+            style={styles.teamsHubLogo}
+            resizeMode="contain"
+          />
+        ) : null}
+
+        <View style={styles.newsHubContent}>
+          <Text style={styles.teamsHubEyebrow}>Latest News</Text>
+          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
+          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
+          <Text style={styles.teamsHubText}>
+            School-wide athletics stories, features, and updates in one native feed.
+          </Text>
+        </View>
+      </LinearGradient>
+
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={BRAND.primary} />
+        </View>
+      ) : newsItems.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No stories available right now.</Text>
+          <Text style={styles.emptyText}>Check back soon for the latest athletics updates.</Text>
+        </View>
+      ) : (
+        <View style={styles.newsArchiveList}>
+          {newsItems.map((item) => {
+            const sportLabel = item.sportLabel?.trim() || 'Athletics';
+            const summary = item.summary?.trim() || item.description?.trim() || '';
+
+            return (
+              <Pressable
+                key={`${item.link}-${item.title}`}
+                style={[
+                  styles.newsArchiveCard,
+                  {
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => onOpenStoryDetail(item)}
+              >
+                <View
+                  style={[
+                    styles.newsArchiveAccent,
+                    { backgroundColor: theme.colors.accent },
+                  ]}
+                />
+
+                {item.image ? (
+                  <Image
+                    source={{ uri: item.image }}
+                    style={styles.newsArchiveThumb}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.newsArchiveThumbFallback,
+                      {
+                        backgroundColor: theme.colors.cardAlt,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="newspaper-outline" size={22} color={BRAND.white} />
+                  </View>
+                )}
+
+                <View style={styles.newsArchiveContent}>
+                  <View style={styles.newsArchiveMetaRow}>
+                    <View
+                      style={[
+                        styles.featuredPill,
+                        { backgroundColor: theme.colors.pillBackground },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.featuredPillText,
+                          { color: theme.colors.pillText },
+                        ]}
+                      >
+                        {sportLabel}
+                      </Text>
+                    </View>
+                    <Text style={styles.newsArchiveDate}>{item.date || 'Latest'}</Text>
+                  </View>
+
+                  <Text style={styles.newsArchiveTitle} numberOfLines={3}>
+                    {item.title}
+                  </Text>
+
+                  {summary ? (
+                    <Text style={styles.newsArchiveSummary} numberOfLines={3}>
+                      {summary}
+                    </Text>
+                  ) : null}
+                </View>
+
+                <View
+                  style={[
+                    styles.newsArchiveChevronWrap,
+                    {
+                      backgroundColor: theme.colors.cardAlt,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Ionicons name="chevron-forward" size={18} color={BRAND.white} />
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       )}
     </ScrollView>
@@ -3430,10 +4738,12 @@ function MoreListRow({
 function MoreScreen({
   schoolConfig,
   followedTeamsCount,
+  scheduleAvailable,
   themeMode,
   onOpenManageTeams,
   onOpenSettings,
   onOpenSavedEvents,
+  onOpenSchedule,
   onOpenEmbedded,
 }: {
   schoolConfig: {
@@ -3443,15 +4753,17 @@ function MoreScreen({
     shopUrl: string;
   };
   followedTeamsCount: number;
+  scheduleAvailable: boolean;
   themeMode: 'light' | 'dark';
   onOpenManageTeams: () => void;
   onOpenSettings: () => void;
   onOpenSavedEvents: () => void;
+  onOpenSchedule: () => void;
   onOpenEmbedded: (title: string, url: string) => void;
 }) {
   const isLightMode = themeMode === 'light';
   const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
-  const hasScheduleUrl = hasResolvedUrl(schoolConfig.scheduleUrl);
+  const hasScheduleUrl = scheduleAvailable;
   const hasTicketsUrl = hasResolvedUrl(schoolConfig.ticketsUrl);
   const hasShopUrl = hasResolvedUrl(schoolConfig.shopUrl);
 
@@ -3503,8 +4815,8 @@ function MoreScreen({
         {hasScheduleUrl ? (
           <MoreListRow
             title="Events"
-            subtitle="Open the schedule"
-            onPress={() => onOpenEmbedded('Events', schoolConfig.scheduleUrl)}
+            subtitle="Open the in-app schedule"
+            onPress={onOpenSchedule}
           />
         ) : null}
         {hasTicketsUrl ? (
@@ -3715,34 +5027,57 @@ function SavedEventsScreen({
 }
 
 function BottomNav({
-  activeTab,
-  onChange,
+  items,
   themeMode,
   centerLogoUrl,
+  theme = DEFAULT_APP_THEME,
 }: {
-  activeTab: TabKey;
-  onChange: (tab: TabKey) => void;
+  items: BottomNavRenderItem[];
   themeMode: 'light' | 'dark';
   centerLogoUrl?: string;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
-  const items: {
-    key: TabKey;
-    label: string;
-    icon?: keyof typeof Ionicons.glyphMap;
-  }[] = [
-    { key: 'media', label: 'Broadcast', icon: 'radio-outline' },
-    { key: 'teams', label: 'Teams', icon: 'people' },
-    { key: 'home', label: 'Home', icon: 'home' },
-    { key: 'tickets', label: 'Tickets', icon: 'ticket-outline' },
-    { key: 'more', label: 'More', icon: 'ellipsis-horizontal' },
-  ];
+  const homeItem = items.find((item) => item.key === 'home');
+  const homeActive = homeItem?.active ?? false;
+  const homePulse = useRef(new Animated.Value(1)).current;
+  const homePulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  useEffect(() => {
+    homePulseLoopRef.current?.stop();
+    homePulseLoopRef.current = null;
+
+    if (homeActive) {
+      homePulseLoopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(homePulse, {
+            toValue: 1.06,
+            duration: 1300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(homePulse, {
+            toValue: 1,
+            duration: 1300,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      homePulseLoopRef.current.start();
+    } else {
+      homePulse.setValue(1);
+    }
+
+    return () => {
+      homePulseLoopRef.current?.stop();
+      homePulseLoopRef.current = null;
+      homePulse.setValue(1);
+    };
+  }, [homeActive, homePulse]);
 
   return (
     <View style={[styles.bottomNav, isLightMode ? styles.bottomNavLight : null]}>
       {items.map((item) => {
-        const active = activeTab === item.key;
+        const active = item.active;
 
         return (
           <Pressable
@@ -3751,30 +5086,50 @@ function BottomNav({
               styles.bottomNavItem,
               item.key === 'home' ? styles.bottomNavItemAsn : null,
             ]}
-            onPress={() => onChange(item.key)}
+            onPress={item.onPress}
           >
             {item.key === 'home' ? (
               <>
-                <View
+                <Animated.View
                   style={[
-                    styles.asnTabWrap,
-                    active ? styles.asnTabWrapActive : null,
+                    styles.asnTabFloatWrap,
+                    { transform: [{ scale: homePulse }] },
                   ]}
                 >
-                  {hasCenterLogo ? (
-                    <Image
-                      source={{ uri: centerLogoUrl }}
-                      style={styles.centerNavLogo}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <Ionicons
-                      name="radio-outline"
-                      size={18}
-                      color={active ? BRAND.white : BRAND.gray}
-                    />
-                  )}
-                </View>
+                  <View
+                    style={[
+                      styles.asnTabWrap,
+                      active ? styles.asnTabWrapActive : null,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.asnTabGlowWrap,
+                        active ? styles.asnTabGlowWrapActive : null,
+                        active
+                          ? {
+                              shadowColor: theme.colors.glow,
+                              borderColor: theme.colors.glow,
+                            }
+                          : null,
+                      ]}
+                    >
+                      {hasCenterLogo ? (
+                        <Image
+                          source={{ uri: centerLogoUrl }}
+                          style={styles.centerNavLogo}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <Ionicons
+                          name="radio-outline"
+                          size={18}
+                          color={active ? BRAND.white : BRAND.gray}
+                        />
+                      )}
+                    </View>
+                  </View>
+                </Animated.View>
                 <Text
                   style={[
                     styles.asnTabLabel,
@@ -3821,18 +5176,40 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [screenMode, setScreenMode] = useState<ScreenMode>('tabs');
   const [selectedSport, setSelectedSport] = useState<SportType | null>(null);
+  const [selectedRosterSport, setSelectedRosterSport] = useState<SportType | null>(null);
+  const [selectedRosterSportId, setSelectedRosterSportId] = useState('');
+  const [rosterHeaderTitle, setRosterHeaderTitle] = useState('Roster');
+  const [rosterHeaderSubtitle, setRosterHeaderSubtitle] = useState('');
+  const [rosterLogoUrl, setRosterLogoUrl] = useState('');
+  const [rosterItems, setRosterItems] = useState<AthleticOSRosterAthlete[]>([]);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [selectedAthlete, setSelectedAthlete] = useState<AthleticOSRosterAthlete | null>(null);
   const [selectedStory, setSelectedStory] = useState<NewsItem | null>(null);
   const [previousScreenMode, setPreviousScreenMode] = useState<ScreenMode>('tabs');
+  const [scheduleScreenEvents, setScheduleScreenEvents] = useState<EventItem[]>([]);
+  const [scheduleScreenTitle, setScheduleScreenTitle] = useState('Schedule');
+  const [scheduleScreenSubtitle, setScheduleScreenSubtitle] = useState('');
+  const [scheduleScreenLogoUrl, setScheduleScreenLogoUrl] = useState('');
+  const [scheduleScreenVariant, setScheduleScreenVariant] =
+    useState<ScheduleScreenVariant>('school');
+  const [scheduleScreenAccentColor, setScheduleScreenAccentColor] = useState(BRAND.primary);
   const [embeddedTitle, setEmbeddedTitle] = useState('');
   const [embeddedUrl, setEmbeddedUrl] = useState('');
 
 const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+const [allNewsItems, setAllNewsItems] = useState<NewsItem[]>([]);
 const [videoItems, setVideoItems] = useState<VideoItem[]>([]);
 const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
 const [recentEvents, setRecentEvents] = useState<EventItem[]>([]);
 const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([]);
 const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [homeModules, setHomeModules] = useState<AthleticOSAppHomeModule[]>([]);
+  const [bottomNavItems, setBottomNavItems] = useState<AthleticOSBottomNavItem[]>([]);
+  const [appThemeConfig, setAppThemeConfig] = useState<AthleticOSAppThemeConfig | null>(
+    null
+  );
+  const [liveCoverageConfig, setLiveCoverageConfig] =
+    useState<AthleticOSAppLiveCoverageConfig | null>(null);
   const [promotionCard, setPromotionCard] = useState<AthleticOSPromotionCard | null>(
     null
   );
@@ -3854,6 +5231,11 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [prerollDecisionComplete, setPrerollDecisionComplete] = useState(false);
   const [showPreroll, setShowPreroll] = useState(false);
   const [schoolConfig, setSchoolConfig] = useState(() => defaultSchoolConfig);
+  const [schoolAccentColor, setSchoolAccentColor] = useState(BRAND.primary);
+  const resolvedTheme = useMemo(
+    () => resolveAthleticOSTheme(appThemeConfig),
+    [appThemeConfig]
+  );
   const appDisplayName = schoolConfig.displayName.trim() || 'Athletics';
   const [newsLoading, setNewsLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -4027,17 +5409,22 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       console.log(`Home feed skipped because no school was resolved for "${schoolSlug}"`);
       setSchoolConfig(defaultSchoolConfig);
       setHomeModules([]);
+      setBottomNavItems([]);
+      setAppThemeConfig(null);
+      setLiveCoverageConfig(null);
       setPromotionCard(null);
       setAthleteOfWeek(null);
       setSponsorPlacements([]);
       setHomeSports(SPORTS);
       setFollowableSports([]);
       setNewsItems([]);
+      setAllNewsItems([]);
       setVideoItems([]);
       setGalleryItems([]);
       setRecentEvents([]);
       setUpcomingEvents([]);
       setAllEvents([]);
+      setSchoolAccentColor(BRAND.primary);
       return;
     }
 
@@ -4045,7 +5432,10 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       nextSchoolConfig,
       schoolAppConfig,
       moduleConfig,
+      nextBottomNavItems,
+      nextThemeConfig,
       nextPromotionCard,
+      nextLiveCoverageConfig,
       nextAthleteOfWeek,
       videosConfig,
       sponsorConfig,
@@ -4058,7 +5448,10 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       getSchoolConfigById(resolvedSchoolId, schoolSlug),
       getSchoolAppConfigById(resolvedSchoolId),
       getAppHomeModulesBySchoolId(resolvedSchoolId),
+      getAppBottomNavItemsBySchoolId(resolvedSchoolId),
+      getAppThemeConfigBySchoolId(resolvedSchoolId),
       getPromotionCardBySchoolId(resolvedSchoolId),
+      getAppLiveCoverageConfigBySchoolId(resolvedSchoolId),
       getAthleteOfTheWeekBySchoolId(resolvedSchoolId),
       getAppVideosConfigBySchoolId(resolvedSchoolId),
       getAppSponsorPlacementsBySchoolId(resolvedSchoolId),
@@ -4137,6 +5530,36 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
           ? schoolAppConfig.shop_url.trim()
           : undefined) ?? nextSchoolConfig.shopUrl,
     };
+    const nextSchoolAccentColor =
+      (typeof schoolAppConfig?.accent_color === 'string' &&
+      schoolAppConfig.accent_color.trim()
+        ? schoolAppConfig.accent_color.trim()
+        : '') ||
+      (typeof schoolAppConfig?.secondary_color === 'string' &&
+      schoolAppConfig.secondary_color.trim()
+        ? schoolAppConfig.secondary_color.trim()
+        : '') ||
+      (typeof schoolAppConfig?.primary_color === 'string' &&
+      schoolAppConfig.primary_color.trim()
+        ? schoolAppConfig.primary_color.trim()
+        : '') ||
+      BRAND.primary;
+    const mergedThemeConfig = {
+      ...(nextThemeConfig ?? {}),
+      theme_key: nextThemeConfig?.theme_key?.trim() || 'sec_power5',
+      primary_color:
+        nextThemeConfig?.primary_color?.trim() ||
+        schoolAppConfig?.primary_color?.trim() ||
+        BRAND.primary,
+      secondary_color:
+        nextThemeConfig?.secondary_color?.trim() ||
+        schoolAppConfig?.secondary_color?.trim() ||
+        BRAND.primaryDark,
+      accent_color:
+        nextThemeConfig?.accent_color?.trim() ||
+        schoolAppConfig?.accent_color?.trim() ||
+        nextSchoolAccentColor,
+    } satisfies AthleticOSAppThemeConfig;
 
     console.log('[AthleticOS] appConfig:', schoolAppConfig);
     console.log('[AthleticOS] modules:', moduleConfig);
@@ -4145,7 +5568,8 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       .map((story) =>
         mapStoryToHomeNewsItem(
           story,
-          mergedSchoolConfig.athleticOSSiteUrl || mergedSchoolConfig.mainSiteUrl
+          mergedSchoolConfig.athleticOSSiteUrl || mergedSchoolConfig.mainSiteUrl,
+          sportsData
         )
       )
       .filter((item) => item.title && item.link)
@@ -4154,13 +5578,23 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         date: formatDate(item.rawDate),
       }));
 
+    console.log(
+      'NORMALIZED HOME STORY SAMPLE',
+      news.slice(0, 3).map((item) => ({
+        title: item.title,
+        sportLabel: item.sportLabel,
+        sportId: item.sportId,
+      }))
+    );
+
     console.log('[AthleticOS] stories count:', stories?.length);
     console.log('[AthleticOS] stories sample:', stories?.[0]);
 
     const allScheduleEvents = scheduleEvents.map((event) => {
       const mapped = mapScheduleEventToHomeEventItem(
         event,
-        mergedSchoolConfig.scheduleUrl
+        mergedSchoolConfig.scheduleUrl,
+        sportsData
       );
 
       return {
@@ -4235,12 +5669,17 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       .filter(Boolean) as FollowableSport[];
 
     setNewsItems(news.slice(0, 8));
+    setAllNewsItems(news);
     setGalleryItems(nextGalleryItems);
     setRecentEvents(recent);
     setUpcomingEvents(upcoming);
     setAllEvents(allScheduleEvents);
     setSchoolConfig(mergedSchoolConfig);
+    setSchoolAccentColor(nextSchoolAccentColor);
     setHomeModules(moduleConfig);
+    setBottomNavItems(nextBottomNavItems);
+    setAppThemeConfig(mergedThemeConfig);
+    setLiveCoverageConfig(nextLiveCoverageConfig);
     setPromotionCard(nextPromotionCard);
     setAthleteOfWeek(nextAthleteOfWeek);
     setSponsorPlacements(sponsorConfig);
@@ -4250,17 +5689,22 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   } catch (error) {
     console.log('Home feed load error:', error);
     setHomeModules([]);
+    setBottomNavItems([]);
+    setAppThemeConfig(null);
+    setLiveCoverageConfig(null);
     setPromotionCard(null);
     setAthleteOfWeek(null);
     setSponsorPlacements([]);
     setHomeSports(SPORTS);
     setFollowableSports([]);
     setNewsItems([]);
+    setAllNewsItems([]);
     setVideoItems([]);
     setGalleryItems([]);
     setRecentEvents([]);
     setUpcomingEvents([]);
     setAllEvents([]);
+    setSchoolAccentColor(BRAND.primary);
   } finally {
     setNewsLoading(false);
     setEventsLoading(false);
@@ -4320,6 +5764,52 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
     loadSavedPreferences();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRoster() {
+      if (!resolvedSchoolId || !selectedRosterSportId) {
+        if (mounted) {
+          setRosterItems([]);
+          setRosterLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setRosterLoading(true);
+        const nextRoster = await getRosterBySchoolIdAndSportId(
+          resolvedSchoolId,
+          selectedRosterSportId
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        setRosterItems(nextRoster);
+      } catch (error) {
+        console.log('Roster load error:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setRosterItems([]);
+      } finally {
+        if (mounted) {
+          setRosterLoading(false);
+        }
+      }
+    }
+
+    loadRoster();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resolvedSchoolId, selectedRosterSportId]);
 
   useEffect(() => {
     if (!pushNotificationsEnabled) {
@@ -4481,11 +5971,25 @@ const handleEnableNotifications = async () => {
     });
   };
 
-  const openScheduleScreen = () => {
+  const openScheduleScreen = (options?: {
+    events?: EventItem[];
+    headerTitle?: string;
+    headerSubtitle?: string;
+    schoolLogoUrl?: string;
+    variant?: ScheduleScreenVariant;
+    accentColor?: string;
+  }) => {
+    setScheduleScreenEvents(options?.events ?? allEvents);
+    setScheduleScreenTitle(options?.headerTitle ?? 'Schedule');
+    setScheduleScreenSubtitle(options?.headerSubtitle ?? appDisplayName);
+    setScheduleScreenLogoUrl(options?.schoolLogoUrl ?? schoolConfig.logoUrl);
+    setScheduleScreenVariant(options?.variant ?? 'school');
+    setScheduleScreenAccentColor(options?.accentColor ?? schoolAccentColor);
     setScreenMode('schedule');
   };
 
   const openEmbedded = (title: string, url: string) => {
+    console.log('EMBED PATH HIT -> openEmbedded', { title, url });
     setEmbeddedTitle(title);
     setEmbeddedUrl(url);
     setScreenMode('embedded');
@@ -4496,22 +6000,235 @@ const handleEnableNotifications = async () => {
     setScreenMode('sportDetail');
   };
 
-  const openStoryDetail = (item: NewsItem) => {
+  const openRosterScreen = (options: OpenRosterOptions) => {
+    console.log('TEAM PAGE ROSTER TAP -> openRosterScreen', {
+      sportKey: options.sport.key,
+      sportId: options.sportId,
+      headerTitle: options.headerTitle,
+    });
+    setPreviousScreenMode(screenMode);
+    setSelectedRosterSport(options.sport);
+    setSelectedRosterSportId(options.sportId);
+    setRosterHeaderTitle(options.headerTitle);
+    setRosterHeaderSubtitle(options.headerSubtitle ?? appDisplayName);
+    setRosterLogoUrl(options.schoolLogoUrl ?? schoolConfig.logoUrl);
+    setSelectedAthlete(null);
+    setScreenMode('roster');
+  };
+
+  const handleOpenStoryDetail = (item: NewsItem) => {
     setPreviousScreenMode(screenMode);
     setSelectedStory(item);
     setScreenMode('storyDetail');
   };
 
-  const handleBottomNavChange = (tab: TabKey) => {
-    setActiveTab(tab);
-    setScreenMode('tabs');
+  const openAthleteProfile = (athlete: AthleticOSRosterAthlete) => {
+    setSelectedAthlete(athlete);
+    setScreenMode('athleteProfile');
+  };
+
+  const openNewsListScreen = () => {
+    setActiveTab('home');
+    setScreenMode('newsList');
+    setSelectedRosterSport(null);
+    setSelectedRosterSportId('');
+    setRosterItems([]);
     setEmbeddedTitle('');
     setEmbeddedUrl('');
+    setSelectedAthlete(null);
     setSelectedStory(null);
   };
 
+  const handleBottomNavChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    setScreenMode('tabs');
+    setSelectedRosterSport(null);
+    setSelectedRosterSportId('');
+    setRosterItems([]);
+    setEmbeddedTitle('');
+    setEmbeddedUrl('');
+    setSelectedAthlete(null);
+    setSelectedStory(null);
+  };
+
+  const openBottomNavUrl = (
+    label: string,
+    destinationValue: string,
+    openInWebview: boolean
+  ) => {
+    const trimmedValue = destinationValue.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    const resolvedUrl = hasResolvedUrl(trimmedValue)
+      ? trimmedValue
+      : trimmedValue.startsWith('/') && hasResolvedUrl(schoolConfig.mainSiteUrl)
+      ? `${schoolConfig.mainSiteUrl.replace(/\/+$/, '')}${trimmedValue}`
+      : '';
+
+    if (!hasResolvedUrl(resolvedUrl)) {
+      return;
+    }
+
+    if (openInWebview) {
+      openEmbedded(label, resolvedUrl);
+      return;
+    }
+
+    openExternalUrl(resolvedUrl);
+  };
+
+  const normalizeInternalBottomNavTarget = (value?: string) =>
+    (value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+  const getDefaultBottomNavSlot = (
+    slotNumber: BottomNavSlot
+  ): Omit<BottomNavRenderItem, 'active'> & { activeTabKey?: TabKey } => {
+    switch (slotNumber) {
+      case 1:
+        return {
+          key: 'slot-1-media',
+          label: 'Broadcast',
+          icon: 'radio-outline',
+          activeTabKey: 'media',
+          onPress: () => handleBottomNavChange('media'),
+        };
+      case 2:
+        return {
+          key: 'slot-2-teams',
+          label: 'Teams',
+          icon: 'people',
+          activeTabKey: 'teams',
+          onPress: () => handleBottomNavChange('teams'),
+        };
+      case 4:
+      default:
+        return {
+          key: 'slot-4-tickets',
+          label: 'Tickets',
+          icon: 'ticket-outline',
+          activeTabKey: 'tickets',
+          onPress: () => handleBottomNavChange('tickets'),
+        };
+    }
+  };
+
+  const buildConfiguredBottomNavSlot = (slotNumber: BottomNavSlot) => {
+    const configuredItem = bottomNavItems.find((item) => item.slotNumber === slotNumber);
+    const fallbackItem = getDefaultBottomNavSlot(slotNumber);
+
+    if (!configuredItem || configuredItem.enabled === false) {
+      return {
+        ...fallbackItem,
+        active:
+          screenMode === 'tabs' &&
+          Boolean(fallbackItem.activeTabKey) &&
+          activeTab === fallbackItem.activeTabKey,
+      } satisfies BottomNavRenderItem;
+    }
+
+    const destinationType = normalizeBottomNavDestinationType(configuredItem.destinationType);
+    const label = configuredItem.label.trim() || fallbackItem.label;
+    const icon = resolveBottomNavIcon(configuredItem.iconKey || fallbackItem.icon);
+    let active = false;
+    let onPress: () => void = fallbackItem.onPress;
+
+    switch (destinationType) {
+      case 'teams':
+        active = screenMode === 'tabs' && activeTab === 'teams';
+        onPress = () => handleBottomNavChange('teams');
+        break;
+      case 'news':
+        active = screenMode === 'newsList';
+        onPress = openNewsListScreen;
+        break;
+      case 'broadcast_audio':
+      case 'broadcast_video':
+      case 'media':
+        active = screenMode === 'tabs' && activeTab === 'media';
+        onPress = () => handleBottomNavChange('media');
+        break;
+      case 'all_schedules':
+        onPress = () =>
+          openScheduleScreen({
+            headerTitle: 'Schedule',
+            headerSubtitle: appDisplayName,
+            schoolLogoUrl: schoolConfig.logoUrl,
+          });
+        break;
+      case 'tickets_url':
+        if (hasResolvedUrl(configuredItem.destinationValue)) {
+          onPress = () =>
+            openBottomNavUrl(label, configuredItem.destinationValue, configuredItem.openInWebview);
+        } else {
+          active = activeTab === 'tickets';
+          onPress = () => handleBottomNavChange('tickets');
+        }
+        break;
+      case 'external_url':
+      case 'custom_page':
+        if (normalizeInternalBottomNavTarget(configuredItem.destinationValue) === 'newslist') {
+          active = screenMode === 'newsList';
+          onPress = openNewsListScreen;
+        } else {
+          onPress = () =>
+            openBottomNavUrl(
+              label,
+              configuredItem.destinationValue,
+              configuredItem.openInWebview
+            );
+        }
+        break;
+      default:
+        active =
+          screenMode === 'tabs' &&
+          Boolean(fallbackItem.activeTabKey) &&
+          activeTab === fallbackItem.activeTabKey;
+        onPress = fallbackItem.onPress;
+        break;
+    }
+
+    return {
+      key: `slot-${slotNumber}`,
+      label,
+      icon,
+      onPress,
+      active,
+    } satisfies BottomNavRenderItem;
+  };
+
+  const bottomNavRenderItems = [
+    buildConfiguredBottomNavSlot(1),
+    buildConfiguredBottomNavSlot(2),
+    {
+      key: 'home',
+      label: 'Home',
+      onPress: () => handleBottomNavChange('home'),
+      active: screenMode === 'tabs' && activeTab === 'home',
+    },
+    buildConfiguredBottomNavSlot(4),
+    {
+      key: 'more',
+      label: 'More',
+      icon: 'ellipsis-horizontal',
+      onPress: () => handleBottomNavChange('more'),
+      active: screenMode === 'tabs' && activeTab === 'more',
+    },
+  ] satisfies BottomNavRenderItem[];
+
   const closeSpecialScreen = () => {
     setScreenMode('tabs');
+    setScheduleScreenEvents([]);
+    setScheduleScreenTitle('Schedule');
+    setScheduleScreenSubtitle('');
+    setScheduleScreenLogoUrl('');
+    setScheduleScreenVariant('school');
+    setScheduleScreenAccentColor(schoolAccentColor);
+    setSelectedRosterSport(null);
+    setSelectedRosterSportId('');
+    setRosterItems([]);
+    setSelectedAthlete(null);
     setEmbeddedTitle('');
     setEmbeddedUrl('');
     setSelectedStory(null);
@@ -4520,6 +6237,15 @@ const handleEnableNotifications = async () => {
   const closeStoryDetail = () => {
     setScreenMode(previousScreenMode);
     setSelectedStory(null);
+  };
+
+  const closeRosterScreen = () => {
+    setScreenMode(previousScreenMode);
+    setSelectedAthlete(null);
+  };
+
+  const closeAthleteProfile = () => {
+    setScreenMode('roster');
   };
 
   const toggleAudio = async () => {
@@ -4597,9 +6323,43 @@ if (showPreroll && prerollConfig) {
         onBack={closeSpecialScreen}
       />
     );
+  } else if (screenMode === 'newsList') {
+    mainContent = (
+      <NewsListScreen
+        newsItems={allNewsItems}
+        loading={newsLoading}
+        onBack={closeSpecialScreen}
+        onOpenStoryDetail={handleOpenStoryDetail}
+        schoolDisplayName={appDisplayName}
+        mascotName={schoolConfig.mascotName}
+        schoolLogoUrl={schoolConfig.logoUrl}
+        theme={resolvedTheme}
+      />
+    );
   } else if (screenMode === 'storyDetail' && selectedStory) {
     mainContent = (
-      <StoryDetailScreen item={selectedStory} onBack={closeStoryDetail} />
+      <StoryDetailScreen item={selectedStory} onBack={closeStoryDetail} theme={resolvedTheme} />
+    );
+  } else if (screenMode === 'roster' && selectedRosterSport) {
+    mainContent = (
+      <RosterScreen
+        athletes={rosterItems}
+        loading={rosterLoading}
+        onBack={closeRosterScreen}
+        onOpenAthlete={openAthleteProfile}
+        headerTitle={rosterHeaderTitle}
+        headerSubtitle={rosterHeaderSubtitle || appDisplayName}
+        schoolLogoUrl={rosterLogoUrl || schoolConfig.logoUrl}
+        theme={resolvedTheme}
+      />
+    );
+  } else if (screenMode === 'athleteProfile' && selectedAthlete) {
+    mainContent = (
+      <AthleteProfileScreen
+        athlete={selectedAthlete}
+        onBack={closeAthleteProfile}
+        theme={resolvedTheme}
+      />
     );
   } else if (screenMode === 'manageTeams') {
     mainContent = (
@@ -4633,12 +6393,16 @@ if (showPreroll && prerollConfig) {
   } else if (screenMode === 'schedule') {
     mainContent = (
       <ScheduleScreen
-        scheduleEvents={allEvents}
+        scheduleEvents={scheduleScreenEvents.length > 0 ? scheduleScreenEvents : allEvents}
         eventsLoading={eventsLoading}
-        onOpenEmbedded={openEmbedded}
         onBack={closeSpecialScreen}
-        schoolDisplayName={appDisplayName}
-        schoolLogoUrl={schoolConfig.logoUrl}
+        headerTitle={scheduleScreenTitle}
+        headerSubtitle={scheduleScreenSubtitle || appDisplayName}
+        schoolLogoUrl={scheduleScreenLogoUrl || schoolConfig.logoUrl}
+        schoolId={resolvedSchoolId}
+        variant={scheduleScreenVariant}
+        accentColor={scheduleScreenAccentColor}
+        theme={resolvedTheme}
       />
     );
   } else if (screenMode === 'sportDetail' && selectedSport) {
@@ -4648,10 +6412,15 @@ if (showPreroll && prerollConfig) {
         schoolId={resolvedSchoolId}
         schoolSlug={schoolSlug}
         schoolConfig={schoolConfig}
+        scheduleAccentColor={schoolAccentColor}
         onBack={closeSpecialScreen}
         onOpenEmbedded={openEmbedded}
+        onOpenRoster={openRosterScreen}
+        onOpenSchedule={openScheduleScreen}
+        onOpenStoryDetail={handleOpenStoryDetail}
         followedTeams={followedTeams}
         onToggleFollowTeam={toggleFollowTeam}
+        theme={resolvedTheme}
       />
     );
   } else {
@@ -4660,6 +6429,7 @@ if (showPreroll && prerollConfig) {
         {activeTab === 'home' ? (
           <HomeScreen
             onOpenEmbedded={openEmbedded}
+            onOpenStoryDetail={handleOpenStoryDetail}
             onOpenExternal={openExternalUrl}
             onOpenSchedule={openScheduleScreen}
             onOpenSport={openSport}
@@ -4686,6 +6456,7 @@ if (showPreroll && prerollConfig) {
             schoolConfig={schoolConfig}
             appDisplayName={appDisplayName}
             homeModules={homeModules}
+            liveCoverageConfig={liveCoverageConfig}
             promotionCard={promotionCard}
             athleteOfWeek={athleteOfWeek}
             sponsorPlacements={sponsorPlacements}
@@ -4693,6 +6464,7 @@ if (showPreroll && prerollConfig) {
             galleryItems={galleryItems}
             homeSports={homeSports}
             scheduleAvailable={eventsLoading || allEvents.length > 0}
+            theme={resolvedTheme}
           />
         ) : null}
 
@@ -4700,7 +6472,10 @@ if (showPreroll && prerollConfig) {
           <TeamsScreen
             onOpenSport={openSport}
             schoolDisplayName={appDisplayName}
+            mascotName={schoolConfig.mascotName}
+            schoolLogoUrl={schoolConfig.logoUrl}
             themeMode={themeMode}
+            theme={resolvedTheme}
           />
         ) : null}
 
@@ -4715,10 +6490,13 @@ if (showPreroll && prerollConfig) {
             scheduleUrl={schoolConfig.scheduleUrl}
             mainSiteUrl={schoolConfig.mainSiteUrl}
             displayName={appDisplayName}
+            mascotName={schoolConfig.mascotName}
+            schoolLogoUrl={schoolConfig.logoUrl}
             isAudioPlaying={isPlaying}
             liveStatus={liveStatus}
             themeMode={themeMode}
             scheduleAvailable={eventsLoading || allEvents.length > 0}
+            theme={resolvedTheme}
           />
         ) : null}
 
@@ -4730,17 +6508,19 @@ if (showPreroll && prerollConfig) {
           />
         ) : null}
 
-        {activeTab === 'more' ? (
-          <MoreScreen
-            schoolConfig={schoolConfig}
-            followedTeamsCount={followedTeams.length}
-            themeMode={themeMode}
-            onOpenManageTeams={() => setScreenMode('manageTeams')}
-            onOpenSettings={() => setScreenMode('settings')}
-            onOpenSavedEvents={() => setScreenMode('savedEvents')}
-            onOpenEmbedded={openEmbedded}
-          />
-        ) : null}
+      {activeTab === 'more' ? (
+  <MoreScreen
+    schoolConfig={schoolConfig}
+    followedTeamsCount={followedTeams.length}
+    scheduleAvailable={eventsLoading || allEvents.length > 0}
+    themeMode={themeMode}
+    onOpenManageTeams={() => setScreenMode('manageTeams')}
+    onOpenSettings={() => setScreenMode('settings')}
+    onOpenSavedEvents={() => setScreenMode('savedEvents')}
+    onOpenSchedule={openScheduleScreen}
+    onOpenEmbedded={openEmbedded}
+  />
+) : null}
       </>
     );
   }
@@ -4758,10 +6538,10 @@ if (showPreroll && prerollConfig) {
         onToggle={toggleAudio}
       />
       <BottomNav
-        activeTab={activeTab}
-        onChange={handleBottomNavChange}
+        items={bottomNavRenderItems}
         themeMode={themeMode}
         centerLogoUrl={schoolConfig.logoUrl}
+        theme={resolvedTheme}
       />
     </SafeAreaView>
   );
@@ -5747,53 +7527,76 @@ bannerImage: {
     fontWeight: '600',
   },
 
+  storyDetailHero: {
+    paddingTop: 16,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+  },
+
+  storyDetailBackButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 26,
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+
+  storyDetailHeroContent: {
+    maxWidth: '88%',
+  },
+
+  storyDetailKicker: {
+    color: BRAND.lightGray,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    marginBottom: 8,
+  },
+
   storyDetailTitle: {
     color: BRAND.white,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: '900',
-    marginTop: 6,
+    marginTop: 10,
   },
 
   storyDetailDate: {
-    color: BRAND.lightGray,
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 8,
+    color: 'rgba(217,223,234,0.8)',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 
   storyDetailImage: {
     width: '100%',
-    height: 240,
+    aspectRatio: 16 / 9,
   },
 
-  storyDetailCard: {
+  storyDetailArticlePanel: {
     marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: BRAND.surface,
+    marginTop: 18,
+    backgroundColor: '#171F34',
     borderWidth: 1,
-    borderColor: BRAND.border,
-    borderRadius: 22,
-    padding: 18,
-  },
-
-  storyDetailSection: {
-    marginBottom: 18,
-  },
-
-  storyDetailSectionTitle: {
-    color: BRAND.white,
-    fontSize: 13,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    letterSpacing: 0.5,
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
   },
 
   storyDetailBody: {
     color: BRAND.lightGray,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 28,
   },
 
   eventsRow: {
@@ -5810,6 +7613,11 @@ bannerImage: {
     borderColor: BRAND.border,
     padding: 16,
     marginRight: 12,
+  },
+
+  resultEventCard: {
+    minHeight: 0,
+    paddingVertical: 14,
   },
 
   liveNowCardLive: {
@@ -6147,6 +7955,306 @@ heroStatusText: {
     color: '#475467',
   },
 
+  teamsScreenBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 320,
+  },
+
+  teamsHubHero: {
+    marginTop: 8,
+    marginHorizontal: 16,
+    marginBottom: 18,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+
+  teamsHubAccentRail: {
+    position: 'absolute',
+    left: 0,
+    top: 16,
+    bottom: 16,
+    width: 4,
+    borderRadius: 999,
+    opacity: 0.95,
+  },
+
+  teamsHubLogo: {
+    position: 'absolute',
+    top: 16,
+    right: 18,
+    width: 108,
+    height: 72,
+    opacity: 0.96,
+  },
+
+  teamsHubContent: {
+    maxWidth: '74%',
+  },
+
+  newsHubContent: {
+    maxWidth: '76%',
+    paddingTop: 28,
+  },
+
+  teamsHubEyebrow: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1.35,
+    marginBottom: 8,
+  },
+
+  teamsHubTitle: {
+    color: BRAND.white,
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '900',
+    marginBottom: 4,
+    maxWidth: '92%',
+  },
+
+  teamsHubMascot: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+
+  teamsHubText: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: '96%',
+  },
+
+  teamsListPremium: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+
+  teamDirectoryCard: {
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+
+  teamDirectoryAccent: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderRadius: 999,
+    marginRight: 14,
+  },
+
+  teamDirectoryContent: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  teamDirectoryKicker: {
+    color: BRAND.lightGray,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+    marginBottom: 6,
+  },
+
+  teamDirectoryTitle: {
+    color: BRAND.white,
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+
+  teamDirectorySub: {
+    color: BRAND.gray,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+
+  teamDirectoryChevronWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  mediaActionCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+
+  mediaActionAccent: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderRadius: 999,
+    marginRight: 14,
+  },
+
+  mediaActionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+
+  mediaActionBody: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  mediaActionTitle: {
+    color: BRAND.white,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+
+  mediaActionText: {
+    color: 'rgba(255,255,255,0.84)',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+
+  mediaActionChevronWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  newsArchiveList: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+
+  newsArchiveCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+
+  newsArchiveAccent: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderRadius: 999,
+    marginRight: 14,
+  },
+
+  newsArchiveThumb: {
+    width: 116,
+    height: 88,
+    borderRadius: 18,
+    marginRight: 14,
+    backgroundColor: BRAND.surfaceAlt,
+  },
+
+  newsArchiveThumbFallback: {
+    width: 116,
+    height: 88,
+    borderRadius: 18,
+    marginRight: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  newsArchiveContent: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  newsArchiveMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+
+  newsArchiveDate: {
+    color: BRAND.lightGray,
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+
+  newsArchiveTitle: {
+    color: BRAND.white,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+
+  newsArchiveSummary: {
+    color: BRAND.gray,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '600',
+  },
+
+  newsArchiveChevronWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+
   teamsList: {
     paddingHorizontal: 16,
   },
@@ -6286,6 +8394,159 @@ heroStatusText: {
     marginTop: 10,
   },
 
+  rosterList: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+
+  rosterSortRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+
+  rosterSortChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+
+  rosterSortChipText: {
+    color: BRAND.white,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  rosterCard: {
+    backgroundColor: BRAND.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    padding: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  rosterPhoto: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
+    backgroundColor: BRAND.surfaceAlt,
+  },
+
+  rosterPhotoFallback: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
+    backgroundColor: BRAND.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  rosterBody: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 10,
+    justifyContent: 'center',
+  },
+
+  rosterTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+
+  rosterName: {
+    color: BRAND.white,
+    fontSize: 18,
+    fontWeight: '800',
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  rosterNumber: {
+    color: BRAND.primary,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+
+  rosterMeta: {
+    color: BRAND.lightGray,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+
+  rosterMetaSecondary: {
+    color: BRAND.gray,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+
+  rosterProfileWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 12,
+  },
+
+  rosterProfileImage: {
+    width: '100%',
+    aspectRatio: 4 / 5,
+    borderRadius: 24,
+    backgroundColor: BRAND.surfaceAlt,
+    marginBottom: 16,
+  },
+
+  rosterProfileImageFallback: {
+    width: '100%',
+    aspectRatio: 4 / 5,
+    borderRadius: 24,
+    backgroundColor: BRAND.primaryDark,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  rosterProfileCard: {
+    backgroundColor: '#171F34',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+  },
+
+  rosterProfileMeta: {
+    color: BRAND.white,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 22,
+    marginBottom: 10,
+  },
+
+  rosterProfileDetail: {
+    color: BRAND.lightGray,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+
+  rosterProfileBio: {
+    color: BRAND.lightGray,
+    fontSize: 15,
+    lineHeight: 24,
+    marginTop: 12,
+  },
+
   scheduleCard: {
     backgroundColor: BRAND.surface,
     borderRadius: 18,
@@ -6295,12 +8556,24 @@ heroStatusText: {
     marginBottom: 12,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
 
   scheduleCardLeft: {
     flex: 1,
     paddingRight: 10,
+  },
+
+  scheduleCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  scheduleCardMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
   scheduleSportTag: {
@@ -6324,16 +8597,174 @@ heroStatusText: {
     lineHeight: 24,
   },
 
+  scheduleTopMetaWrap: {
+    alignItems: 'flex-end',
+    paddingLeft: 12,
+  },
+
+  scheduleStatusText: {
+    color: BRAND.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+
   scheduleMeta: {
     color: BRAND.lightGray,
     fontSize: 14,
-    marginTop: 8,
     fontWeight: '700',
   },
 
   scheduleMetaSecondary: {
     color: BRAND.gray,
     fontSize: 13,
+    marginTop: 4,
+  },
+
+  scheduleScoreLine: {
+    color: BRAND.white,
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+
+  scheduleScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 10,
+  },
+
+  scheduleScoreValue: {
+    color: BRAND.white,
+    fontSize: 26,
+    fontWeight: '900',
+    lineHeight: 30,
+  },
+
+  scheduleScoreSeparator: {
+    color: BRAND.gray,
+    fontSize: 18,
+    fontWeight: '800',
+    marginHorizontal: 8,
+  },
+
+  scheduleOpponentLogoPlate: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: BRAND.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+    padding: 8,
+  },
+
+  scheduleOpponentLogo: {
+    width: '100%',
+    height: '100%',
+  },
+
+  teamScheduleCard: {
+    backgroundColor: BRAND.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  teamScheduleLogoColumn: {
+    width: 70,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  teamScheduleLogoPlate: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: BRAND.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 7,
+  },
+
+  teamScheduleLogo: {
+    width: '100%',
+    height: '100%',
+  },
+
+  teamScheduleCenterColumn: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 12,
+  },
+
+  teamScheduleSportTag: {
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+
+  teamScheduleMatchup: {
+    color: BRAND.white,
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+
+  teamScheduleStatus: {
+    color: BRAND.lightGray,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginTop: 6,
+  },
+
+  teamScheduleScore: {
+    color: BRAND.white,
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+
+  scoreText: {
+    color: BRAND.white,
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+
+  teamScheduleLocation: {
+    color: BRAND.gray,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+
+  teamScheduleRightColumn: {
+    width: 88,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+
+  teamScheduleDate: {
+    color: BRAND.lightGray,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+
+  teamScheduleTime: {
+    color: BRAND.gray,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
     marginTop: 4,
   },
 
@@ -6372,6 +8803,31 @@ eventOpponentLine: {
   lineHeight: 24,
   marginTop: 4,
   marginBottom: 12,
+},
+
+eventMainRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+eventTextWrap: {
+  flex: 1,
+  paddingRight: 10,
+},
+
+eventLogoPlate: {
+  width: 52,
+  height: 52,
+  borderRadius: 14,
+  backgroundColor: BRAND.white,
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 6,
+},
+
+eventLogo: {
+  width: '100%',
+  height: '100%',
 },
 
 resultHeaderRow: {
@@ -6427,17 +8883,27 @@ resultRow: {
   marginBottom: 8,
 },
 
-resultTeamName: {
-  color: BRAND.white,
-  fontSize: 17,
-  fontWeight: '800',
-  flex: 1,
-  paddingRight: 10,
-},
 resultTeamRowLeft: {
   flexDirection: 'row',
   alignItems: 'center',
   gap: 8,
+  flex: 1,
+  minWidth: 0,
+},
+
+resultLogoPlate: {
+  width: 38,
+  height: 38,
+  borderRadius: 10,
+  backgroundColor: BRAND.white,
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 5,
+},
+
+resultLogo: {
+  width: '100%',
+  height: '100%',
 },
 
 teamGamesRow: {
@@ -6447,28 +8913,112 @@ teamGamesRow: {
 
 teamGameCard: {
   width: 210,
-  height: 110,
+  height: 150,
   backgroundColor: BRAND.surface,
   borderWidth: 1,
   borderColor: BRAND.border,
   borderRadius: 20,
-  paddingHorizontal: 18,
-  paddingVertical: 16,
+  paddingHorizontal: 16,
+  paddingVertical: 12,
   marginRight: 12,
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  justifyContent: 'flex-start',
+},
+
+teamGameSport: {
+  color: BRAND.primary,
+  fontSize: 11,
+  fontWeight: '800',
+  textTransform: 'uppercase',
+  letterSpacing: 0.7,
+  marginBottom: 6,
+},
+
+teamGameMainRow: {
+  flexDirection: 'row',
+  flex: 1,
+  alignItems: 'flex-start',
   justifyContent: 'space-between',
+},
+
+teamGameTextWrap: {
+  flex: 1,
+  paddingRight: 6,
+  justifyContent: 'flex-start',
+},
+
+teamGameStatus: {
+  color: BRAND.primary,
+  fontSize: 11,
+  fontWeight: '800',
+  textTransform: 'uppercase',
+  marginBottom: 2,
 },
 
 teamGameMatchup: {
   color: BRAND.white,
   fontSize: 16,
   fontWeight: '900',
-  lineHeight: 21,
+  lineHeight: 19,
+  marginBottom: 6,
+},
+
+teamGameScore: {
+  color: BRAND.white,
+  fontSize: 14,
+  fontWeight: '800',
+  marginTop: 8,
+},
+
+teamGameScoreRow: {
+  flexDirection: 'row',
+  alignItems: 'baseline',
+  marginTop: 5,
+},
+
+teamGameScoreValue: {
+  color: BRAND.white,
+  fontSize: 22,
+  fontWeight: '900',
+  lineHeight: 24,
+},
+
+teamGameScoreSeparator: {
+  color: BRAND.gray,
+  fontSize: 16,
+  fontWeight: '800',
+  marginHorizontal: 6,
 },
 
 teamGameDate: {
-  color: BRAND.lightGray,
-  fontSize: 14,
+  color: BRAND.white,
+  fontSize: 13,
   fontWeight: '700',
+  marginBottom: 2,
+},
+
+teamGameVenue: {
+  color: BRAND.gray,
+  fontSize: 12,
+  fontWeight: '600',
+  marginTop: 0,
+},
+
+teamGameLogoPlate: {
+  width: 40,
+  height: 40,
+  borderRadius: 10,
+  backgroundColor: BRAND.white,
+  alignSelf: 'center',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 3,
+},
+
+teamGameLogo: {
+  width: '100%',
+  height: '100%',
 },
 
 resultOpponentName: {
@@ -6479,11 +9029,18 @@ resultOpponentName: {
   paddingRight: 10,
 },
 
+resultMainRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 10,
+},
+
 resultScore: {
   color: BRAND.white,
   fontSize: 22,
   fontWeight: '900',
-  minWidth: 28,
+  minWidth: 74,
   textAlign: 'right',
 },
 
@@ -6531,38 +9088,49 @@ resultScore: {
     paddingHorizontal: 16,
     marginTop: 18,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
   },
 
   sportActionSingleWrap: {
     paddingHorizontal: 16,
+    marginTop: 18,
   },
 
   sportActionCard: {
-    width: '48%',
+    alignSelf: 'flex-start',
     backgroundColor: BRAND.surface,
     borderWidth: 1,
     borderColor: BRAND.border,
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginRight: 10,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
   },
 
   sportActionCardFull: {
-    width: '100%',
+    alignSelf: 'flex-start',
     backgroundColor: BRAND.surface,
     borderWidth: 1,
     borderColor: BRAND.border,
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
   },
 
   sportActionText: {
     color: BRAND.white,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800',
-    marginTop: 12,
+    marginLeft: 8,
   },
 
   sportEventListCard: {
@@ -6730,9 +9298,9 @@ resultScore: {
     backgroundColor: BRAND.black,
     borderTopWidth: 1,
     borderTopColor: BRAND.border,
-    paddingTop: 8,
-    paddingBottom: 10,
-    minHeight: 76,
+    paddingTop: 0,
+    paddingBottom: 5,
+    minHeight: 54,
     alignItems: 'flex-end',
   },
 
@@ -6740,11 +9308,12 @@ resultScore: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    minHeight: 56,
+    minHeight: 42,
   },
 
   bottomNavItemAsn: {
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    minHeight: 64,
   },
 
   bottomNavLabel: {
@@ -6758,26 +9327,55 @@ resultScore: {
     color: BRAND.primary,
   },
 
+  asnTabFloatWrap: {
+    marginTop: -36,
+    marginBottom: 3,
+  },
+
   asnTabWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#1c1b1b',
-    borderWidth: 1,
-    borderColor: BRAND.border,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    shadowColor: BRAND.black,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  },
+
+  asnTabGlowWrap: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.01)',
   },
 
   centerNavLogo: {
-    width: 32,
-    height: 32,
+    width: 64,
+    height: 64,
   },
 
   asnTabWrapActive: {
-    backgroundColor: BRAND.primaryDark,
-    borderColor: BRAND.primary,
+    backgroundColor: 'transparent',
+    shadowColor: BRAND.white,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+
+  asnTabGlowWrapActive: {
+    shadowColor: BRAND.white,
+    shadowOpacity: 0.38,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 14,
   },
 
   asnTabLogo: {
@@ -6789,7 +9387,7 @@ resultScore: {
     color: BRAND.gray,
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: -1,
   },
 
   webSafe: {
