@@ -309,6 +309,7 @@ export type AthleticOSSportConfig = {
   mainUrl: string;
   scheduleUrl: string;
   rosterUrl: string;
+  recruitingEnabled: boolean;
   recruitingUrl: string;
 };
 
@@ -363,7 +364,20 @@ export type AthleticOSAthlete = {
   first_name?: string;
   last_name?: string;
   default_photo_url?: string;
+  photo_url?: string;
   hometown?: string;
+  recruitable?: boolean;
+  recruit_profile_slug?: string;
+  hudl_url?: string;
+  youtube_url?: string;
+  twitter_url?: string;
+  x_url?: string;
+  instagram_url?: string;
+  tiktok_url?: string;
+  recruiting_height?: string;
+  recruiting_weight?: string;
+  recruiting_class_year?: string;
+  recruiting_bio?: string;
   [key: string]: unknown;
 };
 
@@ -1938,13 +1952,121 @@ export async function getSportAppConfigBySchoolId(schoolId: string | number) {
   }
 }
 
+export async function getRecruitingPlayersBySport(
+  schoolId: string,
+  sportId: string
+) {
+  await requireSchoolById(schoolId);
+
+  const { data, error } = await supabase
+    .from('athlete_roster_entries')
+    .select(
+      `
+        id,
+        position,
+        class_year,
+        height,
+        weight,
+        athlete:athletes(
+          id,
+          first_name,
+          last_name,
+          hometown,
+          default_photo_url,
+          recruitable,
+          recruit_profile_slug,
+          hudl_url,
+          twitter_url,
+          x_url,
+          instagram_url,
+          tiktok_url,
+          youtube_url,
+          recruiting_height,
+          recruiting_weight,
+          recruiting_class_year,
+          recruiting_bio
+        )
+      `
+    )
+    .eq('school_id', schoolId)
+    .eq('sport_id', sportId)
+    .eq('active', true)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Recruiting roster fetch error:', error);
+    return [];
+  }
+
+  const rosterEntries = ((data ?? []) as Array<
+    AthleticOSRosterEntry & {
+      athlete?: AthleticOSAthlete | AthleticOSAthlete[] | null;
+    }
+  >) || [];
+
+  return rosterEntries
+    .filter((entry) => {
+      const athleteValue = (entry.athlete ?? null) as
+        | AthleticOSAthlete
+        | AthleticOSAthlete[]
+        | null;
+      const athlete = Array.isArray(athleteValue)
+        ? (athleteValue[0] ?? null)
+        : athleteValue;
+
+      return athlete?.recruitable === true;
+    })
+    .map((entry) => {
+      const athleteValue = (entry.athlete ?? null) as
+        | AthleticOSAthlete
+        | AthleticOSAthlete[]
+        | null;
+      const athlete = Array.isArray(athleteValue)
+        ? (athleteValue[0] ?? null)
+        : athleteValue;
+
+      return {
+        id: pickFirstId((athlete ?? {}) as Record<string, unknown>, ['id']) ?? '',
+        first_name: athlete?.first_name ?? '',
+        last_name: athlete?.last_name ?? '',
+        position: pickFirstString(entry, ['position']) ?? null,
+        class_year:
+          pickFirstString((athlete ?? {}) as Record<string, unknown>, ['recruiting_class_year']) ??
+          pickFirstString(entry, ['class_year']) ??
+          null,
+        height:
+          pickFirstString((athlete ?? {}) as Record<string, unknown>, ['recruiting_height']) ??
+          pickFirstString(entry, ['height']) ??
+          null,
+        weight:
+          pickFirstString((athlete ?? {}) as Record<string, unknown>, ['recruiting_weight']) ??
+          pickFirstString(entry, ['weight']) ??
+          null,
+        hometown: athlete?.hometown ?? null,
+        photo_url: athlete?.default_photo_url ?? null,
+        recruit_profile_slug: athlete?.recruit_profile_slug ?? null,
+        hudl_url: athlete?.hudl_url ?? null,
+        twitter_url: athlete?.twitter_url ?? athlete?.x_url ?? null,
+        instagram_url: athlete?.instagram_url ?? null,
+        tiktok_url: athlete?.tiktok_url ?? null,
+        youtube_url: athlete?.youtube_url ?? null,
+        bio:
+          pickFirstString((athlete ?? {}) as Record<string, unknown>, ['recruiting_bio']) ??
+          null,
+      };
+    })
+    .filter((entry) => Boolean(entry.id));
+}
+
 export async function getSportConfigBySchoolSlugAndKey(
   slug: string,
   sportKey: string
 ) {
-  const [schoolConfig, sport] = await Promise.all([
+  const school = await requireSchool(slug);
+  const [schoolConfig, sport, sportAppConfig] = await Promise.all([
     getSchoolConfigBySlug(slug),
     getSportBySchoolSlugAndKey(slug, sportKey),
+    getSportAppConfigBySchoolId(school.id),
   ]);
 
   const fallbackSlug = getDefaultSportSlug(sportKey);
@@ -1956,6 +2078,21 @@ export async function getSportConfigBySchoolSlugAndKey(
   const explicitScheduleUrl = pickFirstString(sport ?? {}, ['schedule_url']);
   const explicitRosterUrl = pickFirstString(sport ?? {}, ['roster_url']);
   const explicitRecruitingUrl = pickFirstString(sport ?? {}, ['recruiting_url']);
+  const matchedSportAppConfig =
+    sport?.id === undefined || sport?.id === null
+      ? null
+      : sportAppConfig.find(
+          (config) =>
+            pickFirstId(config as Record<string, unknown>, ['sport_id']) === String(sport.id)
+        ) ?? null;
+  const appRecruitingEnabled = pickFirstBoolean(
+    (matchedSportAppConfig ?? {}) as Record<string, unknown>,
+    ['recruiting_enabled']
+  );
+  const appRecruitingUrl = pickFirstString(
+    (matchedSportAppConfig ?? {}) as Record<string, unknown>,
+    ['recruiting_url']
+  );
 
   // Assumptions to verify: sport-level AthleticOS links live on the `sports`
   // record under these URL fields when present.
@@ -1974,11 +2111,11 @@ export async function getSportConfigBySchoolSlugAndKey(
       buildSportPath(schoolConfig.athleticOSSiteUrl, sportSlug, 'roster') ||
       explicitSportUrl ||
       schoolConfig.mainSiteUrl,
-    recruitingUrl:
-      explicitRecruitingUrl ||
-      buildSportPath(schoolConfig.athleticOSSiteUrl, sportSlug, 'recruiting') ||
-      explicitSportUrl ||
-      schoolConfig.mainSiteUrl,
+    recruitingEnabled:
+      appRecruitingEnabled === undefined
+        ? Boolean(appRecruitingUrl || explicitRecruitingUrl)
+        : appRecruitingEnabled,
+    recruitingUrl: appRecruitingUrl || explicitRecruitingUrl || '',
   } as AthleticOSSportConfig;
 }
 
@@ -1987,9 +2124,10 @@ export async function getSportConfigBySchoolIdAndKey(
   sportKey: string,
   fallbackSlug?: string
 ) {
-  const [schoolConfig, sport] = await Promise.all([
+  const [schoolConfig, sport, sportAppConfig] = await Promise.all([
     getSchoolConfigById(schoolId, fallbackSlug),
     getSportBySchoolIdAndKey(schoolId, sportKey),
+    getSportAppConfigBySchoolId(schoolId),
   ]);
 
   const fallbackSportSlug = getDefaultSportSlug(sportKey);
@@ -2001,6 +2139,21 @@ export async function getSportConfigBySchoolIdAndKey(
   const explicitScheduleUrl = pickFirstString(sport ?? {}, ['schedule_url']);
   const explicitRosterUrl = pickFirstString(sport ?? {}, ['roster_url']);
   const explicitRecruitingUrl = pickFirstString(sport ?? {}, ['recruiting_url']);
+  const matchedSportAppConfig =
+    sport?.id === undefined || sport?.id === null
+      ? null
+      : sportAppConfig.find(
+          (config) =>
+            pickFirstId(config as Record<string, unknown>, ['sport_id']) === String(sport.id)
+        ) ?? null;
+  const appRecruitingEnabled = pickFirstBoolean(
+    (matchedSportAppConfig ?? {}) as Record<string, unknown>,
+    ['recruiting_enabled']
+  );
+  const appRecruitingUrl = pickFirstString(
+    (matchedSportAppConfig ?? {}) as Record<string, unknown>,
+    ['recruiting_url']
+  );
 
   return {
     key: sportKey,
@@ -2017,11 +2170,11 @@ export async function getSportConfigBySchoolIdAndKey(
       buildSportPath(schoolConfig.athleticOSSiteUrl, sportSlug, 'roster') ||
       explicitSportUrl ||
       schoolConfig.mainSiteUrl,
-    recruitingUrl:
-      explicitRecruitingUrl ||
-      buildSportPath(schoolConfig.athleticOSSiteUrl, sportSlug, 'recruiting') ||
-      explicitSportUrl ||
-      schoolConfig.mainSiteUrl,
+    recruitingEnabled:
+      appRecruitingEnabled === undefined
+        ? Boolean(appRecruitingUrl || explicitRecruitingUrl)
+        : appRecruitingEnabled,
+    recruitingUrl: appRecruitingUrl || explicitRecruitingUrl || '',
   } as AthleticOSSportConfig;
 }
 

@@ -22,6 +22,7 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   type ViewStyle,
@@ -58,6 +59,7 @@ import {
   getSchoolConfigById,
   getScheduleEventsBySchoolId,
   getRosterBySchoolIdAndSportId,
+  getRecruitingPlayersBySport,
   getSchoolAppConfigById,
   getSportAppConfigBySchoolId,
   getSportBySchoolIdAndKey,
@@ -253,6 +255,8 @@ type ScreenMode =
   | 'tabs'
   | 'sportDetail'
   | 'roster'
+  | 'recruiting'
+  | 'recruitingPlayer'
   | 'athleteProfile'
   | 'athleteOfWeekDetail'
   | 'newsList'
@@ -372,6 +376,13 @@ type OpenRosterOptions = {
   sport: SportType;
   sportId: string;
   headerTitle: string;
+  headerSubtitle?: string;
+  schoolLogoUrl?: string;
+};
+
+type OpenRecruitingOptions = {
+  sport: SportType;
+  sportId: string;
   headerSubtitle?: string;
   schoolLogoUrl?: string;
 };
@@ -3231,7 +3242,7 @@ function MediaScreen({
         pointerEvents="none"
       />
 
-      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={styles.teamsHubHero}>
+      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={[styles.teamsHubHero, styles.newsHubHero]}>
         <View
           style={[
             styles.teamsHubAccentRail,
@@ -3865,6 +3876,562 @@ function AthleteProfileScreen({
   );
 }
 
+function RecruitingScreen({
+  schoolId,
+  sportId,
+  sport,
+  onBack,
+  onOpenPlayer,
+  headerSubtitle,
+  schoolLogoUrl,
+  theme = DEFAULT_APP_THEME,
+}: {
+  schoolId: string;
+  sportId: string;
+  sport: SportType;
+  onBack: () => void;
+  onOpenPlayer: (profile: Record<string, unknown>) => void;
+  headerSubtitle?: string;
+  schoolLogoUrl?: string;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const title = `${sport.shortLabel || sport.label} Recruiting`;
+  const [profiles, setProfiles] = useState<Record<string, unknown>[]>([]);
+
+  useEffect(() => {
+    async function loadProfiles() {
+      if (!schoolId || !sportId) return;
+
+      const data = await getRecruitingPlayersBySport(schoolId, sportId);
+
+      setProfiles(data as Record<string, unknown>[]);
+    }
+
+    loadProfiles();
+  }, [schoolId, sportId]);
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[
+        styles.screenContent,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={styles.sportHeader}
+      >
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+
+        <View style={styles.teamPageHeader}>
+          <Text style={styles.sportHeaderTitle}>{title}</Text>
+
+          {hasResolvedUrl(schoolLogoUrl) ? (
+            <Image
+              source={{ uri: schoolLogoUrl }}
+              style={styles.teamPageSponsorLogo}
+              resizeMode="contain"
+            />
+          ) : null}
+        </View>
+
+        {headerSubtitle ? (
+          <Text style={styles.sportHeaderSub}>{headerSubtitle}</Text>
+        ) : null}
+      </LinearGradient>
+
+      <View style={styles.recruitingPanel}>
+        {profiles.length === 0 ? (
+          <Text style={{ color: theme.colors.mutedText, marginTop: 20 }}>
+            No recruiting profiles yet.
+          </Text>
+        ) : (
+          profiles.map((p) => (
+            <Pressable
+              key={String(p.id)}
+              style={[
+                styles.recruitingProfileCard,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+              onPress={() => onOpenPlayer(p)}
+            >
+              <View style={styles.recruitingProfileTopRow}>
+                {typeof (p.default_photo_url ?? p.photo_url) === 'string' &&
+                String(p.default_photo_url ?? p.photo_url).trim() ? (
+                  <Image
+                    source={{ uri: String(p.default_photo_url ?? p.photo_url).trim() }}
+                    style={styles.recruitingProfilePhoto}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.recruitingProfilePhotoFallback,
+                      {
+                        backgroundColor: theme.colors.cardAlt,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="person-outline" size={26} color={theme.colors.text} />
+                  </View>
+                )}
+
+	                <View style={styles.recruitingProfileBody}>
+                  <Text style={[styles.recruitingProfileName, { color: theme.colors.text }]}>
+                    {`${String(p.first_name ?? '')} ${String(p.last_name ?? '')}`.trim()}
+                  </Text>
+
+                  {`${String(p.position ?? '')} • ${String(p.class_year ?? '')}`.replace(
+                    /^ • | • $/g,
+                    ''
+                  ) ? (
+                    <Text
+                      style={[
+                        styles.recruitingProfileMeta,
+                        { color: theme.colors.mutedText },
+                      ]}
+                    >
+                      {`${String(p.position ?? '')} • ${String(p.class_year ?? '')}`.replace(
+                        /^ • | • $/g,
+                        ''
+                      )}
+                    </Text>
+                  ) : null}
+
+                  {`${String(p.height ?? '')} • ${String(p.weight ?? '')}`.replace(
+                    /^ • | • $/g,
+                    ''
+                  ) ? (
+                    <Text
+                      style={[
+                        styles.recruitingProfileDetail,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      {`${String(p.height ?? '')} • ${String(p.weight ?? '')}`.replace(
+                        /^ • | • $/g,
+                        ''
+                      )}
+                    </Text>
+                  ) : null}
+
+                  {String(p.hometown ?? '').trim() ? (
+                    <Text
+                      style={[
+                        styles.recruitingProfileDetail,
+                        { color: theme.colors.mutedText },
+                      ]}
+	                    >
+	                      {String(p.hometown ?? '').trim()}
+	                    </Text>
+	                  ) : null}
+	                </View>
+	                <View
+	                  style={[
+	                    styles.recruitingProfileChevronWrap,
+	                    {
+	                      backgroundColor: theme.colors.cardAlt,
+	                      borderColor: theme.colors.border,
+	                    },
+	                  ]}
+	                >
+	                  <Ionicons
+	                    name="chevron-forward"
+	                    size={18}
+	                    color={theme.colors.text}
+	                  />
+	                </View>
+	              </View>
+	            </Pressable>
+          ))
+        )}
+      </View>
+    </ScrollView>
+  );
+}
+
+function RecruitingPlayerScreen({
+  profile,
+  sport,
+  schoolSlug,
+  onBack,
+  headerSubtitle,
+  schoolLogoUrl,
+  theme = DEFAULT_APP_THEME,
+}: {
+  profile: Record<string, unknown>;
+  sport: SportType;
+  schoolSlug: string;
+  onBack: () => void;
+  headerSubtitle?: string;
+  schoolLogoUrl?: string;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const playerName = `${String(profile.first_name ?? '')} ${String(profile.last_name ?? '')}`.trim();
+  const metaLine = `${String(profile.position ?? '')} • ${String(profile.class_year ?? '')}`.replace(
+    /^ • | • $/g,
+    ''
+  );
+  const bio = String(profile.bio ?? '').trim();
+  const hudlUrl = String(profile.hudl_url ?? '').trim();
+  const youtubeUrl = String(profile.youtube_url ?? '').trim();
+  const twitterUrl = String(profile.twitter_url ?? profile.x_url ?? '').trim();
+  const instagramUrl = String(profile.instagram_url ?? '').trim();
+  const tiktokUrl = String(profile.tiktok_url ?? '').trim();
+  const sportSlug = sport.key;
+  const recruitProfileSlug = String(profile.recruit_profile_slug ?? '').trim();
+  const headshotUrl = String(profile.default_photo_url ?? profile.photo_url ?? '').trim();
+  const heightValue = String(profile.height ?? '').trim();
+  const weightValue = String(profile.weight ?? '').trim();
+  const hometownValue = String(profile.hometown ?? '').trim();
+  const generatedLink = `https://athleticos.ai/${schoolSlug}/${sportSlug}/recruiting/${String(
+    recruitProfileSlug || profile.id || ''
+  )}`;
+  const factRows = [
+    { label: 'Height', value: heightValue },
+    { label: 'Weight', value: weightValue },
+    { label: 'Hometown', value: hometownValue },
+  ].filter((item) => item.value);
+
+  const openProfileLink = (url: string) => {
+    Linking.openURL(url).catch((error) => {
+      console.log('Recruiting external open error:', error);
+    });
+  };
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[
+        styles.screenContent,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={styles.sportHeader}
+      >
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+
+        <View style={styles.teamPageHeader}>
+          <Text style={styles.sportHeaderTitle}>{playerName || `${sport.shortLabel || sport.label} Recruit`}</Text>
+
+          {hasResolvedUrl(schoolLogoUrl) ? (
+            <Image
+              source={{ uri: schoolLogoUrl }}
+              style={styles.teamPageSponsorLogo}
+              resizeMode="contain"
+            />
+          ) : null}
+        </View>
+
+        {metaLine ? (
+          <Text style={styles.sportHeaderSub}>{metaLine}</Text>
+        ) : headerSubtitle ? (
+          <Text style={styles.sportHeaderSub}>{headerSubtitle}</Text>
+        ) : null}
+      </LinearGradient>
+
+      <View style={styles.recruitingPlayerWrap}>
+        <View
+          style={[
+            styles.recruitingPlayerPhotoCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View style={styles.recruitingPlayerPhotoStage}>
+            {headshotUrl ? (
+              <Image
+                source={{ uri: headshotUrl }}
+                style={styles.recruitingPlayerPhoto}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.recruitingPlayerPhotoFallback,
+                  {
+                    backgroundColor: theme.colors.cardAlt,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <Ionicons name="person-outline" size={48} color={theme.colors.text} />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {factRows.length ? (
+          <View
+            style={[
+              styles.recruitingPlayerSection,
+              {
+                backgroundColor: theme.colors.cardAlt,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.recruitingPlayerSectionTitle, { color: theme.colors.text }]}>
+              Player Facts
+            </Text>
+            <View style={styles.recruitingPlayerFactsList}>
+              {factRows.map((item) => (
+                <View
+                  key={item.label}
+                  style={[
+                    styles.recruitingPlayerFactRow,
+                    {
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.recruitingPlayerFactLabel,
+                      { color: theme.colors.mutedText },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.recruitingPlayerFactValue,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    {item.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {bio ? (
+          <View
+            style={[
+              styles.recruitingPlayerSection,
+              {
+                backgroundColor: theme.colors.cardAlt,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.recruitingPlayerSectionTitle, { color: theme.colors.text }]}>
+              Recruiting Bio
+            </Text>
+            <Text style={[styles.recruitingPlayerBio, { color: theme.colors.text }]}>{bio}</Text>
+          </View>
+        ) : null}
+
+        <View
+          style={[
+            styles.recruitingPlayerSection,
+            {
+              backgroundColor: theme.colors.cardAlt,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.recruitingPlayerSectionTitle, { color: theme.colors.text }]}>
+            Player Actions
+          </Text>
+          <View style={styles.recruitingPlayerActionsWrap}>
+            {hudlUrl ? (
+              <Pressable
+                style={[
+                  styles.recruitingHighlightsButton,
+                  styles.recruitingPlayerHighlightsButton,
+                  {
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => openProfileLink(hudlUrl)}
+              >
+                <Text
+                  style={[
+                    styles.recruitingHighlightsButtonText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  Hudl Highlights
+                </Text>
+                <Ionicons
+                  name="play-circle-outline"
+                  size={18}
+                  color={theme.colors.text}
+                />
+              </Pressable>
+            ) : null}
+
+            {youtubeUrl ? (
+              <Pressable
+                style={[
+                  styles.recruitingHighlightsButton,
+                  styles.recruitingPlayerHighlightsButton,
+                  {
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => openProfileLink(youtubeUrl)}
+              >
+                <Text
+                  style={[
+                    styles.recruitingHighlightsButtonText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  YouTube
+                </Text>
+                <Ionicons
+                  name="logo-youtube"
+                  size={18}
+                  color={theme.colors.text}
+                />
+              </Pressable>
+            ) : null}
+
+            {instagramUrl ? (
+              <Pressable
+                style={[
+                  styles.recruitingHighlightsButton,
+                  styles.recruitingPlayerHighlightsButton,
+                  {
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => openProfileLink(instagramUrl)}
+              >
+                <Text
+                  style={[
+                    styles.recruitingHighlightsButtonText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  Instagram
+                </Text>
+                <Ionicons
+                  name="logo-instagram"
+                  size={18}
+                  color={theme.colors.text}
+                />
+              </Pressable>
+            ) : null}
+
+            {twitterUrl ? (
+              <Pressable
+                style={[
+                  styles.recruitingHighlightsButton,
+                  styles.recruitingPlayerHighlightsButton,
+                  {
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => openProfileLink(twitterUrl)}
+              >
+                <Text
+                  style={[
+                    styles.recruitingHighlightsButtonText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  X
+                </Text>
+                <Ionicons
+                  name="logo-twitter"
+                  size={18}
+                  color={theme.colors.text}
+                />
+              </Pressable>
+            ) : null}
+
+            {tiktokUrl ? (
+              <Pressable
+                style={[
+                  styles.recruitingHighlightsButton,
+                  styles.recruitingPlayerHighlightsButton,
+                  {
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => openProfileLink(tiktokUrl)}
+              >
+                <Text
+                  style={[
+                    styles.recruitingHighlightsButtonText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  TikTok
+                </Text>
+                <Ionicons
+                  name="musical-notes-outline"
+                  size={18}
+                  color={theme.colors.text}
+                />
+              </Pressable>
+            ) : null}
+
+            <Pressable
+              style={[
+                styles.recruitingHighlightsButton,
+                styles.recruitingPlayerHighlightsButton,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+              onPress={async () => {
+                await Share.share({
+                  message: `${String(profile.first_name ?? '').trim()} ${String(
+                    profile.last_name ?? ''
+                  ).trim()} - ${String(profile.position ?? '').trim()} (${String(
+                    profile.class_year ?? ''
+                  ).trim()})\n${generatedLink}`,
+                });
+              }}
+            >
+              <Text
+                style={[
+                  styles.recruitingHighlightsButtonText,
+                  { color: theme.colors.text },
+                ]}
+              >
+                Share Player
+              </Text>
+              <Ionicons
+                name="share-social-outline"
+                size={18}
+                color={theme.colors.text}
+              />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
 function SportDetailScreen({
   sport,
   schoolId,
@@ -3872,7 +4439,7 @@ function SportDetailScreen({
   schoolConfig,
   scheduleAccentColor,
   onBack,
-  onOpenEmbedded,
+  onOpenRecruiting,
   onOpenRoster,
   onOpenSchedule,
   onOpenStoryDetail,
@@ -3891,7 +4458,7 @@ function SportDetailScreen({
   };
   scheduleAccentColor: string;
   onBack: () => void;
-  onOpenEmbedded: (title: string, url: string) => void;
+  onOpenRecruiting: (options: OpenRecruitingOptions) => void;
   onOpenRoster: (options: OpenRosterOptions) => void;
   onOpenSchedule: (options?: {
     events?: EventItem[];
@@ -3918,13 +4485,13 @@ function SportDetailScreen({
     mainUrl: '',
     scheduleUrl: '',
     rosterUrl: '',
+    recruitingEnabled: false,
     recruitingUrl: '',
   }));
   const [loading, setLoading] = useState(true);
   const hasScheduleUrl = hasResolvedUrl(sportConfig.scheduleUrl);
   const hasNativeRosterAccess = Boolean(teamSportId);
-  const hasMainUrl = hasResolvedUrl(sportConfig.mainUrl);
-  const hasRecruitingUrl = hasResolvedUrl(sportConfig.recruitingUrl);
+  const hasRecruitingAccess = Boolean(sportConfig.recruitingEnabled);
   const visibleEvents = events;
   const hasScheduleAccess = hasScheduleUrl || allTeamScheduleEvents.length > 0;
   const handleOpenTeamRoster = () => {
@@ -3980,32 +4547,34 @@ function SportDetailScreen({
       });
     }
 
-    if (hasRecruitingUrl || hasMainUrl) {
+    if (hasRecruitingAccess) {
       actions.push({
         key: 'recruiting',
         label: 'Recruiting',
         icon: 'school-outline',
         onPress: () =>
-          onOpenEmbedded(
-            `${sport.shortLabel || sport.label} Recruiting`,
-            sportConfig.recruitingUrl || sportConfig.mainUrl
-          ),
+          onOpenRecruiting({
+            sport,
+            sportId: teamSportId,
+            headerSubtitle: schoolConfig.displayName,
+            schoolLogoUrl: schoolConfig.logoUrl,
+          }),
       });
     }
 
     return actions;
   }, [
     handleOpenTeamRoster,
-    hasRecruitingUrl,
+    hasRecruitingAccess,
     hasNativeRosterAccess,
     hasScheduleAccess,
+    onOpenRecruiting,
     onOpenSchedule,
     scheduleAccentColor,
     schoolConfig.displayName,
     schoolConfig.logoUrl,
     sport.label,
     sport.shortLabel,
-    sportConfig.recruitingUrl,
     allTeamScheduleEvents,
   ]);
 
@@ -4051,16 +4620,18 @@ function SportDetailScreen({
           }
           break;
         case 'recruiting':
-          if (hasRecruitingUrl || hasMainUrl) {
+          if (hasRecruitingAccess) {
             actions.push({
               key: 'recruiting',
               label: item.label || 'Recruiting',
               icon: 'school-outline',
               onPress: () =>
-                onOpenEmbedded(
-                  `${sport.shortLabel || sport.label} Recruiting`,
-                  sportConfig.recruitingUrl || sportConfig.mainUrl
-                ),
+                onOpenRecruiting({
+                  sport,
+                  sportId: teamSportId,
+                  headerSubtitle: schoolConfig.displayName,
+                  schoolLogoUrl: schoolConfig.logoUrl,
+                }),
             });
           }
           break;
@@ -4078,18 +4649,16 @@ function SportDetailScreen({
   }, [
     fallbackTeamNavActions,
     handleOpenTeamRoster,
-    hasMainUrl,
-    hasRecruitingUrl,
+    hasRecruitingAccess,
     hasNativeRosterAccess,
     hasScheduleAccess,
-    onOpenEmbedded,
+    onOpenRecruiting,
     onOpenSchedule,
     scheduleAccentColor,
     schoolConfig.displayName,
     schoolConfig.logoUrl,
     sport.label,
     sport.shortLabel,
-    sportConfig.recruitingUrl,
     teamNavItems,
     allTeamScheduleEvents,
   ]);
@@ -4110,6 +4679,7 @@ function SportDetailScreen({
             mainUrl: '',
             scheduleUrl: '',
             rosterUrl: '',
+            recruitingEnabled: false,
             recruitingUrl: '',
           });
           setNewsItems([]);
@@ -4195,6 +4765,7 @@ function SportDetailScreen({
           mainUrl: '',
           scheduleUrl: '',
           rosterUrl: '',
+          recruitingEnabled: false,
           recruitingUrl: '',
         });
         setNewsItems([]);
@@ -4415,7 +4986,7 @@ function SportDetailScreen({
 function NewsListScreen({
   newsItems,
   loading,
-  onBack,
+  onBack: _onBack,
   onOpenStoryDetail,
   schoolDisplayName,
   mascotName,
@@ -4462,11 +5033,6 @@ function NewsListScreen({
           ]}
         />
 
-        <Pressable style={styles.storyDetailBackButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
-        </Pressable>
-
         {hasResolvedUrl(schoolLogoUrl) ? (
           <Image
             source={{ uri: schoolLogoUrl }}
@@ -4475,7 +5041,7 @@ function NewsListScreen({
           />
         ) : null}
 
-        <View style={styles.newsHubContent}>
+        <View style={styles.teamsHubContent}>
           <Text style={styles.teamsHubEyebrow}>Latest News</Text>
           <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
           {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
@@ -4736,103 +5302,184 @@ function MoreListRow({
 }
 
 function MoreScreen({
-  schoolConfig,
+  displayName,
+  mascotName,
+  schoolLogoUrl,
   followedTeamsCount,
-  scheduleAvailable,
-  themeMode,
   onOpenManageTeams,
-  onOpenSettings,
-  onOpenSavedEvents,
-  onOpenSchedule,
-  onOpenEmbedded,
+  notificationsEnabled,
+  onToggleNotifications,
+  autoPlayVideo,
+  onToggleAutoPlayVideo,
+  useLocalTimezone,
+  onToggleUseLocalTimezone,
+  theme = DEFAULT_APP_THEME,
 }: {
-  schoolConfig: {
-    watchUrl: string;
-    scheduleUrl: string;
-    ticketsUrl: string;
-    shopUrl: string;
-  };
+  displayName?: string;
+  mascotName?: string;
+  schoolLogoUrl?: string;
   followedTeamsCount: number;
-  scheduleAvailable: boolean;
-  themeMode: 'light' | 'dark';
   onOpenManageTeams: () => void;
-  onOpenSettings: () => void;
-  onOpenSavedEvents: () => void;
-  onOpenSchedule: () => void;
-  onOpenEmbedded: (title: string, url: string) => void;
+  notificationsEnabled: boolean;
+  onToggleNotifications: () => void;
+  autoPlayVideo: boolean;
+  onToggleAutoPlayVideo: () => void;
+  useLocalTimezone: boolean;
+  onToggleUseLocalTimezone: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
-  const isLightMode = themeMode === 'light';
-  const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
-  const hasScheduleUrl = scheduleAvailable;
-  const hasTicketsUrl = hasResolvedUrl(schoolConfig.ticketsUrl);
-  const hasShopUrl = hasResolvedUrl(schoolConfig.shopUrl);
+  const heroSchoolName =
+    displayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
+    'More';
+  const heroMascot = mascotName?.trim() || '';
+  const renderSettingRow = (
+    key: string,
+    title: string,
+    subtitle: string,
+    value: string,
+    onPress: () => void
+  ) => (
+    <Pressable
+      key={key}
+      style={[
+        styles.moreSettingsRow,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.moreRowTextWrap}>
+        <Text style={[styles.teamListTitle, { color: theme.colors.text }]}>{title}</Text>
+        <Text style={[styles.teamListSub, { color: theme.colors.mutedText }]}>{subtitle}</Text>
+      </View>
+      <Text style={[styles.settingsValueText, { color: theme.colors.accent }]}>
+        {value}
+      </Text>
+    </Pressable>
+  );
 
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.screenContent,
-        isLightMode ? styles.screenContentLight : null,
+        { backgroundColor: theme.colors.background },
       ]}
     >
-      <View style={[styles.tabHero, isLightMode ? styles.tabHeroLight : null]}>
-        <Text style={styles.tabHeroEyebrow}>More</Text>
-        <Text style={[styles.tabHeroTitle, isLightMode ? styles.textPrimaryLight : null]}>
-          More
-        </Text>
-        <Text style={[styles.tabHeroText, isLightMode ? styles.textSecondaryLight : null]}>
-          Manage teams, settings, saved items, and school links.
-        </Text>
-      </View>
+      <LinearGradient
+        colors={[
+          `${theme.colors.secondary}22`,
+          `${theme.colors.primary}12`,
+          theme.colors.background,
+        ]}
+        style={styles.teamsScreenBackdrop}
+        pointerEvents="none"
+      />
 
-      <View style={styles.teamsList}>
-        <MoreListRow
-          title="My Teams"
-          subtitle={
-            followedTeamsCount > 0
-              ? `${followedTeamsCount} followed`
-              : 'Manage followed teams'
-          }
+      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={styles.teamsHubHero}>
+        <View
+          style={[
+            styles.teamsHubAccentRail,
+            { backgroundColor: theme.colors.accent },
+          ]}
+        />
+
+        {hasResolvedUrl(schoolLogoUrl) ? (
+          <Image
+            source={{ uri: schoolLogoUrl }}
+            style={styles.teamsHubLogo}
+            resizeMode="contain"
+          />
+        ) : null}
+
+        <View style={styles.teamsHubContent}>
+          <Text style={styles.teamsHubEyebrow}>More</Text>
+          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
+          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
+          <Text style={styles.teamsHubText}>
+            Manage your teams and app settings in one place.
+          </Text>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.moreTabContent}>
+        <Text style={[styles.moreSectionLabel, { color: theme.colors.mutedText }]}>
+          My Teams
+        </Text>
+        <Pressable
+          style={[
+            styles.teamDirectoryCard,
+            styles.morePrimaryCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
           onPress={onOpenManageTeams}
-        />
-        <MoreListRow
-          title="Settings"
-          subtitle="Notifications, playback, timezone, theme"
-          onPress={onOpenSettings}
-        />
-        <MoreListRow
-          title="My Saved Events"
-          subtitle="Saved events will appear here"
-          onPress={onOpenSavedEvents}
-        />
-        {hasWatchUrl ? (
-          <MoreListRow
-            title="Video"
-            subtitle="Open live video"
-            onPress={() => onOpenEmbedded('Video', schoolConfig.watchUrl)}
+        >
+          <View
+            style={[
+              styles.teamDirectoryAccent,
+              { backgroundColor: theme.colors.accent },
+            ]}
           />
-        ) : null}
-        {hasScheduleUrl ? (
-          <MoreListRow
-            title="Events"
-            subtitle="Open the in-app schedule"
-            onPress={onOpenSchedule}
-          />
-        ) : null}
-        {hasTicketsUrl ? (
-          <MoreListRow
-            title="Tickets"
-            subtitle="Open ticketing"
-            onPress={() => onOpenEmbedded('Tickets', schoolConfig.ticketsUrl)}
-          />
-        ) : null}
-        {hasShopUrl ? (
-          <MoreListRow
-            title="Shop"
-            subtitle="Open the team store"
-            onPress={() => onOpenEmbedded('Shop', schoolConfig.shopUrl)}
-          />
-        ) : null}
+          <View style={styles.teamDirectoryContent}>
+            <Text style={[styles.teamDirectoryTitle, { color: theme.colors.text }]}>My Teams</Text>
+            <Text style={[styles.teamDirectorySub, { color: theme.colors.mutedText }]}>
+              {followedTeamsCount > 0
+                ? `${followedTeamsCount} followed teams`
+                : 'Manage followed teams'}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.teamDirectoryChevronWrap,
+              {
+                backgroundColor: theme.colors.cardAlt,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Ionicons name="chevron-forward" size={18} color={BRAND.white} />
+          </View>
+        </Pressable>
+
+        <Text style={[styles.moreSectionLabel, styles.moreSectionTight, { color: theme.colors.mutedText }]}>
+          Settings
+        </Text>
+        <View
+          style={[
+            styles.moreSettingsPanel,
+            {
+              backgroundColor: theme.colors.cardAlt,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          {renderSettingRow(
+            'notifications',
+            'Push Notifications',
+            notificationsEnabled ? 'Enabled' : 'Disabled',
+            notificationsEnabled ? 'On' : 'Off',
+            onToggleNotifications
+          )}
+          {renderSettingRow(
+            'autoplay',
+            'Auto-play Video',
+            autoPlayVideo ? 'Enabled' : 'Disabled',
+            autoPlayVideo ? 'On' : 'Off',
+            onToggleAutoPlayVideo
+          )}
+          {renderSettingRow(
+            'timezone',
+            'Use Local Timezone',
+            useLocalTimezone ? 'Enabled' : 'Disabled',
+            useLocalTimezone ? 'On' : 'Off',
+            onToggleUseLocalTimezone
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -4914,7 +5561,6 @@ function SettingsScreen({
   useLocalTimezone,
   onToggleUseLocalTimezone,
   themeMode,
-  onToggleThemeMode,
   onOpenManageTeams,
 }: {
   onBack: () => void;
@@ -4925,7 +5571,6 @@ function SettingsScreen({
   useLocalTimezone: boolean;
   onToggleUseLocalTimezone: () => void;
   themeMode: 'light' | 'dark';
-  onToggleThemeMode: () => void;
   onOpenManageTeams: () => void;
 }) {
   const isLightMode = themeMode === 'light';
@@ -4979,16 +5624,6 @@ function SettingsScreen({
           trailing={
             <Text style={styles.settingsValueText}>
               {useLocalTimezone ? 'On' : 'Off'}
-            </Text>
-          }
-        />
-        <MoreListRow
-          title="Theme"
-          subtitle={themeMode === 'light' ? 'Light mode' : 'Dark mode'}
-          onPress={onToggleThemeMode}
-          trailing={
-            <Text style={styles.settingsValueText}>
-              {themeMode === 'light' ? 'Light' : 'Dark'}
             </Text>
           }
         />
@@ -5183,6 +5818,11 @@ export default function App() {
   const [rosterLogoUrl, setRosterLogoUrl] = useState('');
   const [rosterItems, setRosterItems] = useState<AthleticOSRosterAthlete[]>([]);
   const [rosterLoading, setRosterLoading] = useState(false);
+  const [selectedRecruitingSport, setSelectedRecruitingSport] = useState<SportType | null>(null);
+  const [selectedRecruitingSportId, setSelectedRecruitingSportId] = useState('');
+  const [selectedRecruitingPlayer, setSelectedRecruitingPlayer] = useState<Record<string, unknown> | null>(null);
+  const [recruitingHeaderSubtitle, setRecruitingHeaderSubtitle] = useState('');
+  const [recruitingLogoUrl, setRecruitingLogoUrl] = useState('');
   const [selectedAthlete, setSelectedAthlete] = useState<AthleticOSRosterAthlete | null>(null);
   const [selectedStory, setSelectedStory] = useState<NewsItem | null>(null);
   const [previousScreenMode, setPreviousScreenMode] = useState<ScreenMode>('tabs');
@@ -5737,7 +6377,6 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         const savedUseLocalTimezone = await AsyncStorage.getItem(
           STORAGE_KEYS.useLocalTimezone
         );
-        const savedThemeMode = await AsyncStorage.getItem(STORAGE_KEYS.themeMode);
 
         if (savedEnabled === 'true') {
           setNotificationsEnabled(true);
@@ -5754,9 +6393,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
           setUseLocalTimezone(false);
         }
 
-        if (savedThemeMode === 'light' || savedThemeMode === 'dark') {
-          setThemeMode(savedThemeMode);
-        }
+        setThemeMode('dark');
       } catch (error) {
         console.log('Preference load error:', error);
       }
@@ -5902,9 +6539,8 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   };
 
   const toggleThemeModeSetting = async () => {
-    const nextMode = themeMode === 'dark' ? 'light' : 'dark';
-    setThemeMode(nextMode);
-    await AsyncStorage.setItem(STORAGE_KEYS.themeMode, nextMode);
+    setThemeMode('dark');
+    await AsyncStorage.setItem(STORAGE_KEYS.themeMode, 'dark');
   };
 
 const handleEnableNotifications = async () => {
@@ -6027,6 +6663,26 @@ const handleEnableNotifications = async () => {
     setScreenMode('athleteProfile');
   };
 
+  const openRecruitingScreen = ({
+    sport,
+    sportId,
+    headerSubtitle,
+    schoolLogoUrl,
+  }: OpenRecruitingOptions) => {
+    setPreviousScreenMode(screenMode);
+    setSelectedRecruitingSport(sport);
+    setSelectedRecruitingSportId(sportId);
+    setRecruitingHeaderSubtitle(headerSubtitle?.trim() || '');
+    setRecruitingLogoUrl(schoolLogoUrl?.trim() || '');
+    setSelectedRecruitingPlayer(null);
+    setScreenMode('recruiting');
+  };
+
+  const openRecruitingPlayerScreen = (profile: Record<string, unknown>) => {
+    setSelectedRecruitingPlayer(profile);
+    setScreenMode('recruitingPlayer');
+  };
+
   const openNewsListScreen = () => {
     setActiveTab('home');
     setScreenMode('newsList');
@@ -6042,6 +6698,11 @@ const handleEnableNotifications = async () => {
   const handleBottomNavChange = (tab: TabKey) => {
     setActiveTab(tab);
     setScreenMode('tabs');
+    setSelectedRecruitingSport(null);
+    setSelectedRecruitingSportId('');
+    setSelectedRecruitingPlayer(null);
+    setRecruitingHeaderSubtitle('');
+    setRecruitingLogoUrl('');
     setSelectedRosterSport(null);
     setSelectedRosterSportId('');
     setRosterItems([]);
@@ -6225,6 +6886,11 @@ const handleEnableNotifications = async () => {
     setScheduleScreenLogoUrl('');
     setScheduleScreenVariant('school');
     setScheduleScreenAccentColor(schoolAccentColor);
+    setSelectedRecruitingSport(null);
+    setSelectedRecruitingSportId('');
+    setSelectedRecruitingPlayer(null);
+    setRecruitingHeaderSubtitle('');
+    setRecruitingLogoUrl('');
     setSelectedRosterSport(null);
     setSelectedRosterSportId('');
     setRosterItems([]);
@@ -6242,6 +6908,20 @@ const handleEnableNotifications = async () => {
   const closeRosterScreen = () => {
     setScreenMode(previousScreenMode);
     setSelectedAthlete(null);
+  };
+
+  const closeRecruitingScreen = () => {
+    setScreenMode(previousScreenMode);
+    setSelectedRecruitingSport(null);
+    setSelectedRecruitingSportId('');
+    setSelectedRecruitingPlayer(null);
+    setRecruitingHeaderSubtitle('');
+    setRecruitingLogoUrl('');
+  };
+
+  const closeRecruitingPlayerScreen = () => {
+    setScreenMode('recruiting');
+    setSelectedRecruitingPlayer(null);
   };
 
   const closeAthleteProfile = () => {
@@ -6353,6 +7033,35 @@ if (showPreroll && prerollConfig) {
         theme={resolvedTheme}
       />
     );
+  } else if (screenMode === 'recruiting' && selectedRecruitingSport) {
+    mainContent = (
+      <RecruitingScreen
+        schoolId={String(resolvedSchoolId ?? '')}
+        sportId={selectedRecruitingSportId}
+        sport={selectedRecruitingSport}
+        onBack={closeRecruitingScreen}
+        onOpenPlayer={openRecruitingPlayerScreen}
+        headerSubtitle={recruitingHeaderSubtitle || appDisplayName}
+        schoolLogoUrl={recruitingLogoUrl || schoolConfig.logoUrl}
+        theme={resolvedTheme}
+      />
+    );
+  } else if (
+    screenMode === 'recruitingPlayer' &&
+    selectedRecruitingSport &&
+    selectedRecruitingPlayer
+  ) {
+    mainContent = (
+      <RecruitingPlayerScreen
+        profile={selectedRecruitingPlayer}
+        sport={selectedRecruitingSport}
+        schoolSlug={schoolSlug}
+        onBack={closeRecruitingPlayerScreen}
+        headerSubtitle={recruitingHeaderSubtitle || appDisplayName}
+        schoolLogoUrl={recruitingLogoUrl || schoolConfig.logoUrl}
+        theme={resolvedTheme}
+      />
+    );
   } else if (screenMode === 'athleteProfile' && selectedAthlete) {
     mainContent = (
       <AthleteProfileScreen
@@ -6382,7 +7091,6 @@ if (showPreroll && prerollConfig) {
         useLocalTimezone={useLocalTimezone}
         onToggleUseLocalTimezone={toggleUseLocalTimezoneSetting}
         themeMode={themeMode}
-        onToggleThemeMode={toggleThemeModeSetting}
         onOpenManageTeams={() => setScreenMode('manageTeams')}
       />
     );
@@ -6414,7 +7122,7 @@ if (showPreroll && prerollConfig) {
         schoolConfig={schoolConfig}
         scheduleAccentColor={schoolAccentColor}
         onBack={closeSpecialScreen}
-        onOpenEmbedded={openEmbedded}
+        onOpenRecruiting={openRecruitingScreen}
         onOpenRoster={openRosterScreen}
         onOpenSchedule={openScheduleScreen}
         onOpenStoryDetail={handleOpenStoryDetail}
@@ -6510,15 +7218,18 @@ if (showPreroll && prerollConfig) {
 
       {activeTab === 'more' ? (
   <MoreScreen
-    schoolConfig={schoolConfig}
+    displayName={appDisplayName}
+    mascotName={schoolConfig.mascotName}
+    schoolLogoUrl={schoolConfig.logoUrl}
     followedTeamsCount={followedTeams.length}
-    scheduleAvailable={eventsLoading || allEvents.length > 0}
-    themeMode={themeMode}
+    notificationsEnabled={notificationsEnabled}
+    onToggleNotifications={toggleNotificationsSetting}
+    autoPlayVideo={autoPlayVideo}
+    onToggleAutoPlayVideo={toggleAutoPlayVideoSetting}
+    useLocalTimezone={useLocalTimezone}
+    onToggleUseLocalTimezone={toggleUseLocalTimezoneSetting}
     onOpenManageTeams={() => setScreenMode('manageTeams')}
-    onOpenSettings={() => setScreenMode('settings')}
-    onOpenSavedEvents={() => setScreenMode('savedEvents')}
-    onOpenSchedule={openScheduleScreen}
-    onOpenEmbedded={openEmbedded}
+    theme={resolvedTheme}
   />
 ) : null}
       </>
@@ -7976,6 +8687,25 @@ heroStatusText: {
     position: 'relative',
   },
 
+  newsHubHero: {
+    marginBottom: 10,
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingHorizontal: 18,
+  },
+
+  newsHubBackButton: {
+    marginBottom: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+
+  newsHubHero: {
+    marginBottom: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+  },
+
   teamsHubAccentRail: {
     position: 'absolute',
     left: 0,
@@ -7995,13 +8725,42 @@ heroStatusText: {
     opacity: 0.96,
   },
 
+  newsHubLogo: {
+    top: 10,
+    right: 14,
+    width: 84,
+    height: 56,
+  },
+
   teamsHubContent: {
     maxWidth: '74%',
   },
 
   newsHubContent: {
     maxWidth: '76%',
-    paddingTop: 28,
+    paddingTop: 4,
+  },
+
+  newsHubEyebrow: {
+    marginBottom: 6,
+  },
+
+  newsHubTitle: {
+    fontSize: 27,
+    lineHeight: 30,
+    marginBottom: 2,
+  },
+
+  newsHubMascot: {
+    fontSize: 16,
+    lineHeight: 19,
+    marginBottom: 5,
+  },
+
+  newsHubText: {
+    fontSize: 13,
+    lineHeight: 18,
+    maxWidth: '92%',
   },
 
   teamsHubEyebrow: {
@@ -8316,6 +9075,45 @@ heroStatusText: {
     fontWeight: '800',
   },
 
+  moreTabContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 28,
+  },
+
+  moreSectionLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+    marginBottom: 10,
+  },
+
+  moreSectionTight: {
+    marginTop: 18,
+  },
+
+  morePrimaryCard: {
+    marginBottom: 0,
+  },
+
+  moreSettingsPanel: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 12,
+  },
+
+  moreSettingsRow: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
   watchPrimaryCard: {
     marginHorizontal: 16,
     marginBottom: 12,
@@ -8545,6 +9343,231 @@ heroStatusText: {
     fontSize: 15,
     lineHeight: 24,
     marginTop: 12,
+  },
+
+  recruitingPanel: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+
+  recruitingIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+
+  recruitingTitle: {
+    color: BRAND.white,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+
+  recruitingText: {
+    color: BRAND.lightGray,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+
+  recruitingProfileCard: {
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 12,
+  },
+
+  recruitingProfileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  recruitingProfilePhoto: {
+    width: 92,
+    height: 92,
+    borderRadius: 22,
+    marginRight: 16,
+    backgroundColor: BRAND.surfaceAlt,
+  },
+
+  recruitingProfilePhotoFallback: {
+    width: 92,
+    height: 92,
+    borderRadius: 24,
+    marginRight: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  recruitingProfileBody: {
+    flex: 1,
+    paddingTop: 2,
+  },
+
+  recruitingProfileName: {
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+
+  recruitingProfileMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+
+  recruitingProfileDetail: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+
+  recruitingProfileChevronWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+    marginTop: 2,
+  },
+
+  recruitingHighlightsButton: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  recruitingHighlightsButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  recruitingPlayerWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 28,
+    gap: 14,
+  },
+
+  recruitingPlayerPhotoCard: {
+    position: 'relative',
+    borderWidth: 1,
+    borderRadius: 26,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+
+  recruitingPlayerPhotoStage: {
+    width: '100%',
+    maxWidth: 260,
+    aspectRatio: 1,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: 20,
+    backgroundColor: BRAND.surfaceAlt,
+  },
+
+  recruitingPlayerPhoto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: BRAND.surfaceAlt,
+  },
+
+  recruitingPlayerPhotoFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  recruitingPlayerSection: {
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+
+  recruitingPlayerSectionTitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+
+  recruitingPlayerFactsList: {
+    gap: 10,
+  },
+
+  recruitingPlayerFactRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+
+  recruitingPlayerFactLabel: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    paddingRight: 12,
+  },
+
+  recruitingPlayerFactValue: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'right',
+  },
+
+  recruitingPlayerBio: {
+    fontSize: 15,
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+
+  recruitingPlayerActionsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+
+  recruitingPlayerHighlightsButton: {
+    marginTop: 0,
   },
 
   scheduleCard: {
