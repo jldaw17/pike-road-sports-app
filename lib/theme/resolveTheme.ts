@@ -213,9 +213,9 @@ function resolveThemeSurfaceTokens(surfaceStyle: string) {
         surface: '#FFFFFF',
         card: '#FFFFFF',
         cardAlt: '#FFFFFF',
-        border: '#E7E7E2',
+        border: '#D6D9DE',
         text: '#111827',
-        mutedText: '#1F2937',
+        mutedText: '#374151',
       };
     case 'light_surface':
       return {
@@ -347,17 +347,19 @@ export function resolveAthleticOSTheme(
     normalizeHexColor(config?.secondary_color) || preset.colors.secondary;
   const resolvedAccent =
     normalizeHexColor(config?.accent_color) || preset.colors.accent;
-  const resolvedStyles = {
-    backgroundStyle:
-      normalizeThemeKey(config?.background_style) || preset.styles.backgroundStyle,
-    surfaceStyle:
-      normalizeThemeKey(config?.surface_style) || preset.styles.surfaceStyle,
-    cardStyle: normalizeThemeKey(config?.card_style) || preset.styles.cardStyle,
-    pillStyle: normalizeThemeKey(config?.pill_style) || preset.styles.pillStyle,
-    navStyle: normalizeThemeKey(config?.nav_style) || preset.styles.navStyle,
-    heroStyle: normalizeThemeKey(config?.hero_style) || preset.styles.heroStyle,
-    newsStyle: normalizeThemeKey(config?.news_style) || preset.styles.newsStyle,
-  };
+  const resolvedStyles = isCleanSlate
+    ? { ...preset.styles }
+    : {
+        backgroundStyle:
+          normalizeThemeKey(config?.background_style) || preset.styles.backgroundStyle,
+        surfaceStyle:
+          normalizeThemeKey(config?.surface_style) || preset.styles.surfaceStyle,
+        cardStyle: normalizeThemeKey(config?.card_style) || preset.styles.cardStyle,
+        pillStyle: normalizeThemeKey(config?.pill_style) || preset.styles.pillStyle,
+        navStyle: normalizeThemeKey(config?.nav_style) || preset.styles.navStyle,
+        heroStyle: normalizeThemeKey(config?.hero_style) || preset.styles.heroStyle,
+        newsStyle: normalizeThemeKey(config?.news_style) || preset.styles.newsStyle,
+      };
 
   const surfaceTokens = resolveThemeSurfaceTokens(resolvedStyles.surfaceStyle);
   const heroTokens = resolveThemeHeroTokens(

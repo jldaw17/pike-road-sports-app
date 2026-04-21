@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Easing,
   Image,
   ImageBackground,
   Linking,
@@ -92,6 +93,8 @@ const BRAND = {
   red: '#C8102E',
 };
 
+const MEDIA_FEATURE_ASPECT_RATIO = 16 / 9;
+
 const STORAGE_KEYS = {
   notificationsEnabled: 'notificationsEnabled',
   notificationsPromptDismissed: 'notificationsPromptDismissed',
@@ -101,9 +104,10 @@ const STORAGE_KEYS = {
   themeMode: 'themeMode',
 };
 
-const SPONSOR_CAROUSEL_CARD_WIDTH = 248;
+const SPONSOR_CAROUSEL_CARD_WIDTH = 212;
 const SPONSOR_CAROUSEL_CARD_GAP = 12;
 const DEFAULT_APP_THEME = resolveAthleticOSTheme();
+const BOOTSTRAP_LIGHT_THEME = resolveAthleticOSTheme({ theme_key: 'clean_slate' });
 
 function isCleanSlateTheme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'clean_slate';
@@ -147,12 +151,12 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: 16,
-    shadowColor: withAlpha(theme.colors.text, '24'),
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+    borderRadius: 4,
+    shadowColor: withAlpha(theme.colors.text, '14'),
+    shadowOpacity: 0.025,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   };
 }
 
@@ -162,14 +166,14 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
   }
 
   return {
-    borderRadius: 14,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    shadowColor: withAlpha(theme.colors.text, '20'),
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
+    shadowColor: withAlpha(theme.colors.text, '14'),
+    shadowOpacity: 0.035,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   };
 }
 
@@ -182,12 +186,12 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
     backgroundColor: theme.colors.card,
     borderColor: theme.colors.border,
     borderWidth: 1,
-    borderRadius: 14,
-    shadowColor: withAlpha(theme.colors.text, '20'),
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
+    borderRadius: 5,
+    shadowColor: withAlpha(theme.colors.text, '14'),
+    shadowOpacity: 0.035,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   };
 }
 
@@ -200,11 +204,11 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
     backgroundColor: theme.colors.cardAlt,
     borderColor: theme.colors.border,
     borderWidth: 1,
-    borderRadius: 14,
-    shadowColor: withAlpha(theme.colors.text, '18'),
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    borderRadius: 5,
+    shadowColor: withAlpha(theme.colors.text, '12'),
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   };
 }
@@ -223,9 +227,8 @@ function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle |
   }
 
   return {
-    backgroundColor: withAlpha(theme.colors.primary, '10'),
-    borderWidth: 1,
-    borderColor: withAlpha(theme.colors.primary, '22'),
+    backgroundColor: theme.colors.primary,
+    borderWidth: 0,
     borderRadius: 999,
   };
 }
@@ -239,11 +242,11 @@ function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.primary,
     borderWidth: 1,
-    borderRadius: 12,
-    shadowColor: withAlpha(theme.colors.text, '18'),
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    borderRadius: 5,
+    shadowColor: withAlpha(theme.colors.text, '12'),
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   };
 }
@@ -310,6 +313,102 @@ function normalizeModuleKey(value?: string) {
 
 function normalizePlacementKey(value?: string) {
   return normalizeModuleKey(value);
+}
+
+function isHeroSponsorPlacementKey(value?: string) {
+  const key = normalizePlacementKey(value);
+  return (
+    key === 'hero' ||
+    key === 'hero_sponsor' ||
+    key === 'home_hero' ||
+    key === 'homepage_hero' ||
+    key === 'hero_banner' ||
+    key === 'header_sponsor' ||
+    (key.includes('hero') && key.includes('sponsor'))
+  );
+}
+
+function isPresentingSponsorPlacementKey(value?: string) {
+  const key = normalizePlacementKey(value);
+  return (
+    key === 'presenting_sponsor' ||
+    key === 'presenting' ||
+    key === 'presented_by' ||
+    (key.includes('present') && key.includes('sponsor'))
+  );
+}
+
+function isSponsorCarouselPlacementKey(value?: string) {
+  const key = normalizePlacementKey(value);
+  return key.includes('carousel');
+}
+
+function isStandardSponsorPlacementKey(value?: string) {
+  const key = normalizePlacementKey(value);
+  return (
+    key === 'sponsors' ||
+    key === 'sponsor' ||
+    key === 'sponsor_card' ||
+    key.includes('banner')
+  );
+}
+
+function isPromotionSponsorPlacementKey(value?: string) {
+  const key = normalizePlacementKey(value);
+  return (
+    key === 'promotion' ||
+    key === 'promotion_sponsor' ||
+    key === 'promo' ||
+    key === 'promo_sponsor' ||
+    (key.includes('promotion') && key.includes('sponsor')) ||
+    (key.includes('promo') && key.includes('sponsor'))
+  );
+}
+
+function isAthleteOfWeekSponsorPlacementKey(value?: string) {
+  const key = normalizePlacementKey(value);
+  return (
+    key === 'athlete_of_week' ||
+    key === 'athlete_week' ||
+    key === 'aotw' ||
+    key === 'athlete_of_week_sponsor' ||
+    (key.includes('athlete') && key.includes('week')) ||
+    (key.includes('aotw') && key.includes('sponsor'))
+  );
+}
+
+function normalizeLiveCoverageStatus(value?: string) {
+  const key = normalizeModuleKey(value);
+
+  if (!key) {
+    return 'not_live';
+  }
+
+  switch (key) {
+    case 'off':
+    case 'none':
+    case 'hidden':
+      return 'off';
+    case 'live_audio':
+    case 'audio':
+      return 'live_audio';
+    case 'live_video':
+    case 'video':
+      return 'live_video';
+    case 'live_both':
+    case 'live_audio_video':
+    case 'live_audio_and_video':
+    case 'audio_video':
+    case 'audio_and_video':
+      return 'live_both';
+    case 'not_live':
+    case 'not_currently_live':
+    case 'inactive':
+    case 'default':
+    case 'offline':
+    default:
+      return 'not_live';
+  }
 }
 
 function getHeroBrandTitle(schoolConfig: {
@@ -1225,26 +1324,30 @@ function TopIcon({
           style={[
             styles.topIconCircle,
             {
-              backgroundColor: theme.colors.surface,
+              backgroundColor: theme.colors.card,
               borderColor: theme.colors.border,
-              borderRadius: 12,
-              marginBottom: 6,
-              shadowOpacity: 0,
-              shadowRadius: 0,
-              elevation: 0,
+              borderRadius: 6,
+              marginBottom: 4,
+              width: 40,
+              height: 40,
+              shadowColor: withAlpha(theme.colors.text, '12'),
+              shadowOpacity: 0.03,
+              shadowRadius: 3,
+              shadowOffset: { width: 0, height: 1 },
+              elevation: 1,
             },
           ]}
         >
-          <Ionicons name={icon} size={19} color={theme.colors.accent} />
+          <Ionicons name={icon} size={17} color={theme.colors.primary} />
         </View>
         <Text
           style={[
             styles.topIconLabel,
             {
               color: theme.colors.text,
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: '800',
-              letterSpacing: 0.4,
+              letterSpacing: 0.45,
               textTransform: 'uppercase',
             },
           ]}
@@ -1308,11 +1411,11 @@ function SectionHeader({
         style={[
           styles.sectionHeader,
           {
-            marginTop: 28,
-            marginBottom: 14,
-            paddingBottom: 10,
+            marginTop: 24,
+            marginBottom: 12,
+            paddingBottom: 8,
             borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
+            borderBottomColor: withAlpha(theme.colors.text, '10'),
           },
           containerStyle,
         ]}
@@ -1332,9 +1435,9 @@ function SectionHeader({
               styles.sectionTitle,
               {
                 color: theme.colors.text,
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: '800',
-                letterSpacing: 1.2,
+                letterSpacing: 1,
                 textTransform: 'uppercase',
               },
             ]}
@@ -1349,9 +1452,9 @@ function SectionHeader({
                 styles.sectionAction,
                 {
                   color: theme.colors.accent,
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: '800',
-                  letterSpacing: 0.8,
+                  letterSpacing: 0.7,
                   textTransform: 'uppercase',
                 },
               ]}
@@ -1711,61 +1814,83 @@ function NewsCard({
             {
               height: undefined,
               minHeight: 0,
-              padding: 12,
+              padding: 8,
+              borderRadius: 5,
             },
           ]}
           onPress={onPress}
         >
-          {item.image ? (
-            <Image
-              source={{ uri: item.image }}
-              style={[
-                styles.featuredStoryImage,
-                {
-                  position: 'relative',
-                  width: '100%',
-                  height: 194,
-                  borderRadius: 10,
-                  marginBottom: 14,
-                },
-              ]}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.featuredStoryImage,
-                {
-                  position: 'relative',
-                  width: '100%',
-                  height: 194,
-                  borderRadius: 10,
-                  marginBottom: 14,
-                  backgroundColor: theme.colors.cardAlt,
-                },
-              ]}
-            />
-          )}
-
           <View
-            style={[
-              styles.featuredPill,
-              getThemeEditorialPillStyle(theme),
-              { marginBottom: 12 },
-            ]}
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+              borderRadius: 4,
+              overflow: 'hidden',
+              marginBottom: 7,
+            }}
           >
-            <Text style={[styles.featuredPillText, { color: theme.colors.accent }]}>
-              {sportLabel}
-            </Text>
+            {item.image ? (
+              <Image
+                source={{ uri: item.image }}
+                style={[
+                  styles.featuredStoryImage,
+                  {
+                    position: 'relative',
+                    width: '100%',
+                    aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+                    borderRadius: 4,
+                  },
+                ]}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.featuredStoryImage,
+                  {
+                    position: 'relative',
+                    width: '100%',
+                    aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+                    borderRadius: 4,
+                    backgroundColor: theme.colors.cardAlt,
+                  },
+                ]}
+              />
+            )}
+            <View
+              style={{
+                position: 'absolute',
+                left: 8,
+                bottom: 8,
+              }}
+            >
+              <View
+                style={[
+                  styles.featuredPill,
+                  getThemeEditorialPillStyle(theme),
+                  { marginBottom: 0, paddingHorizontal: 9, paddingVertical: 4 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.featuredPillText,
+                    { color: BRAND.white, fontSize: 10, fontWeight: '900', opacity: 1 },
+                  ]}
+                >
+                  {sportLabel}
+                </Text>
+              </View>
+            </View>
           </View>
           <Text
             style={[
               styles.featuredStoryTitle,
               {
                 color: theme.colors.text,
-                fontSize: 28,
-                lineHeight: 34,
-                marginBottom: 10,
+                fontSize: 23,
+                lineHeight: 29,
+                marginBottom: 4,
               },
             ]}
             numberOfLines={3}
@@ -1773,7 +1898,7 @@ function NewsCard({
             {item.title}
           </Text>
           <Text style={[styles.featuredStoryMeta, { color: theme.colors.mutedText }]}>
-            {item.date || 'Latest News'}
+          {item.date || 'Latest News'}
           </Text>
         </Pressable>
       );
@@ -1825,47 +1950,87 @@ function NewsCard({
   }
 
   if (isCleanSlate) {
-    return (
-      <Pressable style={[styles.newsCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
-        {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.newsThumbWide} resizeMode="cover" />
-        ) : (
+      return (
+        <Pressable
+          style={[
+            styles.newsCard,
+            getThemeSurfaceCardStyle(theme),
+            { borderRadius: 5, padding: 8, marginBottom: 10 },
+          ]}
+          onPress={onPress}
+        >
+        <View
+          style={{
+            position: 'relative',
+            width: 120,
+            aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+            borderRadius: 4,
+            overflow: 'hidden',
+            marginRight: 12,
+            alignSelf: 'flex-start',
+          }}
+        >
+          {item.image ? (
+            <Image
+              source={{ uri: item.image }}
+              style={[styles.newsThumbWide, { borderRadius: 4, width: 120, aspectRatio: MEDIA_FEATURE_ASPECT_RATIO, marginRight: 0 }]}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={[
+                styles.newsThumbFallbackWide,
+                {
+                  width: 120,
+                  aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+                  borderRadius: 4,
+                  marginRight: 0,
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <Ionicons name="newspaper-outline" size={22} color={theme.colors.accent} />
+            </View>
+          )}
           <View
-            style={[
-              styles.newsThumbFallbackWide,
-              {
-                backgroundColor: theme.colors.cardAlt,
-                borderColor: theme.colors.border,
-                borderWidth: 1,
-              },
-            ]}
+            style={{
+              position: 'absolute',
+              left: 7,
+              bottom: 7,
+            }}
           >
-            <Ionicons name="newspaper-outline" size={22} color={theme.colors.accent} />
+            <View
+              style={[
+                styles.featuredPill,
+                getThemeEditorialPillStyle(theme),
+                { marginBottom: 0, paddingHorizontal: 8, paddingVertical: 4 },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.featuredPillText,
+                  { color: BRAND.white, fontSize: 9, fontWeight: '900', opacity: 1 },
+                ]}
+              >
+                {sportLabel}
+              </Text>
+            </View>
           </View>
-        )}
+        </View>
 
-        <View style={styles.newsCardBody}>
-          <View
-            style={[
-              styles.featuredPill,
-              getThemeEditorialPillStyle(theme),
-              { marginBottom: 8 },
-            ]}
-          >
-            <Text style={[styles.featuredPillText, { color: theme.colors.accent }]}>
-              {sportLabel}
-            </Text>
-          </View>
+        <View style={[styles.newsCardBody, { justifyContent: 'center' }]}>
           <Text
             style={[
               styles.newsCardTitle,
-              { color: theme.colors.text, fontSize: 18, lineHeight: 24 },
+              { color: theme.colors.text, fontSize: 17, lineHeight: 22 },
             ]}
             numberOfLines={2}
           >
             {item.title}
           </Text>
-          <Text style={[styles.newsCardMeta, { color: theme.colors.mutedText }]}>
+          <Text style={[styles.newsCardMeta, { color: theme.colors.mutedText, marginTop: 4 }]}>
             {item.date || 'Latest'}
           </Text>
         </View>
@@ -2054,8 +2219,9 @@ function StoryCarouselCard({
           styles.storyCarouselCard,
           getThemeSurfaceCardStyle(theme),
           {
-            height: 286,
-            borderRadius: 14,
+            height: 270,
+            height: 246,
+            borderRadius: 5,
           },
         ]}
         onPress={onPress}
@@ -2068,7 +2234,9 @@ function StoryCarouselCard({
               {
                 position: 'relative',
                 width: '100%',
-                height: 158,
+                height: 136,
+                borderTopLeftRadius: 5,
+                borderTopRightRadius: 5,
               },
             ]}
             resizeMode="cover"
@@ -2080,17 +2248,30 @@ function StoryCarouselCard({
               {
                 position: 'relative',
                 width: '100%',
-                height: 158,
+                height: 136,
+                borderTopLeftRadius: 5,
+                borderTopRightRadius: 5,
                 backgroundColor: theme.colors.cardAlt,
               },
             ]}
           />
         )}
 
-        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 }}>
-          <View style={[styles.storyCarouselMetaRow, { marginBottom: 10 }]}>
-            <View style={[styles.featuredPill, getThemeEditorialPillStyle(theme), { marginBottom: 0 }]}>
-              <Text style={[styles.featuredPillText, { color: theme.colors.accent }]}>
+        <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 11 }}>
+          <View style={[styles.storyCarouselMetaRow, { marginBottom: 7 }]}>
+            <View
+              style={[
+                styles.featuredPill,
+                getThemeEditorialPillStyle(theme),
+                { marginBottom: 0, paddingHorizontal: 9, paddingVertical: 4 },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.featuredPillText,
+                  { color: BRAND.white, fontSize: 10, fontWeight: '900', opacity: 1 },
+                ]}
+              >
                 {sportLabel}
               </Text>
             </View>
@@ -2101,7 +2282,7 @@ function StoryCarouselCard({
           <Text
             style={[
               styles.storyCarouselTitle,
-              { color: theme.colors.text, fontSize: 22, lineHeight: 28 },
+              { color: theme.colors.text, fontSize: 20, lineHeight: 25 },
             ]}
             numberOfLines={3}
           >
@@ -2171,7 +2352,7 @@ function VideoCarouselCard({
           getThemeSurfaceCardStyle(theme),
           {
             height: 210,
-            borderRadius: 14,
+            borderRadius: 5,
           },
         ]}
         onPress={onPress}
@@ -2304,7 +2485,7 @@ function GalleryCarouselCard({
           getThemeSurfaceCardStyle(theme),
           {
             height: 230,
-            borderRadius: 14,
+            borderRadius: 5,
           },
         ]}
         onPress={onPress}
@@ -2401,12 +2582,58 @@ function GalleryCarouselCard({
 function PromotionCard({
   promotion,
   onPress,
+  sponsorPlacement,
+  onSponsorPress,
   theme = DEFAULT_APP_THEME,
 }: {
   promotion: AthleticOSPromotionCard;
   onPress?: () => void;
+  sponsorPlacement?: AthleticOSAppSponsorPlacement | null;
+  onSponsorPress?: () => void;
   theme?: AthleticOSResolvedTheme;
 }) {
+  const sponsorLogo = sponsorPlacement?.sponsor_logo_url?.trim() || '';
+  const sponsorName = sponsorPlacement?.sponsor_name?.trim() || '';
+  const hasPromotionSponsor = Boolean(sponsorLogo);
+  const promotionSponsorBadge = hasPromotionSponsor ? (
+    <Pressable
+      disabled={!onSponsorPress}
+      onPress={onSponsorPress}
+      style={[
+        styles.promotionSponsorRow,
+        isCleanSlateTheme(theme)
+          ? {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            }
+          : null,
+      ]}
+    >
+      <View style={styles.promotionSponsorCopy}>
+        <Text
+          style={[
+            styles.promotionSponsorLabel,
+            { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+          ]}
+        >
+          Presented by
+        </Text>
+        {sponsorName ? (
+          <Text
+            style={[
+              styles.promotionSponsorName,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+            numberOfLines={1}
+          >
+            {sponsorName}
+          </Text>
+        ) : null}
+      </View>
+      <Image source={{ uri: sponsorLogo }} style={styles.promotionSponsorLogo} resizeMode="contain" />
+    </Pressable>
+  ) : null;
+
   if (isCleanSlateTheme(theme)) {
     const cleanBody = (
       <>
@@ -2415,23 +2642,29 @@ function PromotionCard({
             source={{ uri: promotion.image_url }}
             style={{
               width: '100%',
-              height: 150,
+              aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
             }}
             resizeMode="cover"
           />
         ) : (
-          <View style={{ width: '100%', height: 150, backgroundColor: theme.colors.cardAlt }} />
+          <View
+            style={{
+              width: '100%',
+              aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+              backgroundColor: theme.colors.cardAlt,
+            }}
+          />
         )}
 
-        <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 11, paddingBottom: 12 }}>
           <View
             style={[
               styles.promotionPill,
               getThemeEditorialPillStyle(theme),
-              { marginBottom: 12 },
+              { marginBottom: 9 },
             ]}
           >
-            <Text style={[styles.promotionPillText, { color: theme.colors.accent }]}>
+            <Text style={[styles.promotionPillText, { color: BRAND.white, opacity: 1 }]}>
               Featured
             </Text>
           </View>
@@ -2448,7 +2681,7 @@ function PromotionCard({
             <Text
               style={[
                 styles.promotionCardSubtitle,
-                { color: theme.colors.mutedText, marginTop: 10 },
+                { color: theme.colors.mutedText, marginTop: 7 },
               ]}
               numberOfLines={3}
             >
@@ -2460,7 +2693,7 @@ function PromotionCard({
               style={[
                 styles.promotionCardButton,
                 getThemeEditorialButtonStyle(theme),
-                { marginTop: 18, paddingHorizontal: 14, paddingVertical: 11 },
+                { marginTop: 12, paddingHorizontal: 14, paddingVertical: 10 },
               ]}
             >
               <Text style={[styles.promotionCardButtonText, { color: theme.colors.buttonText }]}>
@@ -2468,6 +2701,9 @@ function PromotionCard({
               </Text>
               <Ionicons name="chevron-forward" size={16} color={theme.colors.buttonText} />
             </View>
+          ) : null}
+          {promotionSponsorBadge ? (
+            <View style={[styles.promotionSponsorWrap, { marginTop: 10 }]}>{promotionSponsorBadge}</View>
           ) : null}
         </View>
       </>
@@ -2479,7 +2715,7 @@ function PromotionCard({
           style={[
             styles.promotionCard,
             getThemeSurfaceCardStyle(theme),
-            { minHeight: 0, borderRadius: 14 },
+            { minHeight: 0, borderRadius: 5 },
           ]}
           onPress={onPress}
         >
@@ -2493,7 +2729,7 @@ function PromotionCard({
         style={[
           styles.promotionCard,
           getThemeSurfaceCardStyle(theme),
-          { minHeight: 0, borderRadius: 14 },
+          { minHeight: 0, borderRadius: 5 },
         ]}
       >
         {cleanBody}
@@ -2541,7 +2777,7 @@ function PromotionCard({
           <Text
             style={[
               styles.promotionPillText,
-              isCleanSlateTheme(theme) ? { color: theme.colors.pillText } : null,
+              isCleanSlateTheme(theme) ? { color: BRAND.white, opacity: 1 } : null,
             ]}
           >
             Featured
@@ -2560,9 +2796,12 @@ function PromotionCard({
               { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
             ]}
             numberOfLines={3}
-          >
-            {promotion.subtitle.trim()}
-          </Text>
+            >
+              {promotion.subtitle.trim()}
+            </Text>
+        ) : null}
+        {promotionSponsorBadge ? (
+          <View style={styles.promotionSponsorWrap}>{promotionSponsorBadge}</View>
         ) : null}
         {promotion.cta_text?.trim() ? (
           <View
@@ -2706,60 +2945,161 @@ function AppPrerollScreen({
 function AthleteOfWeekCard({
   item,
   onPress,
+  sponsorPlacement,
+  onSponsorPress,
   theme = DEFAULT_APP_THEME,
 }: {
   item: AthleticOSAthleteOfTheWeek;
   onPress?: () => void;
+  sponsorPlacement?: AthleticOSAppSponsorPlacement | null;
+  onSponsorPress?: () => void;
   theme?: AthleticOSResolvedTheme;
 }) {
   const imageUrl = item.featuredImageUrl || item.headshotUrl || null;
-  const title = item.sportName || item.awardWeekLabel || 'Athlete of the Week';
   const subtitle = item.summary || item.opponent || null;
   const statsLine = item.stats?.trim() || null;
+  const athleteMetaLine = [item.position, item.classYear].filter(Boolean).join(' • ') || null;
+  const athleteSecondaryLine =
+    [item.sportName, item.position, item.classYear].filter(Boolean).join(' • ') || null;
+  const sponsorLogo = sponsorPlacement?.sponsor_logo_url?.trim() || '';
+  const sponsorName = sponsorPlacement?.sponsor_name?.trim() || '';
+  const sponsorHasLink = Boolean(
+    sponsorPlacement?.sponsor_link_url?.trim() &&
+      hasResolvedUrl(sponsorPlacement.sponsor_link_url)
+  );
+  const usingHeadshotFallback = !item.featuredImageUrl && Boolean(item.headshotUrl);
+
+  useEffect(() => {
+    console.log('[AOTW DEBUG][card]', {
+      athleteName: item.athleteName,
+      classYear: item.classYear,
+      position: item.position,
+      sportName: item.sportName,
+      summary: item.summary,
+      stats: item.stats,
+    });
+  }, [item]);
 
   if (isCleanSlateTheme(theme)) {
-    const cardBody = (
-      <>
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={{ width: '100%', height: 162 }}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={{ width: '100%', height: 162, backgroundColor: theme.colors.cardAlt }} />
-        )}
-
-        <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
-          {item.athleteName ? (
+    const sponsorBadge =
+      sponsorLogo ? (
+        <Pressable
+          disabled={!sponsorHasLink || !onSponsorPress}
+          onPress={onSponsorPress}
+          style={[
+            styles.aotwSponsorBadge,
+            {
+              backgroundColor: withAlpha(theme.colors.background, 'F2'),
+              borderColor: withAlpha(theme.colors.text, '12'),
+            },
+          ]}
+        >
+          <Text style={[styles.aotwSponsorLabel, { color: theme.colors.mutedText }]}>
+            Presented by
+          </Text>
+          <Image source={{ uri: sponsorLogo }} style={styles.aotwSponsorLogo} resizeMode="contain" />
+          {sponsorName ? (
             <Text
-              style={[
-                styles.athleteOfWeekName,
-                { color: theme.colors.accent, marginBottom: 10 },
-              ]}
+              style={[styles.aotwSponsorName, { color: theme.colors.text }]}
               numberOfLines={1}
             >
-              {item.athleteName}
+              {sponsorName}
             </Text>
           ) : null}
+        </Pressable>
+      ) : null;
 
-          <Text
-            style={[
-              styles.athleteOfWeekTitle,
-              { color: theme.colors.text, fontSize: 26, lineHeight: 32 },
-            ]}
-            numberOfLines={3}
-          >
-            {title}
-          </Text>
+    const cardBody = (
+      <>
+        <View style={[styles.aotwHeroMediaWrap, { backgroundColor: theme.colors.cardAlt }]}>
+          {imageUrl ? (
+            <ImageBackground
+              source={{ uri: imageUrl }}
+              style={styles.aotwHeroMedia}
+              imageStyle={styles.aotwHeroMediaImage}
+              resizeMode={usingHeadshotFallback ? 'contain' : 'cover'}
+            >
+              <LinearGradient
+                colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.64)']}
+                style={styles.aotwHeroOverlay}
+              />
+              <View style={styles.aotwHeroTopRow}>
+                <View
+                  style={[
+                    styles.promotionPill,
+                    getThemeEditorialPillStyle(theme),
+                    { marginBottom: 0 },
+                  ]}
+                >
+                  <Text style={[styles.promotionPillText, { color: BRAND.white, opacity: 1 }]}>
+                    Athlete of the Week
+                  </Text>
+                </View>
+                {sponsorBadge}
+              </View>
+              <View style={styles.aotwHeroTextWrap}>
+                {item.sportName?.trim() || item.awardWeekLabel ? (
+                  <Text style={[styles.aotwHeroKicker, { color: 'rgba(255,255,255,0.86)' }]} numberOfLines={1}>
+                    {item.sportName?.trim() || item.awardWeekLabel}
+                  </Text>
+                ) : null}
+                {item.athleteName ? (
+                  <Text style={[styles.aotwHeroName, { color: BRAND.white }]} numberOfLines={2}>
+                    {item.athleteName}
+                  </Text>
+                ) : null}
+                {athleteMetaLine ? (
+                  <Text style={[styles.aotwHeroMeta, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={1}>
+                    {athleteMetaLine}
+                  </Text>
+                ) : null}
+              </View>
+            </ImageBackground>
+          ) : (
+            <View style={[styles.aotwHeroMedia, { backgroundColor: theme.colors.cardAlt }]}>
+              <View style={styles.aotwHeroTopRow}>
+                <View
+                  style={[
+                    styles.promotionPill,
+                    getThemeEditorialPillStyle(theme),
+                    { marginBottom: 0 },
+                  ]}
+                >
+                  <Text style={[styles.promotionPillText, { color: BRAND.white, opacity: 1 }]}>
+                    Athlete of the Week
+                  </Text>
+                </View>
+                {sponsorBadge}
+              </View>
+              <View style={styles.aotwHeroTextWrap}>
+                {item.sportName?.trim() || item.awardWeekLabel ? (
+                  <Text style={[styles.aotwHeroKicker, { color: theme.colors.mutedText }]} numberOfLines={1}>
+                    {item.sportName?.trim() || item.awardWeekLabel}
+                  </Text>
+                ) : null}
+                {item.athleteName ? (
+                  <Text style={[styles.aotwHeroName, { color: theme.colors.text }]} numberOfLines={2}>
+                    {item.athleteName}
+                  </Text>
+                ) : null}
+                {athleteMetaLine ? (
+                  <Text style={[styles.aotwHeroMeta, { color: theme.colors.text }]} numberOfLines={1}>
+                    {athleteMetaLine}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          )}
+        </View>
 
+        <View style={styles.aotwBodyWrap}>
           {subtitle ? (
             <Text
               style={[
                 styles.athleteOfWeekSubtitle,
-                { color: theme.colors.mutedText, marginTop: 10 },
+                { color: theme.colors.mutedText, marginTop: 0 },
               ]}
-              numberOfLines={3}
+              numberOfLines={2}
             >
               {subtitle}
             </Text>
@@ -2769,9 +3109,9 @@ function AthleteOfWeekCard({
             <Text
               style={[
                 styles.athleteOfWeekStats,
-                { color: theme.colors.mutedText },
+                { color: theme.colors.mutedText, marginTop: subtitle ? 8 : 0 },
               ]}
-              numberOfLines={2}
+              numberOfLines={1}
             >
               {statsLine}
             </Text>
@@ -2786,7 +3126,7 @@ function AthleteOfWeekCard({
           style={[
             styles.athleteOfWeekCard,
             getThemeSurfaceCardStyle(theme),
-            { minHeight: 0, borderRadius: 14 },
+            { minHeight: 0, borderRadius: 5 },
           ]}
           onPress={onPress}
         >
@@ -2800,7 +3140,7 @@ function AthleteOfWeekCard({
         style={[
           styles.athleteOfWeekCard,
           getThemeSurfaceCardStyle(theme),
-          { minHeight: 0, borderRadius: 14 },
+          { minHeight: 0, borderRadius: 5 },
         ]}
       >
         {cardBody}
@@ -2847,12 +3187,22 @@ function AthleteOfWeekCard({
             <Text
               style={[
                 styles.promotionPillText,
-                isCleanSlateTheme(theme) ? { color: theme.colors.pillText } : null,
+                isCleanSlateTheme(theme) ? { color: BRAND.white, opacity: 1 } : null,
               ]}
             >
               Athlete of the Week
             </Text>
           </View>
+          {sponsorLogo ? (
+            <Pressable
+              disabled={!sponsorHasLink || !onSponsorPress}
+              onPress={onSponsorPress}
+              style={styles.aotwInlineSponsorWrap}
+            >
+              <Text style={styles.athleteOfWeekSponsorText}>Presented by</Text>
+              <Image source={{ uri: sponsorLogo }} style={styles.aotwInlineSponsorLogo} resizeMode="contain" />
+            </Pressable>
+          ) : null}
         </View>
 
         {item.athleteName ? (
@@ -2864,11 +3214,23 @@ function AthleteOfWeekCard({
           </Text>
         ) : null}
 
+        {athleteSecondaryLine ? (
+          <Text
+            style={[
+              styles.athleteOfWeekSubtitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray, marginTop: 2 },
+            ]}
+            numberOfLines={1}
+          >
+            {athleteSecondaryLine}
+          </Text>
+        ) : null}
+
         <Text
           style={[styles.athleteOfWeekTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}
           numberOfLines={3}
         >
-          {title}
+          {item.summary?.trim() || item.awardWeekLabel || item.opponent || title}
         </Text>
 
         {subtitle ? (
@@ -3057,7 +3419,7 @@ function EventCard({
             <Text
               style={[
                 styles.eventSportLine,
-                { color: isCleanSlateTheme(theme) ? theme.colors.accent : theme.colors.pillBackground },
+                { color: isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.pillBackground },
               ]}
             >
               {normalized.sport}
@@ -3229,7 +3591,7 @@ function TeamTile({
           isCleanSlateTheme(theme)
             ? {
                 borderColor: theme.colors.border,
-                borderRadius: 14,
+                borderRadius: 5,
               }
             : null,
         ]}
@@ -3369,7 +3731,7 @@ function HomeScreen({
   const isVideoLive = liveStatus.video;
   const isAnythingLive = isAudioLive || isVideoLive;
 
-  const sponsorCarouselRef = useRef<ScrollView | null>(null);
+  const sponsorCarouselOffset = useRef(new Animated.Value(0)).current;
   const resolvedModules = useMemo(() => getResolvedHomeModules(homeModules), [homeModules]);
   const hasPresentingSponsorModule = useMemo(
     () =>
@@ -3385,20 +3747,18 @@ function HomeScreen({
   );
   const heroSponsorPlacement = useMemo(() => {
     const placements = dedupeSponsorPlacements(
-      enabledSponsorPlacements.filter((placement) => {
-        const key = normalizePlacementKey(placement.placement_key);
-        return key === 'hero' || key === 'hero_sponsor';
-      })
+      enabledSponsorPlacements.filter((placement) =>
+        isHeroSponsorPlacementKey(placement.placement_key)
+      )
     );
 
     return placements[0] ?? null;
   }, [enabledSponsorPlacements]);
   const presentingSponsorPlacement = useMemo(() => {
     const placements = dedupeSponsorPlacements(
-      enabledSponsorPlacements.filter((placement) => {
-        const key = normalizePlacementKey(placement.placement_key);
-        return key === 'presenting_sponsor';
-      })
+      enabledSponsorPlacements.filter((placement) =>
+        isPresentingSponsorPlacementKey(placement.placement_key)
+      )
     );
 
     return placements[0] ?? null;
@@ -3406,10 +3766,9 @@ function HomeScreen({
   const standardSponsorPlacements = useMemo(
     () =>
       dedupeSponsorPlacements(
-        enabledSponsorPlacements.filter((placement) => {
-          const key = normalizePlacementKey(placement.placement_key);
-          return key.startsWith('banner_') || key === 'sponsors';
-        })
+        enabledSponsorPlacements.filter((placement) =>
+          isStandardSponsorPlacementKey(placement.placement_key)
+        )
       ),
     [enabledSponsorPlacements]
   );
@@ -3417,24 +3776,54 @@ function HomeScreen({
     () => standardSponsorPlacements[0] ?? null,
     [standardSponsorPlacements]
   );
+  const athleteOfWeekSponsorPlacement = useMemo(() => {
+    const placements = dedupeSponsorPlacements(
+      enabledSponsorPlacements.filter((placement) =>
+        isAthleteOfWeekSponsorPlacementKey(placement.placement_key)
+      )
+    );
+
+    return placements[0] ?? null;
+  }, [enabledSponsorPlacements]);
   const sponsorCardTitle = sponsorPlacement?.sponsor_name?.trim() || 'Sponsor';
   const sponsorCardLink = sponsorPlacement?.sponsor_link_url?.trim() || '';
   const hasSponsorCardLink = hasResolvedUrl(sponsorCardLink);
   const heroSponsorName = heroSponsorPlacement?.sponsor_name?.trim() || '';
   const heroSponsorLogo = heroSponsorPlacement?.sponsor_logo_url?.trim() || '';
   const heroSponsorLink = heroSponsorPlacement?.sponsor_link_url?.trim() || '';
-  const hasHeroSponsorLogo = hasResolvedUrl(heroSponsorLogo);
+  const hasHeroSponsorLogo = Boolean(heroSponsorLogo);
   const hasHeroSponsorLink = hasResolvedUrl(heroSponsorLink);
   const presentingSponsorCardPlacement = presentingSponsorPlacement;
-  const showHeroSponsor = Boolean(heroSponsorName) || hasHeroSponsorLogo;
+  const showHeroSponsor = Boolean(heroSponsorName) || Boolean(heroSponsorLogo);
   const sponsorCarouselPlacements = useMemo(
     () =>
       dedupeSponsorPlacements(
         enabledSponsorPlacements.filter((placement) =>
-          normalizePlacementKey(placement.placement_key).startsWith('carousel_')
+          isSponsorCarouselPlacementKey(placement.placement_key)
         )
       ),
     [enabledSponsorPlacements]
+  );
+  const promotionSponsorPlacement = useMemo(() => {
+    const placements = dedupeSponsorPlacements(
+      enabledSponsorPlacements.filter((placement) =>
+        isPromotionSponsorPlacementKey(placement.placement_key)
+      )
+    );
+
+    return placements[0] ?? null;
+  }, [enabledSponsorPlacements]);
+  const sponsorCarouselLoopPlacements = useMemo(
+    () =>
+      sponsorCarouselPlacements.length > 1
+        ? [...sponsorCarouselPlacements, ...sponsorCarouselPlacements]
+        : sponsorCarouselPlacements,
+    [sponsorCarouselPlacements]
+  );
+  const sponsorCarouselCycleWidth = useMemo(
+    () =>
+      sponsorCarouselPlacements.length * (SPONSOR_CAROUSEL_CARD_WIDTH + SPONSOR_CAROUSEL_CARD_GAP),
+    [sponsorCarouselPlacements.length]
   );
   const firstUpcomingEvent = visibleUpcomingEvents[0];
   const hasPromotionCtaUrl = hasResolvedUrl(promotionCard?.cta_url);
@@ -3455,22 +3844,52 @@ function HomeScreen({
   );
 
   useEffect(() => {
-    if (sponsorCarouselPlacements.length < 2) {
+    console.log('[AOTW DEBUG][render]', {
+      moduleEnabled: resolvedModules.some(
+        (module) => normalizeModuleKey(module.module_key) === 'athlete_of_week'
+      ),
+      athleteOfWeek,
+      willRender: Boolean(
+        athleteOfWeek &&
+          [
+            athleteOfWeek.athleteName,
+            athleteOfWeek.sportName,
+            athleteOfWeek.summary,
+            athleteOfWeek.featuredImageUrl,
+            athleteOfWeek.headshotUrl,
+          ]
+            .filter(Boolean)
+            .join('')
+            .trim()
+      ),
+    });
+  }, [athleteOfWeek, resolvedModules]);
+
+  useEffect(() => {
+    sponsorCarouselOffset.stopAnimation();
+    sponsorCarouselOffset.setValue(0);
+
+    if (sponsorCarouselPlacements.length < 2 || sponsorCarouselCycleWidth <= 0) {
       return;
     }
 
-    let currentIndex = 0;
+    const sponsorMarquee = Animated.loop(
+      Animated.timing(sponsorCarouselOffset, {
+        toValue: -sponsorCarouselCycleWidth,
+        duration: Math.max(sponsorCarouselCycleWidth * 28, 14000),
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
 
-    const interval = setInterval(() => {
-      currentIndex = (currentIndex + 1) % sponsorCarouselPlacements.length;
-      sponsorCarouselRef.current?.scrollTo({
-        x: currentIndex * (SPONSOR_CAROUSEL_CARD_WIDTH + SPONSOR_CAROUSEL_CARD_GAP),
-        animated: true,
-      });
-    }, 4500);
+    sponsorMarquee.start();
 
-    return () => clearInterval(interval);
-  }, [sponsorCarouselPlacements.length]);
+    return () => {
+      sponsorMarquee.stop();
+      sponsorCarouselOffset.stopAnimation();
+      sponsorCarouselOffset.setValue(0);
+    };
+  }, [sponsorCarouselCycleWidth, sponsorCarouselOffset, sponsorCarouselPlacements.length]);
 
   let heroEyebrow = 'Live Coverage';
   let heroTitle = 'Live Coverage';
@@ -3507,6 +3926,48 @@ function HomeScreen({
       return;
     }
 
+    if (
+      destinationType === 'schedule' ||
+      destinationType === 'schedule_screen' ||
+      destinationType === 'all_schedules'
+    ) {
+      onOpenSchedule();
+      return;
+    }
+
+    if (
+      destinationType === 'website' ||
+      destinationType === 'main_site' ||
+      destinationType === 'school_website'
+    ) {
+      if (hasMainSiteUrl) {
+        onOpenEmbedded('Website', schoolConfig.mainSiteUrl);
+        return;
+      }
+    }
+
+    if (
+      destinationType === 'watch_live' ||
+      destinationType === 'watch_url' ||
+      destinationType === 'video'
+    ) {
+      if (hasWatchUrl) {
+        onOpenExternal(schoolConfig.watchUrl);
+        return;
+      }
+    }
+
+    if (
+      destinationType === 'listen_live' ||
+      destinationType === 'listen_url' ||
+      destinationType === 'audio'
+    ) {
+      if (hasListenUrl) {
+        onToggleAudio();
+        return;
+      }
+    }
+
     if (destinationType === 'watch_tab') {
       onGoToMedia();
       return;
@@ -3529,7 +3990,29 @@ function HomeScreen({
     const title = liveCoverageConfig.headline?.trim() || heroTitle;
     const bodyCopy = liveCoverageConfig.body_copy?.trim() || '';
     const ctaLabel = liveCoverageConfig.cta_label?.trim() || heroCta;
-    const showStatusPill = liveCoverageConfig.show_status_pill !== false;
+    const resolvedStatusPillMode =
+      liveCoverageConfig.show_status_pill === false
+        ? 'off'
+        : normalizeLiveCoverageStatus(liveCoverageConfig.live_status);
+    const showStatusPill = liveCoverageConfig.show_status_pill !== false && resolvedStatusPillMode !== 'off';
+    const statusPillIsLive =
+      resolvedStatusPillMode === 'live_audio' ||
+      resolvedStatusPillMode === 'live_video' ||
+      resolvedStatusPillMode === 'live_both';
+    const statusPillIcon =
+      resolvedStatusPillMode === 'live_both' || resolvedStatusPillMode === 'live_video'
+        ? 'videocam'
+      : resolvedStatusPillMode === 'live_audio'
+        ? 'headset'
+        : 'radio-outline';
+    const statusPillLabel =
+      resolvedStatusPillMode === 'live_both'
+        ? 'Live Audio + Video'
+        : resolvedStatusPillMode === 'live_video'
+        ? 'Live Video'
+        : resolvedStatusPillMode === 'live_audio'
+        ? 'Live Audio'
+        : 'Not Currently Live';
 
     return (
       <Pressable
@@ -3546,17 +4029,17 @@ function HomeScreen({
           getThemeCardShellStyle(theme),
           isCleanSlateTheme(theme)
             ? {
-                paddingHorizontal: 18,
-                paddingVertical: 18,
-                borderRadius: 14,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                borderRadius: 5,
                 borderLeftWidth: 0,
                 borderTopWidth: 1,
-                borderTopColor: withAlpha(theme.colors.accent, '30'),
+                borderTopColor: withAlpha(theme.colors.primary, '18'),
                 shadowColor: withAlpha(theme.colors.text, '22'),
-                shadowOpacity: 0.08,
-                shadowRadius: 14,
-                shadowOffset: { width: 0, height: 6 },
-                elevation: 2,
+                shadowOpacity: 0.04,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 1,
               }
             : null,
           pressed ? { opacity: 0.88, transform: [{ scale: 0.985 }] } : null,
@@ -3568,11 +4051,11 @@ function HomeScreen({
             style={[
               styles.liveNowEyebrow,
               isCleanSlateTheme(theme)
-                ? {
-                    color: theme.colors.accent,
-                    fontSize: 11,
+                  ? {
+                    color: theme.colors.primary,
+                    fontSize: 10,
                     letterSpacing: 0.9,
-                    marginBottom: 6,
+                    marginBottom: 4,
                   }
                 : { color: BRAND.red },
             ]}
@@ -3583,11 +4066,11 @@ function HomeScreen({
             style={[
               styles.liveNowTitle,
               isCleanSlateTheme(theme)
-                ? {
+                  ? {
                     color: theme.colors.text,
-                    fontSize: 20,
-                    lineHeight: 24,
-                    marginBottom: 6,
+                    fontSize: 18,
+                    lineHeight: 22,
+                    marginBottom: 4,
                   }
                 : { color: theme.colors.text },
             ]}
@@ -3601,8 +4084,8 @@ function HomeScreen({
                 isCleanSlateTheme(theme)
                   ? {
                       color: theme.colors.mutedText,
-                      fontSize: 13,
-                      lineHeight: 19,
+                      fontSize: 12,
+                      lineHeight: 17,
                     }
                   : { color: theme.colors.mutedText },
               ]}
@@ -3617,8 +4100,8 @@ function HomeScreen({
                 styles.liveNowCTAText,
                 isCleanSlateTheme(theme)
                   ? {
-                      color: theme.colors.accent,
-                      fontSize: 11,
+                      color: theme.colors.primary,
+                      fontSize: 10,
                       letterSpacing: 0.8,
                       textTransform: 'uppercase',
                     }
@@ -3630,7 +4113,7 @@ function HomeScreen({
             <Ionicons
               name="chevron-forward"
               size={16}
-              color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.white}
+              color={isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.white}
             />
           </View>
         </View>
@@ -3640,12 +4123,12 @@ function HomeScreen({
             <View
               style={[
                 styles.heroStatusPill,
-                isAnythingLive
+                statusPillIsLive
                   ? isCleanSlateTheme(theme)
                     ? {
                         backgroundColor: theme.colors.surface,
                         borderWidth: 1,
-                        borderColor: withAlpha(theme.colors.accent, '24'),
+                        borderColor: withAlpha(theme.colors.primary, '32'),
                       }
                     : styles.heroStatusPillLive
                   : isCleanSlateTheme(theme)
@@ -3657,16 +4140,10 @@ function HomeScreen({
                   : styles.heroStatusPillOff,
               ]}
             >
-              {isAnythingLive ? <PulseDot /> : null}
+              {statusPillIsLive ? <PulseDot /> : null}
 
               <Ionicons
-                name={
-                  isVideoLive
-                    ? 'videocam'
-                    : isAudioLive
-                    ? 'headset'
-                    : 'radio-outline'
-                }
+                name={statusPillIcon}
                 size={16}
                 color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
                 style={styles.heroStatusIcon}
@@ -3678,13 +4155,7 @@ function HomeScreen({
                   { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
                 ]}
               >
-                {isVideoLive && isAudioLive
-                  ? 'Live Audio + Video'
-                  : isVideoLive
-                  ? 'Live Video'
-                  : isAudioLive
-                  ? 'Live Audio'
-                  : 'Not Currently Live'}
+                {statusPillLabel}
               </Text>
             </View>
           </View>
@@ -3894,16 +4365,44 @@ function HomeScreen({
   );
 
   const renderAthleteOfWeekModule = (title: string) => (
-    athleteOfWeek?.athleteName?.trim() ? (
+    athleteOfWeek &&
+    [
+      athleteOfWeek.athleteName,
+      athleteOfWeek.sportName,
+      athleteOfWeek.summary,
+      athleteOfWeek.featuredImageUrl,
+      athleteOfWeek.headshotUrl,
+    ]
+      .filter(Boolean)
+      .join('')
+      .trim() ? (
       <React.Fragment key="athlete_of_week">
         <OptionalSectionHeader title={title} theme={theme} />
-        <AthleteOfWeekCard item={athleteOfWeek} theme={theme} />
+        <AthleteOfWeekCard
+          item={athleteOfWeek}
+          sponsorPlacement={athleteOfWeekSponsorPlacement}
+          onSponsorPress={
+            athleteOfWeekSponsorPlacement?.sponsor_link_url?.trim() &&
+            hasResolvedUrl(athleteOfWeekSponsorPlacement.sponsor_link_url)
+              ? () =>
+                  onOpenEmbedded(
+                    athleteOfWeekSponsorPlacement.sponsor_name?.trim() || 'Presented by',
+                    athleteOfWeekSponsorPlacement.sponsor_link_url!.trim()
+                  )
+              : undefined
+          }
+          theme={theme}
+        />
       </React.Fragment>
-    ) : null
+    ) : (console.log('[AOTW DEBUG][module-skipped]', athleteOfWeek), null)
   );
 
   const renderSponsorsModule = (title: string) => {
     if (!sponsorPlacement) {
+      console.log('[APPOS SPONSOR DEBUG][standard-skipped]', {
+        reason: 'no-standard-placement',
+        placements: standardSponsorPlacements,
+      });
       return null;
     }
 
@@ -3950,6 +4449,10 @@ function HomeScreen({
 
   const renderPresentingSponsorModule = (title: string) => {
     if (!hasPresentingSponsorModule || !presentingSponsorCardPlacement) {
+      console.log('[APPOS SPONSOR DEBUG][presenting-skipped]', {
+        hasPresentingSponsorModule,
+        presentingSponsorCardPlacement,
+      });
       return null;
     }
 
@@ -3999,6 +4502,9 @@ function HomeScreen({
 
   const renderSponsorCarouselModule = (title: string) => {
     if (sponsorCarouselPlacements.length === 0) {
+      console.log('[APPOS SPONSOR DEBUG][carousel-skipped]', {
+        placements: sponsorCarouselPlacements,
+      });
       return null;
     }
 
@@ -4009,68 +4515,93 @@ function HomeScreen({
           containerStyle={styles.sectionHeaderTightTop}
           theme={theme}
         />
-        <ScrollView
-          ref={sponsorCarouselRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          contentContainerStyle={styles.sponsorCarouselRow}
-          snapToInterval={SPONSOR_CAROUSEL_CARD_WIDTH + SPONSOR_CAROUSEL_CARD_GAP}
-          snapToAlignment="start"
+        <View
+          style={[
+            styles.sponsorCarouselViewport,
+            isCleanSlateTheme(theme)
+              ? {
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
         >
-          {sponsorCarouselPlacements.map((placement, index) => {
-            const sponsorName = placement.sponsor_name?.trim() || '';
-            const sponsorLink = placement.sponsor_link_url?.trim() || '';
-            const hasSponsorLink = hasResolvedUrl(sponsorLink);
-            const sponsorLogo = placement.sponsor_logo_url?.trim() || '';
-            const hasSponsorLogo = hasResolvedUrl(sponsorLogo);
+          <Animated.View
+            style={[
+              styles.sponsorCarouselTrack,
+              sponsorCarouselPlacements.length > 1
+                ? {
+                    transform: [{ translateX: sponsorCarouselOffset }],
+                  }
+                : null,
+            ]}
+          >
+            {sponsorCarouselLoopPlacements.map((placement, index) => {
+              const sponsorName = placement.sponsor_name?.trim() || '';
+              const sponsorLink = placement.sponsor_link_url?.trim() || '';
+              const hasSponsorLink = hasResolvedUrl(sponsorLink);
+              const sponsorLogo = placement.sponsor_logo_url?.trim() || '';
+              const hasSponsorLogo = Boolean(sponsorLogo);
 
-            if (!hasSponsorLogo && !sponsorName) {
-              return null;
-            }
+              if (!hasSponsorLogo && !sponsorName) {
+                return null;
+              }
 
-            const card = (
-              <View style={styles.sponsorCarouselCardContent}>
-                {hasSponsorLogo ? (
-                  <View style={styles.sponsorCarouselLogoWrap}>
-                    <Image
-                      source={{ uri: sponsorLogo }}
-                      style={styles.sponsorCarouselLogo}
-                      resizeMode="contain"
-                    />
-                  </View>
-                ) : (
-                  <Text
-                    style={[
-                      styles.sponsorCarouselName,
-                      { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {sponsorName}
-                  </Text>
-                )}
-              </View>
-            );
+              const card = (
+                <View style={styles.sponsorCarouselCardContent}>
+                  {hasSponsorLogo ? (
+                    <View style={styles.sponsorCarouselLogoWrap}>
+                      <Image
+                        source={{ uri: sponsorLogo }}
+                        style={styles.sponsorCarouselLogo}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : null}
+                  {sponsorName ? (
+                    <Text
+                      style={[
+                        styles.sponsorCarouselName,
+                        { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {sponsorName}
+                    </Text>
+                  ) : null}
+                </View>
+              );
 
-            return hasSponsorLink ? (
-              <Pressable
-                key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
-                style={[styles.sponsorCarouselCard, getThemeSoftCardStyle(theme)]}
-                onPress={() => onOpenEmbedded(sponsorName, sponsorLink)}
-              >
-                {card}
-              </Pressable>
-            ) : (
-              <View
-                key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
-                style={[styles.sponsorCarouselCard, getThemeSoftCardStyle(theme)]}
-              >
-                {card}
-              </View>
-            );
-          })}
-        </ScrollView>
+              return hasSponsorLink ? (
+                <Pressable
+                  key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
+                  style={[
+                    styles.sponsorCarouselCard,
+                    getThemeSoftCardStyle(theme),
+                    index === sponsorCarouselLoopPlacements.length - 1
+                      ? styles.sponsorCarouselCardNoGap
+                      : null,
+                  ]}
+                  onPress={() => onOpenEmbedded(sponsorName, sponsorLink)}
+                >
+                  {card}
+                </Pressable>
+              ) : (
+                <View
+                  key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
+                  style={[
+                    styles.sponsorCarouselCard,
+                    getThemeSoftCardStyle(theme),
+                    index === sponsorCarouselLoopPlacements.length - 1
+                      ? styles.sponsorCarouselCardNoGap
+                      : null,
+                  ]}
+                >
+                  {card}
+                </View>
+              );
+            })}
+          </Animated.View>
+        </View>
       </React.Fragment>
     );
   };
@@ -4086,7 +4617,18 @@ function HomeScreen({
         <View style={styles.promotionModuleBottomSpacing}>
           <PromotionCard
             promotion={promotionCard}
+            sponsorPlacement={promotionSponsorPlacement}
             theme={theme}
+            onSponsorPress={
+              promotionSponsorPlacement?.sponsor_link_url?.trim() &&
+              hasResolvedUrl(promotionSponsorPlacement.sponsor_link_url)
+                ? () =>
+                    onOpenEmbedded(
+                      promotionSponsorPlacement.sponsor_name?.trim() || 'Presented by',
+                      promotionSponsorPlacement.sponsor_link_url!.trim()
+                    )
+                : undefined
+            }
             onPress={
               hasPromotionCtaUrl
                 ? () =>
@@ -4159,11 +4701,11 @@ function HomeScreen({
           getThemeHeroShellStyle(theme),
           isCleanSlateTheme(theme)
             ? {
-                marginTop: 4,
-                paddingTop: 6,
+                marginTop: 0,
+                paddingTop: 0,
                 paddingHorizontal: 14,
-                paddingBottom: 8,
-                borderRadius: 16,
+                paddingBottom: 1,
+                borderRadius: 4,
               }
             : null,
         ]}
@@ -4173,29 +4715,15 @@ function HomeScreen({
             style={{
               position: 'absolute',
               left: 0,
-              top: 14,
-              bottom: 14,
-              width: 3,
+              top: 12,
+              bottom: 12,
+              width: 2,
               borderTopRightRadius: 999,
               borderBottomRightRadius: 999,
-              backgroundColor: theme.colors.primary,
+              backgroundColor: withAlpha(theme.colors.primary, 'A6'),
             }}
           />
         ) : null}
-        <View
-          style={[
-            styles.heroBackdropGlow,
-            isCleanSlateTheme(theme)
-              ? {
-                  width: 72,
-                  height: 72,
-                  top: 8,
-                  right: 8,
-                  backgroundColor: withAlpha(theme.colors.primary, '08'),
-                }
-              : null,
-          ]}
-        />
         <View style={styles.headerTopRow}>
           <View style={styles.headerLeft}>
             {hasSchoolLogo ? (
@@ -4206,8 +4734,8 @@ function HomeScreen({
                     ? {
                         width: 52,
                         height: 52,
-                        borderRadius: 12,
-                        marginRight: 10,
+                        borderRadius: 5,
+                        marginRight: 9,
                         backgroundColor: theme.colors.surface,
                         borderColor: theme.colors.border,
                       }
@@ -4230,9 +4758,9 @@ function HomeScreen({
                 style={[
                   styles.appTitle,
                   {
-                    color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
-                    ...(isCleanSlateTheme(theme)
-                      ? { fontSize: 22, letterSpacing: 0, fontWeight: '800' as const }
+              color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
+              ...(isCleanSlateTheme(theme)
+                      ? { fontSize: 20, letterSpacing: 0, fontWeight: '800' as const }
                       : null),
                   },
                 ]}
@@ -4246,7 +4774,7 @@ function HomeScreen({
                   styles.appSubtitle,
                   { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.78)' },
                   isCleanSlateTheme(theme)
-                    ? { fontSize: 12, marginTop: 2, fontWeight: '600' as const }
+                    ? { fontSize: 10, marginTop: 1, fontWeight: '600' as const }
                     : null,
                 ]}
                 numberOfLines={1}
@@ -4259,7 +4787,7 @@ function HomeScreen({
                     styles.heroSponsorInlineText,
                     { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(255,255,255,0.72)' },
                     isCleanSlateTheme(theme)
-                      ? { fontSize: 10, marginTop: 4, letterSpacing: 0.4 }
+                      ? { fontSize: 9, marginTop: 2, letterSpacing: 0.25 }
                       : null,
                   ]}
                   numberOfLines={1}
@@ -4277,11 +4805,11 @@ function HomeScreen({
                   styles.heroSponsorLogoWrap,
                   isCleanSlateTheme(theme)
                     ? {
-                        backgroundColor: theme.colors.surface,
+                        backgroundColor: theme.colors.card,
                         borderWidth: 1,
                         borderColor: theme.colors.border,
-                        borderRadius: 12,
-                        paddingHorizontal: 10,
+                        borderRadius: 5,
+                        paddingHorizontal: 7,
                       }
                     : null,
                 ]}
@@ -4301,11 +4829,11 @@ function HomeScreen({
                   styles.heroSponsorLogoWrap,
                   isCleanSlateTheme(theme)
                     ? {
-                        backgroundColor: theme.colors.surface,
+                        backgroundColor: theme.colors.card,
                         borderWidth: 1,
                         borderColor: theme.colors.border,
-                        borderRadius: 12,
-                        paddingHorizontal: 10,
+                        borderRadius: 5,
+                        paddingHorizontal: 7,
                       }
                     : null,
                 ]}
@@ -4317,6 +4845,36 @@ function HomeScreen({
                 />
               </View>
             )
+          ) : showHeroSponsor && heroSponsorName ? (
+            <View
+              style={[
+                styles.heroSponsorLogoWrap,
+                isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.card,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      borderRadius: 5,
+                      paddingHorizontal: 10,
+                      minWidth: 92,
+                    }
+                  : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.heroSponsorInlineText,
+                  {
+                    color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
+                    marginTop: 0,
+                    textAlign: 'center',
+                  },
+                ]}
+                numberOfLines={2}
+              >
+                {heroSponsorName}
+              </Text>
+            </View>
           ) : null}
         </View>
 
@@ -4326,8 +4884,8 @@ function HomeScreen({
             heroActionCount >= 4 ? styles.heroButtonRowCompact : null,
             isCleanSlateTheme(theme)
               ? {
-                  marginTop: 2,
-                  gap: 8,
+                  marginTop: 1,
+                  gap: 6,
                 }
               : null,
           ]}
@@ -4490,11 +5048,11 @@ function TeamsScreen({
           getThemeHeroShellStyle(theme),
           isCleanSlateTheme(theme)
             ? {
-                marginTop: 4,
+                marginTop: 0,
                 marginBottom: 14,
-                borderRadius: 16,
+                borderRadius: 4,
                 paddingHorizontal: 16,
-                paddingVertical: 16,
+                paddingVertical: 11,
               }
             : null,
         ]}
@@ -4537,9 +5095,10 @@ function TeamsScreen({
               getThemeCardShellStyle(theme),
               isCleanSlateTheme(theme)
                 ? {
-                    borderRadius: 14,
-                    paddingHorizontal: 14,
-                    paddingVertical: 14,
+                    borderRadius: 5,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    borderColor: theme.colors.border,
                   }
                 : null,
             ]}
@@ -4550,8 +5109,8 @@ function TeamsScreen({
                 styles.teamDirectoryAccent,
                 {
                   backgroundColor: theme.colors.primary,
-                  width: isCleanSlateTheme(theme) ? 3 : 4,
-                  marginRight: isCleanSlateTheme(theme) ? 12 : 14,
+                  width: isCleanSlateTheme(theme) ? 4 : 4,
+                  marginRight: isCleanSlateTheme(theme) ? 9 : 14,
                 },
               ]}
             />
@@ -4569,7 +5128,7 @@ function TeamsScreen({
                 {
                   backgroundColor: theme.colors.cardAlt,
                   borderColor: theme.colors.border,
-                  borderRadius: isCleanSlateTheme(theme) ? 12 : undefined,
+                  borderRadius: isCleanSlateTheme(theme) ? 5 : undefined,
                 },
               ]}
             >
@@ -4668,7 +5227,11 @@ function MediaScreen({
           },
         ]}
       >
-        <Ionicons name={icon} size={22} color={theme.colors.text} />
+        <Ionicons
+          name={icon}
+          size={22}
+          color={isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.text}
+        />
       </View>
       <View style={styles.mediaActionBody}>
         <Text style={[styles.mediaActionTitle, { color: theme.colors.text }]}>{title}</Text>
@@ -4901,7 +5464,19 @@ function ScheduleScreen({
     >
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={[styles.scheduleHero, getThemeHeroShellStyle(theme)]}
+        style={[
+          styles.scheduleHero,
+          getThemeHeroShellStyle(theme),
+          isCleanSlateTheme(theme)
+            ? {
+                marginTop: 0,
+                marginBottom: 10,
+                paddingTop: 10,
+                paddingBottom: 14,
+                borderRadius: 4,
+              }
+            : null,
+        ]}
       >
         <Pressable
           style={[
@@ -4980,10 +5555,35 @@ function ScheduleScreen({
         normalized.map((item, index) => (
           isTeamVariant ? (() => {
             return (
-              <View key={item.id} style={styles.teamScheduleCard}>
+              <View
+                key={item.id}
+                style={[
+                  styles.teamScheduleCard,
+                  isCleanSlateTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                        borderRadius: 5,
+                        paddingHorizontal: 13,
+                        paddingVertical: 12,
+                      }
+                    : null,
+                ]}
+              >
                 <View style={styles.teamScheduleLogoColumn}>
                   {item.opponentLogoUrl ? (
-                    <View style={styles.teamScheduleLogoPlate}>
+                    <View
+                      style={[
+                        styles.teamScheduleLogoPlate,
+                        isCleanSlateTheme(theme)
+                          ? {
+                              backgroundColor: theme.colors.surface,
+                              borderColor: theme.colors.border,
+                              borderRadius: 5,
+                            }
+                          : null,
+                      ]}
+                    >
                       <Image
                         source={{ uri: item.opponentLogoUrl }}
                         style={styles.teamScheduleLogo}
@@ -4998,20 +5598,46 @@ function ScheduleScreen({
                     style={[
                       styles.scheduleSportTag,
                       styles.teamScheduleSportTag,
-                      { backgroundColor: resolvedAccentColor },
+                      isCleanSlateTheme(theme)
+                        ? { backgroundColor: theme.colors.primary, borderRadius: 4 }
+                        : { backgroundColor: resolvedAccentColor },
                     ]}
                   >
-                    <Text style={[styles.scheduleSportTagText, { color: theme.colors.pillText }]}>
+                    <Text
+                      style={[
+                        styles.scheduleSportTagText,
+                        {
+                          color: isCleanSlateTheme(theme)
+                            ? BRAND.white
+                            : theme.colors.pillText,
+                          },
+                        ]}
+                    >
                       {item.sport}
                     </Text>
                   </View>
 
-                  <Text style={styles.teamScheduleMatchup} numberOfLines={2}>
+                  <Text
+                    style={[
+                      styles.teamScheduleMatchup,
+                      isCleanSlateTheme(theme)
+                        ? { color: theme.colors.text, fontSize: 18, lineHeight: 21 }
+                        : null,
+                    ]}
+                    numberOfLines={2}
+                  >
                     {item.homeAway ? `${item.homeAway} ${item.opponent}` : item.opponent}
                   </Text>
 
                   {item.statusLabel ? (
-                    <Text style={styles.teamScheduleStatus}>{item.statusLabel}</Text>
+                    <Text
+                      style={[
+                        styles.teamScheduleStatus,
+                        isCleanSlateTheme(theme) ? { color: theme.colors.primary } : null,
+                      ]}
+                    >
+                      {item.statusLabel}
+                    </Text>
                   ) : null}
 
                   {item.hasScore && item.teamScore && item.opponentScore ? (
@@ -5021,16 +5647,36 @@ function ScheduleScreen({
                   ) : null}
 
                   {item.locationLabel ? (
-                    <Text style={styles.teamScheduleLocation} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.teamScheduleLocation,
+                        isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                      ]}
+                      numberOfLines={1}
+                    >
                       {item.locationLabel}
                     </Text>
                   ) : null}
                 </View>
 
                 <View style={styles.teamScheduleRightColumn}>
-                  <Text style={styles.teamScheduleDate}>{item.displayDate}</Text>
+                  <Text
+                    style={[
+                      styles.teamScheduleDate,
+                      isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+                    ]}
+                  >
+                    {item.displayDate}
+                  </Text>
                   {item.timeLabel ? (
-                    <Text style={styles.teamScheduleTime}>{item.timeLabel}</Text>
+                    <Text
+                      style={[
+                        styles.teamScheduleTime,
+                        isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                      ]}
+                    >
+                      {item.timeLabel}
+                    </Text>
                   ) : null}
                 </View>
               </View>
@@ -5040,7 +5686,18 @@ function ScheduleScreen({
               return (
                 <View
                   key={item.id}
-                  style={styles.teamScheduleCard}
+                  style={[
+                    styles.teamScheduleCard,
+                    isCleanSlateTheme(theme)
+                      ? {
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          borderRadius: 5,
+                          paddingHorizontal: 13,
+                          paddingVertical: 12,
+                        }
+                      : null,
+                  ]}
                   onLayout={
                     !isTeamVariant
                       ? (layoutEvent) => {
@@ -5063,7 +5720,18 @@ function ScheduleScreen({
                 >
                   <View style={styles.teamScheduleLogoColumn}>
                     {item.opponentLogoUrl ? (
-                      <View style={styles.teamScheduleLogoPlate}>
+                      <View
+                        style={[
+                          styles.teamScheduleLogoPlate,
+                          isCleanSlateTheme(theme)
+                            ? {
+                                backgroundColor: theme.colors.surface,
+                                borderColor: theme.colors.border,
+                                borderRadius: 5,
+                              }
+                            : null,
+                        ]}
+                      >
                         <Image
                           source={{ uri: item.opponentLogoUrl }}
                           style={styles.teamScheduleLogo}
@@ -5075,23 +5743,49 @@ function ScheduleScreen({
 
                   <View style={styles.teamScheduleCenterColumn}>
                     <View
-                      style={[
-                        styles.scheduleSportTag,
-                        styles.teamScheduleSportTag,
-                        { backgroundColor: resolvedAccentColor },
-                      ]}
-                    >
-                      <Text style={[styles.scheduleSportTagText, { color: theme.colors.pillText }]}>
+                    style={[
+                      styles.scheduleSportTag,
+                      styles.teamScheduleSportTag,
+                      isCleanSlateTheme(theme)
+                        ? { backgroundColor: theme.colors.primary, borderRadius: 4 }
+                        : { backgroundColor: resolvedAccentColor },
+                    ]}
+                  >
+                      <Text
+                        style={[
+                          styles.scheduleSportTagText,
+                          {
+                            color: isCleanSlateTheme(theme)
+                              ? BRAND.white
+                              : theme.colors.pillText,
+                          },
+                        ]}
+                      >
                         {item.sport}
                       </Text>
                     </View>
 
-                    <Text style={styles.teamScheduleMatchup} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.teamScheduleMatchup,
+                        isCleanSlateTheme(theme)
+                          ? { color: theme.colors.text, fontSize: 18, lineHeight: 21 }
+                          : null,
+                      ]}
+                      numberOfLines={2}
+                    >
                       {item.homeAway ? `${item.homeAway} ${item.opponent}` : item.opponent}
                     </Text>
 
                     {item.statusLabel ? (
-                      <Text style={styles.teamScheduleStatus}>{item.statusLabel}</Text>
+                      <Text
+                        style={[
+                          styles.teamScheduleStatus,
+                          isCleanSlateTheme(theme) ? { color: theme.colors.primary } : null,
+                        ]}
+                      >
+                        {item.statusLabel}
+                      </Text>
                     ) : null}
 
                     {item.hasScore && item.teamScore && item.opponentScore ? (
@@ -5101,16 +5795,36 @@ function ScheduleScreen({
                     ) : null}
 
                     {!item.hasScore && item.locationLabel ? (
-                      <Text style={styles.teamScheduleLocation} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.teamScheduleLocation,
+                          isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                        ]}
+                        numberOfLines={1}
+                      >
                         {item.locationLabel}
                       </Text>
                     ) : null}
                   </View>
 
                   <View style={styles.teamScheduleRightColumn}>
-                    <Text style={styles.teamScheduleDate}>{item.displayDate}</Text>
+                    <Text
+                      style={[
+                        styles.teamScheduleDate,
+                        isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+                      ]}
+                    >
+                      {item.displayDate}
+                    </Text>
                     {item.timeLabel ? (
-                      <Text style={styles.teamScheduleTime}>{item.timeLabel}</Text>
+                      <Text
+                        style={[
+                          styles.teamScheduleTime,
+                          isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                        ]}
+                      >
+                        {item.timeLabel}
+                      </Text>
                     ) : null}
                   </View>
                 </View>
@@ -6611,6 +7325,9 @@ function SportDetailScreen({
                     ? {
                         backgroundColor: theme.colors.card,
                         borderColor: theme.colors.border,
+                        borderRadius: 5,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
                       }
                     : null,
                 ]}
@@ -6630,7 +7347,8 @@ function SportDetailScreen({
                     <Text
                       style={[
                         styles.teamGameSport,
-                        { color: isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.lightGray },
+                        { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.lightGray },
+                        isCleanSlateTheme(theme) ? { marginBottom: 2 } : null,
                       ]}
                       numberOfLines={1}
                     >
@@ -6641,6 +7359,7 @@ function SportDetailScreen({
                         style={[
                           styles.teamGameStatus,
                           { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray },
+                          isCleanSlateTheme(theme) ? { marginBottom: 2 } : null,
                         ]}
                       >
                         {normalized.statusLabel}
@@ -6650,6 +7369,7 @@ function SportDetailScreen({
                       style={[
                         styles.teamGameMatchup,
                         { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                        isCleanSlateTheme(theme) ? { fontSize: 18, lineHeight: 21, marginBottom: 4 } : null,
                       ]}
                       numberOfLines={2}
                     >
@@ -6690,6 +7410,7 @@ function SportDetailScreen({
                         style={[
                           styles.teamGameDate,
                           { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                          isCleanSlateTheme(theme) ? { marginTop: 2 } : null,
                         ]}
                       >
                         {dateTimeLine}
@@ -6700,6 +7421,7 @@ function SportDetailScreen({
                         style={[
                           styles.teamGameVenue,
                           { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray },
+                          isCleanSlateTheme(theme) ? { marginTop: 1 } : null,
                         ]}
                         numberOfLines={1}
                       >
@@ -6714,8 +7436,9 @@ function SportDetailScreen({
                         styles.teamGameLogoPlate,
                         isCleanSlateTheme(theme)
                           ? {
-                              backgroundColor: theme.colors.cardAlt,
+                              backgroundColor: theme.colors.surface,
                               borderColor: theme.colors.border,
+                              borderRadius: 5,
                             }
                           : null,
                       ]}
@@ -6903,13 +7626,17 @@ function NewsListScreen({
                     <View
                       style={[
                         styles.featuredPill,
-                        { backgroundColor: theme.colors.pillBackground },
+                        isCleanSlateTheme(theme)
+                          ? getThemeEditorialPillStyle(theme)
+                          : { backgroundColor: theme.colors.pillBackground },
                       ]}
                     >
                       <Text
                         style={[
                           styles.featuredPillText,
-                          { color: theme.colors.pillText },
+                          isCleanSlateTheme(theme)
+                            ? { color: BRAND.white, opacity: 1 }
+                            : { color: theme.colors.pillText },
                         ]}
                       >
                         {sportLabel}
@@ -6961,20 +7688,47 @@ function EmbeddedWebView({
   url,
   headerTitle,
   onBack,
+  theme = DEFAULT_APP_THEME,
 }: {
   url: string;
   headerTitle: string;
   onBack: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const webViewRef = useRef<WebView>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [loading, setLoading] = useState(true);
 
   return (
-    <SafeAreaView style={styles.webSafe}>
-      <View style={styles.webHeader}>
+    <SafeAreaView
+      style={[
+        styles.webSafe,
+        isCleanSlateTheme(theme)
+          ? { backgroundColor: theme.colors.background }
+          : null,
+      ]}
+    >
+      <View
+        style={[
+          styles.webHeader,
+          isCleanSlateTheme(theme)
+            ? {
+                backgroundColor: theme.colors.surface,
+                borderBottomColor: theme.colors.border,
+              }
+            : null,
+        ]}
+      >
         <Pressable
-          style={styles.webBackButton}
+          style={[
+            styles.webBackButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
           onPress={() => {
             if (canGoBack && webViewRef.current) {
               webViewRef.current.goBack();
@@ -6983,42 +7737,85 @@ function EmbeddedWebView({
             }
           }}
         >
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
         </Pressable>
 
-        <Text style={styles.webHeaderTitle} numberOfLines={1}>
+        <Text
+          style={[
+            styles.webHeaderTitle,
+            isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+          ]}
+          numberOfLines={1}
+        >
           {headerTitle}
         </Text>
 
         <Pressable
-          style={styles.webExternalButton}
+          style={[
+            styles.webExternalButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
           onPress={() => Linking.openURL(url)}
         >
-          <Ionicons name="open-outline" size={18} color={BRAND.white} />
+          <Ionicons
+            name="open-outline"
+            size={18}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
         </Pressable>
       </View>
 
-      {loading ? (
-        <View style={styles.webLoadingOverlay}>
-          <ActivityIndicator color={BRAND.primary} />
-        </View>
-      ) : null}
+      <View
+        style={[
+          styles.webContentWrap,
+          isCleanSlateTheme(theme)
+            ? { backgroundColor: theme.colors.background }
+            : null,
+        ]}
+      >
+        {loading ? (
+          <View
+            style={[
+              styles.webLoadingOverlay,
+              isCleanSlateTheme(theme)
+                ? { backgroundColor: theme.colors.background }
+                : null,
+            ]}
+          >
+            <ActivityIndicator color={isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.primary} />
+          </View>
+        ) : null}
 
-      <WebView
-        ref={webViewRef}
-        source={{ uri: url }}
-        style={{ flex: 1 }}
-        javaScriptEnabled
-        domStorageEnabled
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        allowsFullscreenVideo
-        originWhitelist={['*']}
-        startInLoadingState
-        onLoadStart={() => setLoading(true)}
-        onLoadEnd={() => setLoading(false)}
-        onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)}
-      />
+        <WebView
+          ref={webViewRef}
+          source={{ uri: url }}
+          style={[
+            styles.webView,
+            isCleanSlateTheme(theme)
+              ? { backgroundColor: theme.colors.background }
+              : null,
+          ]}
+          javaScriptEnabled
+          domStorageEnabled
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          allowsFullscreenVideo
+          originWhitelist={['*']}
+          startInLoadingState
+          onLoadStart={() => setLoading(true)}
+          onLoadEnd={() => setLoading(false)}
+          onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -7297,7 +8094,7 @@ function MoreScreen({
             },
             isCleanSlateTheme(theme)
               ? {
-                  borderRadius: 18,
+                  borderRadius: 5,
                 }
               : null,
           ]}
@@ -7623,19 +8420,19 @@ function BottomNav({
           ? {
               backgroundColor: theme.colors.surface,
               borderTopColor: theme.colors.border,
-              paddingTop: 10,
-              paddingBottom: 12,
-              minHeight: 70,
-              marginHorizontal: 12,
-              marginBottom: 8,
+              paddingTop: 5,
+              paddingBottom: 7,
+              minHeight: 56,
+              marginHorizontal: 10,
+              marginBottom: 4,
               borderWidth: 1,
               borderColor: theme.colors.border,
-              borderRadius: 20,
-              shadowColor: withAlpha(theme.colors.text, '20'),
-              shadowOpacity: 0.08,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 3,
+              borderRadius: 6,
+              shadowColor: withAlpha(theme.colors.text, '10'),
+              shadowOpacity: 0.025,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 1 },
+              elevation: 1,
             }
           : null,
       ]}
@@ -7657,7 +8454,7 @@ function BottomNav({
                 <Animated.View
                   style={[
                     styles.asnTabFloatWrap,
-                    isCleanSlate ? { marginTop: -18, marginBottom: 4 } : null,
+                    isCleanSlate ? { marginTop: -10, marginBottom: 1 } : null,
                     { transform: [{ scale: homePulse }] },
                   ]}
                 >
@@ -7667,9 +8464,9 @@ function BottomNav({
                         active ? styles.asnTabWrapActive : null,
                         isCleanSlate
                           ? {
-                              width: 68,
-                              height: 68,
-                              borderRadius: 20,
+                              width: 54,
+                              height: 54,
+                              borderRadius: 6,
                               shadowOpacity: 0,
                               shadowRadius: 0,
                               elevation: 0,
@@ -7683,16 +8480,16 @@ function BottomNav({
                         active ? styles.asnTabGlowWrapActive : null,
                         isCleanSlate
                           ? {
-                              width: 56,
-                              height: 56,
-                              borderRadius: 16,
+                              width: 46,
+                              height: 46,
+                              borderRadius: 4,
                               backgroundColor: active ? withAlpha(theme.colors.primary, '10') : theme.colors.surface,
                               borderWidth: 1,
                               borderColor: active ? theme.colors.primary : theme.colors.border,
-                              shadowColor: withAlpha(theme.colors.text, '14'),
-                              shadowOpacity: active ? 0.06 : 0,
-                              shadowRadius: 8,
-                              shadowOffset: { width: 0, height: 3 },
+                              shadowColor: withAlpha(theme.colors.text, '10'),
+                              shadowOpacity: active ? 0.04 : 0,
+                              shadowRadius: 6,
+                              shadowOffset: { width: 0, height: 2 },
                               elevation: active ? 1 : 0,
                             }
                           : null,
@@ -7709,7 +8506,7 @@ function BottomNav({
                           source={{ uri: centerLogoUrl }}
                           style={[
                             styles.centerNavLogo,
-                            isCleanSlate ? { width: 46, height: 46 } : null,
+                            isCleanSlate ? { width: 69, height: 69 } : null,
                           ]}
                           resizeMode="contain"
                         />
@@ -7806,6 +8603,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [appThemeConfig, setAppThemeConfig] = useState<AthleticOSAppThemeConfig | null>(
     null
   );
+  const [themeConfigLoaded, setThemeConfigLoaded] = useState(false);
   const [liveCoverageConfig, setLiveCoverageConfig] =
     useState<AthleticOSAppLiveCoverageConfig | null>(null);
   const [promotionCard, setPromotionCard] = useState<AthleticOSPromotionCard | null>(
@@ -8012,6 +8810,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
   const loadHomeFeeds = async () => {
   try {
+    setThemeConfigLoaded(false);
     setNewsLoading(true);
     setEventsLoading(true);
 
@@ -8035,6 +8834,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       setUpcomingEvents([]);
       setAllEvents([]);
       setSchoolAccentColor(BRAND.primary);
+      setThemeConfigLoaded(true);
       return;
     }
 
@@ -8076,6 +8876,8 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         }))
       ),
     ]);
+
+    console.log('[AOTW DEBUG][home-feed]', nextAthleteOfWeek);
 
     const mergedSchoolConfig = {
       ...nextSchoolConfig,
@@ -8304,6 +9106,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     setAllEvents([]);
     setSchoolAccentColor(BRAND.primary);
   } finally {
+    setThemeConfigLoaded(true);
     setNewsLoading(false);
     setEventsLoading(false);
   }
@@ -8908,6 +9711,19 @@ const handleEnableNotifications = async () => {
   }
 };
 
+if (!themeConfigLoaded) {
+  return (
+    <SafeAreaView
+      style={[
+        styles.appShell,
+        { backgroundColor: BOOTSTRAP_LIGHT_THEME.colors.background },
+      ]}
+    >
+      <StatusBar barStyle="dark-content" />
+    </SafeAreaView>
+  );
+}
+
 if (showLaunchSplash) {
   return (
     <LaunchSplash
@@ -8949,6 +9765,7 @@ if (showPreroll && prerollConfig) {
         url={embeddedUrl}
         headerTitle={embeddedTitle}
         onBack={closeSpecialScreen}
+        theme={resolvedTheme}
       />
     );
   } else if (screenMode === 'newsList') {
@@ -9640,6 +10457,51 @@ splashSponsorLogo: {
     fontWeight: '800',
   },
 
+  promotionSponsorWrap: {
+    marginTop: 14,
+    alignSelf: 'flex-end',
+    maxWidth: '100%',
+  },
+
+  promotionSponsorRow: {
+    minHeight: 54,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  promotionSponsorCopy: {
+    flexShrink: 1,
+    alignItems: 'flex-end',
+  },
+
+  promotionSponsorLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 3,
+  },
+
+  promotionSponsorName: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+
+  promotionSponsorLogo: {
+    width: 92,
+    height: 32,
+  },
+
   athleteOfWeekCard: {
     marginHorizontal: 16,
     minHeight: 248,
@@ -9724,6 +10586,117 @@ splashSponsorLogo: {
     color: BRAND.white,
     fontSize: 13,
     fontWeight: '800',
+  },
+
+  aotwHeroMediaWrap: {
+    width: '100%',
+    aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+
+  aotwHeroMedia: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'space-between',
+  },
+
+  aotwHeroMediaImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  aotwHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  aotwHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    gap: 10,
+  },
+
+  aotwHeroTextWrap: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 18,
+    justifyContent: 'flex-end',
+  },
+
+  aotwHeroKicker: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 6,
+  },
+
+  aotwHeroName: {
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: '900',
+    letterSpacing: 0.1,
+  },
+
+  aotwHeroMeta: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+
+  aotwBodyWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+
+  aotwSponsorBadge: {
+    minHeight: 46,
+    maxWidth: '56%',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+
+  aotwSponsorLabel: {
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.65,
+    marginBottom: 4,
+  },
+
+  aotwSponsorLogo: {
+    width: 78,
+    height: 24,
+  },
+
+  aotwSponsorName: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    marginTop: 4,
+    textAlign: 'right',
+  },
+
+  aotwInlineSponsorWrap: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    maxWidth: 120,
+  },
+
+  aotwInlineSponsorLogo: {
+    width: 88,
+    height: 28,
   },
 
   liveNowCard: {
@@ -10115,31 +11088,40 @@ bannerImage: {
     fontWeight: '900',
   },
 
-  sponsorCarouselRow: {
-    paddingLeft: 16,
-    paddingRight: 6,
+  sponsorCarouselViewport: {
+    marginHorizontal: 16,
+    overflow: 'hidden',
+  },
+
+  sponsorCarouselTrack: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
   },
 
   sponsorCarouselCard: {
     width: SPONSOR_CAROUSEL_CARD_WIDTH,
-    minHeight: 98,
+    minHeight: 86,
     marginRight: SPONSOR_CAROUSEL_CARD_GAP,
-    borderRadius: 22,
+    borderRadius: 14,
     backgroundColor: '#1B2438',
     borderWidth: 1,
     borderColor: '#34415F',
     overflow: 'hidden',
     shadowColor: '#000000',
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+
+  sponsorCarouselCardNoGap: {
+    marginRight: 0,
   },
 
   sponsorCarouselCardContent: {
-    minHeight: 98,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    minHeight: 86,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -10150,23 +11132,24 @@ bannerImage: {
 
   sponsorCarouselLogoWrap: {
     width: '100%',
-    minHeight: 70,
+    minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   sponsorCarouselLogo: {
-    width: '94%',
-    maxWidth: 208,
-    height: 70,
+    width: '88%',
+    maxWidth: 182,
+    height: 58,
   },
 
   sponsorCarouselName: {
     color: BRAND.white,
-    fontSize: 16,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: '800',
     textAlign: 'center',
+    marginTop: 2,
   },
 
   featuredPill: {
@@ -12394,6 +13377,8 @@ resultScore: {
     height: 38,
     borderRadius: 999,
     backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -12413,16 +13398,31 @@ resultScore: {
     height: 38,
     borderRadius: 999,
     backgroundColor: BRAND.surface,
+    borderWidth: 1,
+    borderColor: BRAND.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
+  webContentWrap: {
+    flex: 1,
+    position: 'relative',
+    backgroundColor: BRAND.black,
+  },
+
+  webView: {
+    flex: 1,
+  },
+
   webLoadingOverlay: {
     position: 'absolute',
-    top: 60,
+    top: 0,
     left: 0,
     right: 0,
+    bottom: 0,
     zIndex: 3,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: BRAND.black,
   },
 });

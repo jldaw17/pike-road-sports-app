@@ -168,6 +168,8 @@ export type AthleticOSAppLiveCoverageConfig = {
   body_copy: string;
   cta_label: string;
   show_status_pill: boolean;
+  live_status?: string;
+  status_pill_mode?: string;
   destination_type: string;
   destination_value: string;
   created_at?: string;
@@ -1300,7 +1302,43 @@ export async function getAppSponsorPlacementsBySchoolId(schoolId: string | numbe
       throw error;
     }
 
-    return (data ?? []) as AthleticOSAppSponsorPlacement[];
+    const normalizedPlacements = ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+      ...(row as Record<string, unknown>),
+      id: pickFirstId(row, ['id']) ?? row.id,
+      school_id: pickFirstId(row, ['school_id']) ?? row.school_id,
+      placement_key:
+        pickFirstString(row, ['placement_key', 'placement', 'slot_key', 'key']) ?? '',
+      sponsor_name:
+        pickFirstString(row, ['sponsor_name', 'name', 'title', 'label']) ?? '',
+      sponsor_logo_url:
+        pickFirstString(row, ['sponsor_logo_url', 'logo_url', 'image_url']) ?? '',
+      sponsor_link_url:
+        pickFirstString(row, [
+          'sponsor_link_url',
+          'click_url',
+          'cta_url',
+          'website_url',
+          'url',
+        ]) ?? '',
+      is_enabled:
+        pickFirstBoolean(row, ['is_enabled', 'enabled', 'is_active', 'active']) ?? true,
+      sort_order:
+        pickFirstNumber(row, ['sort_order', 'display_order', 'position']) ?? 0,
+    })) as AthleticOSAppSponsorPlacement[];
+
+    console.log(
+      '[APPOS SPONSOR DEBUG][fetch]',
+      normalizedPlacements.map((placement) => ({
+        id: placement.id,
+        placement_key: placement.placement_key,
+        sponsor_name: placement.sponsor_name,
+        sponsor_logo_url: placement.sponsor_logo_url,
+        sponsor_link_url: placement.sponsor_link_url,
+        is_enabled: placement.is_enabled,
+      }))
+    );
+
+    return normalizedPlacements;
   } catch (error) {
     if (isMissingAppOSRelationError(error)) {
       return [];
@@ -1405,6 +1443,9 @@ export async function getAppLiveCoverageConfigBySchoolId(schoolId: string | numb
       body_copy: pickFirstString(data, ['body_copy']) ?? '',
       cta_label: pickFirstString(data, ['cta_label']) ?? '',
       show_status_pill: data.show_status_pill !== false,
+      live_status: pickFirstString(data, ['live_status']) ?? '',
+      status_pill_mode:
+        pickFirstString(data, ['status_pill_mode', 'status_pill_state']) ?? '',
       destination_type: pickFirstString(data, ['destination_type']) ?? '',
       destination_value: pickFirstString(data, ['destination_value']) ?? '',
     } as AthleticOSAppLiveCoverageConfig;
@@ -1441,21 +1482,64 @@ export async function getAthleteOfTheWeekBySchoolId(schoolId: string | number) {
     }
 
     const row = data as Record<string, unknown>;
+    const athleteName =
+      pickFirstString(row, ['athlete_name', 'player_name', 'name', 'full_name']) ??
+      [pickFirstString(row, ['first_name']), pickFirstString(row, ['last_name'])]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
 
-    return {
+    const normalizedAthlete = {
       id: pickFirstId(row, ['id']) ?? '',
-      athleteName: pickFirstString(row, ['athlete_name']) ?? '',
-      sportName: pickFirstString(row, ['sport_name']) ?? null,
-      classYear: pickFirstString(row, ['class_year']) ?? null,
-      position: pickFirstString(row, ['position']) ?? null,
-      headshotUrl: pickFirstString(row, ['headshot_url']) ?? null,
-      featuredImageUrl: pickFirstString(row, ['featured_image_url']) ?? null,
-      summary: pickFirstString(row, ['summary']) ?? null,
-      stats: pickFirstString(row, ['stats']) ?? null,
-      awardWeekLabel: pickFirstString(row, ['award_week_label']) ?? null,
-      awardDate: pickFirstString(row, ['award_date']) ?? null,
-      opponent: pickFirstString(row, ['opponent']) ?? null,
+      athleteName,
+      sportName: pickFirstString(row, ['sport_name', 'sport', 'team_name']) ?? null,
+      classYear: pickFirstString(row, ['class_year', 'grade', 'year']) ?? null,
+      position: pickFirstString(row, ['position', 'athlete_position']) ?? null,
+      headshotUrl:
+        pickFirstString(row, [
+          'headshot_url',
+          'athlete_headshot_url',
+          'default_photo_url',
+          'photo_url',
+          'image_url',
+        ]) ?? null,
+      featuredImageUrl:
+        pickFirstString(row, [
+          'featured_image_url',
+          'image_url',
+          'headshot_url',
+          'default_photo_url',
+          'photo_url',
+        ]) ?? null,
+      summary: pickFirstString(row, ['summary', 'description', 'bio', 'headline']) ?? null,
+      stats: pickFirstString(row, ['stats', 'stat_line', 'stats_line', 'performance_summary']) ?? null,
+      awardWeekLabel:
+        pickFirstString(row, ['award_week_label', 'week_label', 'award_title']) ?? null,
+      awardDate: pickFirstString(row, ['award_date', 'published_at', 'created_at']) ?? null,
+      opponent: pickFirstString(row, ['opponent', 'opponent_name']) ?? null,
     };
+
+    console.log('[AOTW DEBUG][raw]', {
+      id: row.id,
+      athlete_name: row.athlete_name,
+      player_name: row.player_name,
+      name: row.name,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      sport_name: row.sport_name,
+      class_year: row.class_year,
+      position: row.position,
+      headshot_url: row.headshot_url,
+      featured_image_url: row.featured_image_url,
+      summary: row.summary,
+      stats: row.stats,
+      award_week_label: row.award_week_label,
+      opponent: row.opponent,
+    });
+
+    console.log('[AOTW DEBUG][normalized]', normalizedAthlete);
+
+    return normalizedAthlete;
   } catch (error) {
     if (isMissingAppOSRelationError(error)) {
       return null;
