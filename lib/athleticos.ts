@@ -1,5 +1,9 @@
 import { getSchoolFromSlug } from './getSchool';
 import { supabase } from './supabase';
+import {
+  getAthleticOSThemePresets as getAthleticOSThemePresetsFromResolver,
+  resolveAthleticOSTheme as resolveAthleticOSThemeFromResolver,
+} from './theme/resolveTheme';
 
 export type AthleticOSSchool = {
   id: string | number;
@@ -12,6 +16,9 @@ export type AthleticOSSchoolConfig = {
   logoUrl: string;
   splashLogoUrl: string;
   splashBackgroundUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
   appShortName: string;
   mascotName: string;
   heroTitleOverride: string;
@@ -538,221 +545,6 @@ const SPORT_LABEL_FALLBACKS: Record<string, string> = {
   'girls-cross-country': 'Girls Cross Country',
 };
 
-const DEFAULT_THEME_COLORS = {
-  primary: '#1F3B7A',
-  secondary: '#162E63',
-  accent: '#C8102E',
-  background: '#0B1020',
-  surface: '#141B2D',
-  card: '#141B2D',
-  cardAlt: '#1C2540',
-  text: '#FFFFFF',
-  mutedText: '#D9DFEA',
-  border: '#2B3657',
-  pillBackground: '#1F3B7A',
-  pillText: '#FFFFFF',
-  buttonBackground: '#1F3B7A',
-  buttonText: '#FFFFFF',
-  glow: '#FFFFFF',
-  heroStart: '#D3183B',
-  heroEnd: '#102754',
-} as const;
-
-const ATHLETICOS_THEME_PRESETS: AthleticOSThemePreset[] = [
-  {
-    key: 'sec_power5',
-    label: 'SEC Power 5',
-    description: 'Bold athletics chrome with premium dark surfaces and a broadcast-style hero.',
-    colors: { ...DEFAULT_THEME_COLORS },
-    styles: {
-      backgroundStyle: 'dark_chrome',
-      surfaceStyle: 'layered_dark',
-      cardStyle: 'premium_dark',
-      pillStyle: 'broadcast',
-      navStyle: 'floating_crest',
-      heroStyle: 'broadcast_gradient',
-      newsStyle: 'athletics_editorial',
-    },
-  },
-  {
-    key: 'news_heavy',
-    label: 'News Heavy',
-    description: 'Editorial-forward presentation that emphasizes headlines and content readability.',
-    colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#263B73',
-      secondary: '#18284F',
-      accent: '#B61F3F',
-      cardAlt: '#202B44',
-      heroStart: '#1A2136',
-      heroEnd: '#243C76',
-    },
-    styles: {
-      backgroundStyle: 'editorial_dark',
-      surfaceStyle: 'inked_surface',
-      cardStyle: 'editorial_panel',
-      pillStyle: 'clean_editorial',
-      navStyle: 'floating_crest',
-      heroStyle: 'editorial_gradient',
-      newsStyle: 'headline_stack',
-    },
-  },
-  {
-    key: 'gameday',
-    label: 'Gameday',
-    description: 'High-energy surfaces and contrast tuned for live-event emphasis.',
-    colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#213D85',
-      secondary: '#132754',
-      accent: '#E23D3D',
-      glow: '#FFD7D7',
-      heroStart: '#C11E3A',
-      heroEnd: '#0F2A63',
-    },
-    styles: {
-      backgroundStyle: 'arena_dark',
-      surfaceStyle: 'charged_surface',
-      cardStyle: 'broadcast_panel',
-      pillStyle: 'gameday_badge',
-      navStyle: 'floating_crest',
-      heroStyle: 'gameday_gradient',
-      newsStyle: 'broadcast_cards',
-    },
-  },
-  {
-    key: 'classic_school',
-    label: 'Classic School',
-    description: 'Traditional school spirit treatment with balanced colors and simple chrome.',
-    colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#29456F',
-      secondary: '#1E2F4A',
-      accent: '#A52039',
-      heroStart: '#182338',
-      heroEnd: '#324F80',
-    },
-    styles: {
-      backgroundStyle: 'classic_dark',
-      surfaceStyle: 'traditional_surface',
-      cardStyle: 'school_card',
-      pillStyle: 'school_badge',
-      navStyle: 'classic_tabs',
-      heroStyle: 'classic_gradient',
-      newsStyle: 'school_news',
-    },
-  },
-  {
-    key: 'minimal',
-    label: 'Minimal',
-    description: 'Reduced visual noise with restrained accents and cleaner surfaces.',
-    colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#38517A',
-      secondary: '#1C2942',
-      accent: '#5E7CB7',
-      border: '#34415F',
-      glow: '#E8EEF9',
-      heroStart: '#111827',
-      heroEnd: '#243B67',
-    },
-    styles: {
-      backgroundStyle: 'minimal_dark',
-      surfaceStyle: 'quiet_surface',
-      cardStyle: 'minimal_panel',
-      pillStyle: 'minimal_badge',
-      navStyle: 'clean_floating',
-      heroStyle: 'minimal_gradient',
-      newsStyle: 'minimal_cards',
-    },
-  },
-  {
-    key: 'recruiting',
-    label: 'Recruiting',
-    description: 'Sharper contrast and spotlight accents for feature-forward recruiting storytelling.',
-    colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#25437A',
-      secondary: '#111F3D',
-      accent: '#D4A529',
-      pillBackground: '#D4A529',
-      pillText: '#101828',
-      buttonBackground: '#D4A529',
-      buttonText: '#101828',
-      glow: '#FCE7A8',
-      heroStart: '#111827',
-      heroEnd: '#23467D',
-    },
-    styles: {
-      backgroundStyle: 'spotlight_dark',
-      surfaceStyle: 'recruiting_surface',
-      cardStyle: 'spotlight_panel',
-      pillStyle: 'gold_badge',
-      navStyle: 'floating_crest',
-      heroStyle: 'spotlight_gradient',
-      newsStyle: 'feature_stack',
-    },
-  },
-  {
-    key: 'gradient_elite',
-    label: 'Gradient Elite',
-    description: 'Premium, luminous gradients layered over dark athletics surfaces.',
-    colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#2A4A8D',
-      secondary: '#172B57',
-      accent: '#DA365A',
-      cardAlt: '#22345B',
-      glow: '#F3F4FF',
-      heroStart: '#C32651',
-      heroEnd: '#1F4D97',
-    },
-    styles: {
-      backgroundStyle: 'luxe_gradient',
-      surfaceStyle: 'elite_surface',
-      cardStyle: 'glass_dark',
-      pillStyle: 'elite_badge',
-      navStyle: 'floating_crest',
-      heroStyle: 'elite_gradient',
-      newsStyle: 'elite_editorial',
-    },
-  },
-  {
-    key: 'light_mode',
-    label: 'Light Mode',
-    description: 'Bright surfaces and cleaner contrast while preserving athletics emphasis.',
-    colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#1F3B7A',
-      secondary: '#365CA4',
-      accent: '#C8102E',
-      background: '#EEF2FA',
-      surface: '#FFFFFF',
-      card: '#FFFFFF',
-      cardAlt: '#E5ECF8',
-      text: '#101828',
-      mutedText: '#475467',
-      border: '#D0D5DD',
-      pillBackground: '#1F3B7A',
-      pillText: '#FFFFFF',
-      buttonBackground: '#1F3B7A',
-      buttonText: '#FFFFFF',
-      glow: '#D9E4FF',
-      heroStart: '#D6E3FF',
-      heroEnd: '#F8FAFF',
-    },
-    styles: {
-      backgroundStyle: 'light_canvas',
-      surfaceStyle: 'light_surface',
-      cardStyle: 'light_card',
-      pillStyle: 'light_badge',
-      navStyle: 'light_nav',
-      heroStyle: 'light_gradient',
-      newsStyle: 'light_editorial',
-    },
-  },
-];
-
 function pickFirstString(
   record: Record<string, unknown>,
   keys: string[]
@@ -765,155 +557,6 @@ function pickFirstString(
   }
 
   return undefined;
-}
-
-function normalizeThemeKey(value?: string) {
-  return (value ?? '').trim().toLowerCase();
-}
-
-function normalizeHexColor(value?: string) {
-  const trimmed = (value ?? '').trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
-  return /^#[0-9a-f]{6}$/i.test(withHash) ? withHash.toUpperCase() : '';
-}
-
-function resolveThemeSurfaceTokens(surfaceStyle: string) {
-  switch (surfaceStyle) {
-    case 'light_surface':
-      return {
-        background: '#EEF2FA',
-        surface: '#FFFFFF',
-        card: '#FFFFFF',
-        cardAlt: '#E5ECF8',
-        border: '#D0D5DD',
-        text: '#101828',
-        mutedText: '#475467',
-      };
-    case 'elite_surface':
-      return {
-        background: '#0A1020',
-        surface: '#131C30',
-        card: '#17233A',
-        cardAlt: '#22345B',
-        border: '#2F4166',
-        text: '#FFFFFF',
-        mutedText: '#D9DFEA',
-      };
-    case 'recruiting_surface':
-      return {
-        background: '#0C111D',
-        surface: '#151C2B',
-        card: '#1A2538',
-        cardAlt: '#24334A',
-        border: '#394963',
-        text: '#FFFFFF',
-        mutedText: '#D6DDEB',
-      };
-    case 'quiet_surface':
-      return {
-        background: '#0F1727',
-        surface: '#151D2E',
-        card: '#182234',
-        cardAlt: '#21314D',
-        border: '#33425D',
-        text: '#FFFFFF',
-        mutedText: '#CFD8E8',
-      };
-    default:
-      return {
-        background: DEFAULT_THEME_COLORS.background,
-        surface: DEFAULT_THEME_COLORS.surface,
-        card: DEFAULT_THEME_COLORS.card,
-        cardAlt: DEFAULT_THEME_COLORS.cardAlt,
-        border: DEFAULT_THEME_COLORS.border,
-        text: DEFAULT_THEME_COLORS.text,
-        mutedText: DEFAULT_THEME_COLORS.mutedText,
-      };
-  }
-}
-
-function resolveThemeHeroTokens(
-  heroStyle: string,
-  resolvedPrimary: string,
-  resolvedSecondary: string,
-  resolvedAccent: string
-) {
-  switch (heroStyle) {
-    case 'editorial_gradient':
-      return {
-        heroStart: '#121A2A',
-        heroEnd: resolvedPrimary,
-      };
-    case 'gameday_gradient':
-      return {
-        heroStart: resolvedAccent,
-        heroEnd: resolvedSecondary,
-      };
-    case 'classic_gradient':
-      return {
-        heroStart: '#151E31',
-        heroEnd: resolvedPrimary,
-      };
-    case 'minimal_gradient':
-      return {
-        heroStart: '#111827',
-        heroEnd: resolvedSecondary,
-      };
-    case 'spotlight_gradient':
-      return {
-        heroStart: '#101828',
-        heroEnd: resolvedPrimary,
-      };
-    case 'elite_gradient':
-      return {
-        heroStart: resolvedAccent,
-        heroEnd: resolvedPrimary,
-      };
-    case 'light_gradient':
-      return {
-        heroStart: '#D6E3FF',
-        heroEnd: '#F8FAFF',
-      };
-    case 'broadcast_gradient':
-    default:
-      return {
-        heroStart: DEFAULT_THEME_COLORS.heroStart,
-        heroEnd: DEFAULT_THEME_COLORS.heroEnd,
-      };
-  }
-}
-
-function resolveThemePillTokens(
-  pillStyle: string,
-  resolvedPrimary: string,
-  resolvedAccent: string
-) {
-  switch (pillStyle) {
-    case 'gold_badge':
-      return {
-        pillBackground: resolvedAccent,
-        pillText: '#101828',
-      };
-    case 'light_badge':
-      return {
-        pillBackground: resolvedPrimary,
-        pillText: '#FFFFFF',
-      };
-    case 'minimal_badge':
-      return {
-        pillBackground: resolvedPrimary || DEFAULT_THEME_COLORS.secondary,
-        pillText: '#FFFFFF',
-      };
-    default:
-      return {
-        pillBackground: resolvedPrimary,
-        pillText: '#FFFFFF',
-      };
-  }
 }
 
 function pickFirstNumber(
@@ -1128,6 +771,9 @@ export function getDefaultSchoolConfig(slug: string): AthleticOSSchoolConfig {
     logoUrl: '',
     splashLogoUrl: '',
     splashBackgroundUrl: '',
+    primaryColor: '',
+    secondaryColor: '',
+    accentColor: '',
     appShortName: '',
     mascotName: '',
     heroTitleOverride: '',
@@ -1189,6 +835,16 @@ function getSchoolConfigFromRecord(
     splashBackgroundUrl:
       pickFirstString(school, [...SCHOOL_SPLASH_BACKGROUND_FIELDS]) ??
       fallbackConfig.splashBackgroundUrl,
+    primaryColor:
+      pickFirstString(school, ['primary_color', 'primaryColor']) ??
+      fallbackConfig.primaryColor,
+    secondaryColor:
+      pickFirstString(school, ['secondary_color', 'secondaryColor']) ??
+      fallbackConfig.secondaryColor,
+    accentColor:
+      pickFirstString(school, ['accent_color', 'accentColor']) ??
+      pickFirstString(school, ['primary_color', 'primaryColor']) ??
+      fallbackConfig.accentColor,
     athleticOSSiteUrl:
       derivedAthleticOSSiteUrl ??
       fallbackConfig.athleticOSSiteUrl,
@@ -1454,86 +1110,13 @@ export async function getAppThemeConfigBySchoolId(schoolId: string | number) {
 }
 
 export function getAthleticOSThemePresets() {
-  return ATHLETICOS_THEME_PRESETS.map((preset) => ({
-    ...preset,
-    colors: { ...preset.colors },
-    styles: { ...preset.styles },
-  }));
+  return getAthleticOSThemePresetsFromResolver();
 }
 
 export function resolveAthleticOSTheme(
   config?: AthleticOSAppThemeConfig | null
 ): AthleticOSResolvedTheme {
-  const themeKey = normalizeThemeKey(config?.theme_key) || 'sec_power5';
-  const preset =
-    ATHLETICOS_THEME_PRESETS.find((item) => item.key === themeKey) ??
-    ATHLETICOS_THEME_PRESETS[0];
-
-  const resolvedPrimary =
-    normalizeHexColor(config?.primary_color) || preset.colors.primary;
-  const resolvedSecondary =
-    normalizeHexColor(config?.secondary_color) || preset.colors.secondary;
-  const resolvedAccent =
-    normalizeHexColor(config?.accent_color) || preset.colors.accent;
-  const resolvedStyles = {
-    backgroundStyle:
-      normalizeThemeKey(config?.background_style) || preset.styles.backgroundStyle,
-    surfaceStyle:
-      normalizeThemeKey(config?.surface_style) || preset.styles.surfaceStyle,
-    cardStyle: normalizeThemeKey(config?.card_style) || preset.styles.cardStyle,
-    pillStyle: normalizeThemeKey(config?.pill_style) || preset.styles.pillStyle,
-    navStyle: normalizeThemeKey(config?.nav_style) || preset.styles.navStyle,
-    heroStyle: normalizeThemeKey(config?.hero_style) || preset.styles.heroStyle,
-    newsStyle: normalizeThemeKey(config?.news_style) || preset.styles.newsStyle,
-  };
-
-  const surfaceTokens = resolveThemeSurfaceTokens(resolvedStyles.surfaceStyle);
-  const heroTokens = resolveThemeHeroTokens(
-    resolvedStyles.heroStyle,
-    resolvedPrimary,
-    resolvedSecondary,
-    resolvedAccent
-  );
-  const pillTokens = resolveThemePillTokens(
-    resolvedStyles.pillStyle,
-    resolvedPrimary,
-    resolvedAccent
-  );
-  const buttonBackground =
-    resolvedStyles.pillStyle === 'gold_badge' ? resolvedAccent : resolvedPrimary;
-  const buttonText =
-    resolvedStyles.pillStyle === 'gold_badge' ? '#101828' : '#FFFFFF';
-  const glow =
-    resolvedStyles.navStyle === 'light_nav'
-      ? '#D9E4FF'
-      : preset.colors.glow || DEFAULT_THEME_COLORS.glow;
-
-  return {
-    meta: {
-      themeKey: preset.key,
-      label: preset.label,
-    },
-    colors: {
-      primary: resolvedPrimary,
-      secondary: resolvedSecondary,
-      accent: resolvedAccent,
-      background: surfaceTokens.background,
-      surface: surfaceTokens.surface,
-      card: surfaceTokens.card,
-      cardAlt: surfaceTokens.cardAlt,
-      text: surfaceTokens.text,
-      mutedText: surfaceTokens.mutedText,
-      border: surfaceTokens.border,
-      pillBackground: pillTokens.pillBackground,
-      pillText: pillTokens.pillText,
-      buttonBackground,
-      buttonText,
-      glow,
-      heroStart: heroTokens.heroStart,
-      heroEnd: heroTokens.heroEnd,
-    },
-    styles: resolvedStyles,
-  };
+  return resolveAthleticOSThemeFromResolver(config);
 }
 
 export async function getTeamNavBySportId(
@@ -1858,7 +1441,6 @@ export async function getAthleteOfTheWeekBySchoolId(schoolId: string | number) {
     }
 
     const row = data as Record<string, unknown>;
-    console.log('[AthleticOS] athleteOfWeek row:', row);
 
     return {
       id: pickFirstId(row, ['id']) ?? '',
@@ -2279,8 +1861,6 @@ export async function getStoriesBySchoolId(schoolId: string | number) {
   if (error) {
     throw error;
   }
-
-  console.log('RAW HOME STORY SAMPLE', (storiesData ?? []).slice(0, 3));
 
   return ((storiesData ?? []) as AthleticOSStory[]).sort((a, b) => {
     const aDate = normalizeSortDate(pickFirstString(a, [...STORY_DATE_FIELDS]));

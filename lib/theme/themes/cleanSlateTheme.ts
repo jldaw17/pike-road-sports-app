@@ -1,0 +1,35 @@
+import type { AthleticOSThemePreset } from '../../athleticos';
+
+export const cleanSlateTheme: AthleticOSThemePreset = {
+  key: 'clean_slate',
+  label: 'Clean Slate',
+  description: 'A restrained editorial theme with light surfaces, quiet borders, and minimal chrome.',
+  colors: {
+    primary: '#172033',
+    secondary: '#1F2937',
+    accent: '#172033',
+    background: '#FFFFFF',
+    surface: '#FFFFFF',
+    card: '#FFFFFF',
+    cardAlt: '#FFFFFF',
+    text: '#111827',
+    mutedText: '#1F2937',
+    border: '#E7E7E2',
+    pillBackground: '#FFFFFF',
+    pillText: '#172033',
+    buttonBackground: '#FFFFFF',
+    buttonText: '#172033',
+    glow: 'transparent',
+    heroStart: '#FFFFFF',
+    heroEnd: '#FFFFFF',
+  },
+  styles: {
+    backgroundStyle: 'light_canvas',
+    surfaceStyle: 'clean_slate_surface',
+    cardStyle: 'clean_slate_card',
+    pillStyle: 'clean_slate_editorial',
+    navStyle: 'clean_slate_nav',
+    heroStyle: 'clean_slate_hero',
+    newsStyle: 'clean_slate_story',
+  },
+};

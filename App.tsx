@@ -74,6 +74,7 @@ import {
 } from './lib/athleticos';
 import { getSchoolIdFromSlug } from './lib/getSchool';
 import { subscribeToTeam, unsubscribeFromTeam } from './lib/pushos';
+import { ThemeProvider } from './lib/theme/ThemeProvider';
 import { usePushNotifications } from './hooks/usePushNotifications';
 
 const BRAND = {
@@ -104,12 +105,147 @@ const SPONSOR_CAROUSEL_CARD_WIDTH = 248;
 const SPONSOR_CAROUSEL_CARD_GAP = 12;
 const DEFAULT_APP_THEME = resolveAthleticOSTheme();
 
+function isCleanSlateTheme(theme: AthleticOSResolvedTheme) {
+  return theme.meta.themeKey === 'clean_slate';
+}
+
+function withAlpha(color: string, alphaHex: string) {
+  const normalized = color?.trim() ?? '';
+  return /^#[0-9a-f]{6}$/i.test(normalized) ? `${normalized}${alphaHex}` : normalized;
+}
+
 function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
+  if (isCleanSlateTheme(theme)) {
+    return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
+  }
+
   return [theme.colors.heroStart, theme.colors.heroEnd, theme.colors.cardAlt];
 }
 
 function getThemeDarkHeroGradient(theme: AthleticOSResolvedTheme) {
+  if (isCleanSlateTheme(theme)) {
+    return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
+  }
+
   return [BRAND.black, theme.colors.heroEnd, theme.colors.cardAlt];
+}
+
+function getThemeBackdropGradient(theme: AthleticOSResolvedTheme) {
+  if (isCleanSlateTheme(theme)) {
+    return [theme.colors.background, theme.colors.background, theme.colors.background];
+  }
+
+  return [`${theme.colors.secondary}22`, `${theme.colors.primary}12`, theme.colors.background];
+}
+
+function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isCleanSlateTheme(theme)) {
+    return null;
+  }
+
+  return {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 16,
+    shadowColor: withAlpha(theme.colors.text, '24'),
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  };
+}
+
+function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isCleanSlateTheme(theme)) {
+    return null;
+  }
+
+  return {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: withAlpha(theme.colors.text, '20'),
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
+  };
+}
+
+function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isCleanSlateTheme(theme)) {
+    return null;
+  }
+
+  return {
+    backgroundColor: theme.colors.card,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: 14,
+    shadowColor: withAlpha(theme.colors.text, '20'),
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
+  };
+}
+
+function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isCleanSlateTheme(theme)) {
+    return null;
+  }
+
+  return {
+    backgroundColor: theme.colors.cardAlt,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: 14,
+    shadowColor: withAlpha(theme.colors.text, '18'),
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  };
+}
+
+function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
+  if (isCleanSlateTheme(theme)) {
+    return [theme.colors.surface, theme.colors.cardAlt];
+  }
+
+  return [theme.colors.primary, theme.colors.secondary];
+}
+
+function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isCleanSlateTheme(theme)) {
+    return null;
+  }
+
+  return {
+    backgroundColor: withAlpha(theme.colors.primary, '10'),
+    borderWidth: 1,
+    borderColor: withAlpha(theme.colors.primary, '22'),
+    borderRadius: 999,
+  };
+}
+
+function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isCleanSlateTheme(theme)) {
+    return null;
+  }
+
+  return {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primary,
+    borderWidth: 1,
+    borderRadius: 12,
+    shadowColor: withAlpha(theme.colors.text, '18'),
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  };
 }
 
 function normalizeConfiguredSchoolSlug(value?: string) {
@@ -120,6 +256,11 @@ function normalizeConfiguredSchoolSlug(value?: string) {
 }
 
 function getConfiguredSchoolSlug() {
+  const envSlug = process.env.EXPO_PUBLIC_SCHOOL_SLUG;
+  if (typeof envSlug === 'string' && envSlug.trim()) {
+    return normalizeConfiguredSchoolSlug(envSlug);
+  }
+
   const extraSlug = Constants?.expoConfig?.extra?.schoolSlug;
   if (typeof extraSlug === 'string' && extraSlug.trim()) {
     return normalizeConfiguredSchoolSlug(extraSlug);
@@ -806,24 +947,18 @@ async function fetchYoutubePlaylistVideos(
     return [];
   }
 
-  console.log('[AthleticOS] videos config:', config);
-
   const playlistId = extractYoutubePlaylistId(
     config.playlist_id ||
       config.youtube_playlist_id ||
       config.playlist_url ||
       config.youtube_playlist_url
   );
-  console.log('YOUTUBE API KEY:', getYoutubeApiKey());
-  console.log('PLAYLIST ID:', playlistId);
-  console.log('[AthleticOS] extracted playlist id:', playlistId);
   if (!playlistId) {
     return [];
   }
 
   const youtubeApiKey = getYoutubeApiKey();
   if (!youtubeApiKey) {
-    console.log('[AthleticOS] missing YouTube API key for videos module');
     return [];
   }
 
@@ -843,7 +978,6 @@ async function fetchYoutubePlaylistVideos(
     );
 
     if (!response.ok) {
-      console.log('[AthleticOS] YouTube playlist request failed:', response.status);
       return [];
     }
 
@@ -892,7 +1026,6 @@ async function fetchYoutubePlaylistVideos(
       })
       .filter(Boolean) as VideoItem[];
 
-    console.log('[AthleticOS] fetched video count:', videos.length);
     return videos.length > 0 ? videos : [];
   } catch (error) {
     console.log('YouTube playlist load error:', error);
@@ -1078,20 +1211,80 @@ function TopIcon({
   label,
   icon,
   onPress,
+  theme = DEFAULT_APP_THEME,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  if (isCleanSlateTheme(theme)) {
+    return (
+      <Pressable style={styles.topIconWrap} onPress={onPress}>
+        <View
+          style={[
+            styles.topIconCircle,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+              borderRadius: 12,
+              marginBottom: 6,
+              shadowOpacity: 0,
+              shadowRadius: 0,
+              elevation: 0,
+            },
+          ]}
+        >
+          <Ionicons name={icon} size={19} color={theme.colors.accent} />
+        </View>
+        <Text
+          style={[
+            styles.topIconLabel,
+            {
+              color: theme.colors.text,
+              fontSize: 10,
+              fontWeight: '800',
+              letterSpacing: 0.4,
+              textTransform: 'uppercase',
+            },
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable style={styles.topIconWrap} onPress={onPress}>
       <LinearGradient
-        colors={[BRAND.primary, BRAND.primaryDark]}
-        style={styles.topIconCircle}
+        colors={getThemeTopIconGradient(theme)}
+        style={[
+          styles.topIconCircle,
+          isCleanSlateTheme(theme)
+            ? {
+                borderColor: theme.colors.border,
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                elevation: 0,
+              }
+            : null,
+        ]}
       >
-        <Ionicons name={icon} size={20} color={BRAND.white} />
+        <Ionicons
+          name={icon}
+          size={20}
+          color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.white}
+        />
       </LinearGradient>
-      <Text style={styles.topIconLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.topIconLabel,
+          { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -1101,18 +1294,84 @@ function SectionHeader({
   actionLabel,
   onAction,
   containerStyle,
+  theme = DEFAULT_APP_THEME,
 }: {
   title: string;
   actionLabel?: string;
   onAction?: () => void;
   containerStyle?: ViewStyle;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  if (isCleanSlateTheme(theme)) {
+    return (
+      <View
+        style={[
+          styles.sectionHeader,
+          {
+            marginTop: 28,
+            marginBottom: 14,
+            paddingBottom: 10,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.colors.border,
+          },
+          containerStyle,
+        ]}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View
+            style={{
+              width: 22,
+              height: 2,
+              borderRadius: 999,
+              backgroundColor: theme.colors.accent,
+              marginRight: 10,
+            }}
+          />
+          <Text
+            style={[
+              styles.sectionTitle,
+              {
+                color: theme.colors.text,
+                fontSize: 14,
+                fontWeight: '800',
+                letterSpacing: 1.2,
+                textTransform: 'uppercase',
+              },
+            ]}
+          >
+            {title}
+          </Text>
+        </View>
+        {actionLabel && onAction ? (
+          <Pressable onPress={onAction}>
+            <Text
+              style={[
+                styles.sectionAction,
+                {
+                  color: theme.colors.accent,
+                  fontSize: 11,
+                  fontWeight: '800',
+                  letterSpacing: 0.8,
+                  textTransform: 'uppercase',
+                },
+              ]}
+            >
+              {actionLabel}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.sectionHeader, containerStyle]}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{title}</Text>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction}>
-          <Text style={styles.sectionAction}>{actionLabel}</Text>
+          <Text style={[styles.sectionAction, { color: theme.colors.accent }]}>
+            {actionLabel}
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -1124,11 +1383,13 @@ function OptionalSectionHeader({
   actionLabel,
   onAction,
   containerStyle,
+  theme = DEFAULT_APP_THEME,
 }: {
   title?: string;
   actionLabel?: string;
   onAction?: () => void;
   containerStyle?: ViewStyle;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const resolvedTitle = title?.trim() ?? '';
   if (!resolvedTitle) {
@@ -1141,6 +1402,7 @@ function OptionalSectionHeader({
       actionLabel={actionLabel}
       onAction={onAction}
       containerStyle={containerStyle}
+      theme={theme}
     />
   );
 }
@@ -1184,22 +1446,36 @@ function AudioMiniPlayer({
   title,
   enabled,
   onToggle,
+  theme = DEFAULT_APP_THEME,
 }: {
   isPlaying: boolean;
   isLoading: boolean;
   title?: string;
   enabled: boolean;
   onToggle: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   if (!enabled) {
     return null;
   }
 
   return (
-    <View style={styles.audioBar}>
+    <View
+      style={[
+        styles.audioBar,
+        isCleanSlateTheme(theme)
+          ? {
+              backgroundColor: theme.colors.background,
+              borderTopColor: theme.colors.border,
+            }
+          : null,
+      ]}
+    >
       <View style={styles.audioBarLeft}>
-        <Text style={styles.audioBarTitle}>{title || 'Live Audio'}</Text>
-        <Text style={styles.audioBarSub}>
+        <Text style={[styles.audioBarTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>
+          {title || 'Live Audio'}
+        </Text>
+        <Text style={[styles.audioBarSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : '#CFCFCF' }]}>
           {isLoading
             ? 'Loading stream...'
             : isPlaying
@@ -1208,13 +1484,25 @@ function AudioMiniPlayer({
         </Text>
       </View>
 
-      <Pressable style={styles.audioBarButton} onPress={onToggle}>
+      <Pressable
+        style={[
+          styles.audioBarButton,
+          isCleanSlateTheme(theme)
+            ? {
+                backgroundColor: theme.colors.surface,
+                borderWidth: 1,
+                borderColor: theme.colors.primary,
+              }
+            : null,
+        ]}
+        onPress={onToggle}
+      >
         <Ionicons
           name={isPlaying ? 'pause' : 'play'}
           size={18}
-          color={BRAND.white}
+          color={isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.white}
         />
-        <Text style={styles.audioBarButtonText}>
+        <Text style={[styles.audioBarButtonText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.white }]}>
           {isLoading ? '...' : isPlaying ? 'Pause' : 'Play'}
         </Text>
       </Pressable>
@@ -1226,10 +1514,12 @@ function LaunchSplash({
   splashBackgroundUrl,
   splashLogoUrl,
   schoolDisplayName,
+  theme = DEFAULT_APP_THEME,
 }: {
   splashBackgroundUrl?: string;
   splashLogoUrl?: string;
   schoolDisplayName?: string;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
@@ -1259,15 +1549,23 @@ function LaunchSplash({
     <Animated.View
       style={[
         styles.flashContainer,
+        isCleanSlateTheme(theme)
+          ? {
+              backgroundColor: theme.colors.background,
+            }
+          : null,
         {
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },
       ]}
     >
-      <StatusBar barStyle="light-content" backgroundColor="#1F3B7A" />
+      <StatusBar
+        barStyle={isCleanSlateTheme(theme) ? 'dark-content' : 'light-content'}
+        backgroundColor={isCleanSlateTheme(theme) ? theme.colors.background : '#1F3B7A'}
+      />
 
-      {hasResolvedUrl(splashBackgroundUrl) ? (
+      {hasResolvedUrl(splashBackgroundUrl) && !isCleanSlateTheme(theme) ? (
         <ImageBackground
           source={{ uri: splashBackgroundUrl }}
           style={styles.flashBackgroundImage}
@@ -1316,27 +1614,43 @@ function LaunchSplash({
           </Animated.View>
         </ImageBackground>
       ) : (
-        <LinearGradient
-          colors={[BRAND.black, BRAND.primaryDark, BRAND.surfaceAlt]}
-          style={styles.flashBackgroundImage}
+        <View
+          style={[
+            styles.flashBackgroundImage,
+            isCleanSlateTheme(theme)
+              ? { backgroundColor: theme.colors.background }
+              : null,
+          ]}
         >
-          <View style={styles.flashOverlay} />
+          {!isCleanSlateTheme(theme) ? <View style={styles.flashOverlay} /> : null}
 
-          <View style={styles.flashTopStripeWrap}>
-            <View style={styles.flashTopStripeBlack} />
-            <View style={styles.flashTopStripeRed} />
-            <View style={styles.flashTopStripeBlack} />
-          </View>
+          {!isCleanSlateTheme(theme) ? (
+            <View style={styles.flashTopStripeWrap}>
+              <View style={styles.flashTopStripeBlack} />
+              <View style={styles.flashTopStripeRed} />
+              <View style={styles.flashTopStripeBlack} />
+            </View>
+          ) : null}
 
           <View style={styles.flashCenterArea}>
-            <View style={styles.flashShadowLong} />
+            {!isCleanSlateTheme(theme) ? <View style={styles.flashShadowLong} /> : null}
             <Animated.View
               style={{
                 transform: [{ translateY: logoSlide }],
               }}
             >
               {hasResolvedUrl(splashLogoUrl) ? (
-                <View style={styles.flashLogoPlate}>
+                <View
+                  style={[
+                    styles.flashLogoPlate,
+                    isCleanSlateTheme(theme)
+                      ? {
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                        }
+                      : null,
+                  ]}
+                >
                   <Image
                     source={{ uri: splashLogoUrl }}
                     style={styles.flashMainLogo}
@@ -1357,10 +1671,17 @@ function LaunchSplash({
             ]}
           >
             {schoolDisplayName ? (
-              <Text style={styles.flashBottomSub}>{schoolDisplayName}</Text>
+              <Text
+                style={[
+                  styles.flashBottomSub,
+                  isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+                ]}
+              >
+                {schoolDisplayName}
+              </Text>
             ) : null}
           </Animated.View>
-        </LinearGradient>
+        </View>
       )}
     </Animated.View>
   );
@@ -1378,21 +1699,108 @@ function NewsCard({
   theme?: AthleticOSResolvedTheme;
 }) {
   const sportLabel = item.sportLabel?.trim() || 'Athletics';
+  const isCleanSlate = isCleanSlateTheme(theme);
 
   if (featured) {
+    if (isCleanSlate) {
+      return (
+        <Pressable
+          style={[
+            styles.featuredStoryCard,
+            getThemeSurfaceCardStyle(theme),
+            {
+              height: undefined,
+              minHeight: 0,
+              padding: 12,
+            },
+          ]}
+          onPress={onPress}
+        >
+          {item.image ? (
+            <Image
+              source={{ uri: item.image }}
+              style={[
+                styles.featuredStoryImage,
+                {
+                  position: 'relative',
+                  width: '100%',
+                  height: 194,
+                  borderRadius: 10,
+                  marginBottom: 14,
+                },
+              ]}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={[
+                styles.featuredStoryImage,
+                {
+                  position: 'relative',
+                  width: '100%',
+                  height: 194,
+                  borderRadius: 10,
+                  marginBottom: 14,
+                  backgroundColor: theme.colors.cardAlt,
+                },
+              ]}
+            />
+          )}
+
+          <View
+            style={[
+              styles.featuredPill,
+              getThemeEditorialPillStyle(theme),
+              { marginBottom: 12 },
+            ]}
+          >
+            <Text style={[styles.featuredPillText, { color: theme.colors.accent }]}>
+              {sportLabel}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.featuredStoryTitle,
+              {
+                color: theme.colors.text,
+                fontSize: 28,
+                lineHeight: 34,
+                marginBottom: 10,
+              },
+            ]}
+            numberOfLines={3}
+          >
+            {item.title}
+          </Text>
+          <Text style={[styles.featuredStoryMeta, { color: theme.colors.mutedText }]}>
+            {item.date || 'Latest News'}
+          </Text>
+        </Pressable>
+      );
+    }
+
     return (
-      <Pressable style={styles.featuredStoryCard} onPress={onPress}>
+      <Pressable
+        style={[styles.featuredStoryCard, getThemeSurfaceCardStyle(theme)]}
+        onPress={onPress}
+      >
         {item.image ? (
           <Image source={{ uri: item.image }} style={styles.featuredStoryImage} />
         ) : (
           <LinearGradient
-            colors={[BRAND.primaryDark, BRAND.black]}
+            colors={isCleanSlateTheme(theme)
+              ? [theme.colors.cardAlt, theme.colors.surface]
+              : [BRAND.primaryDark, BRAND.black]}
             style={styles.featuredStoryImage}
           />
         )}
 
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.92)']}
+          colors={
+            isCleanSlateTheme(theme)
+              ? ['rgba(255,255,255,0)', 'rgba(255,255,255,0.86)']
+              : ['transparent', 'rgba(0,0,0,0.92)']
+          }
           style={styles.featuredStoryOverlay}
         />
 
@@ -1402,10 +1810,13 @@ function NewsCard({
               {sportLabel}
             </Text>
           </View>
-          <Text style={styles.featuredStoryTitle} numberOfLines={3}>
+          <Text
+            style={[styles.featuredStoryTitle, { color: theme.colors.text }]}
+            numberOfLines={3}
+          >
             {item.title}
           </Text>
-          <Text style={styles.featuredStoryMeta}>
+          <Text style={[styles.featuredStoryMeta, { color: theme.colors.mutedText }]}>
             {item.date || 'Latest News'}
           </Text>
         </View>
@@ -1413,8 +1824,64 @@ function NewsCard({
     );
   }
 
+  if (isCleanSlate) {
+    return (
+      <Pressable style={[styles.newsCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.newsThumbWide} resizeMode="cover" />
+        ) : (
+          <View
+            style={[
+              styles.newsThumbFallbackWide,
+              {
+                backgroundColor: theme.colors.cardAlt,
+                borderColor: theme.colors.border,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <Ionicons name="newspaper-outline" size={22} color={theme.colors.accent} />
+          </View>
+        )}
+
+        <View style={styles.newsCardBody}>
+          <View
+            style={[
+              styles.featuredPill,
+              getThemeEditorialPillStyle(theme),
+              { marginBottom: 8 },
+            ]}
+          >
+            <Text style={[styles.featuredPillText, { color: theme.colors.accent }]}>
+              {sportLabel}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.newsCardTitle,
+              { color: theme.colors.text, fontSize: 18, lineHeight: 24 },
+            ]}
+            numberOfLines={2}
+          >
+            {item.title}
+          </Text>
+          <Text style={[styles.newsCardMeta, { color: theme.colors.mutedText }]}>
+            {item.date || 'Latest'}
+          </Text>
+        </View>
+
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={theme.colors.accent}
+          style={styles.newsChevron}
+        />
+      </Pressable>
+    );
+  }
+
   return (
-    <Pressable style={styles.newsCard} onPress={onPress}>
+    <Pressable style={[styles.newsCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
         <Image
           source={{ uri: item.image }}
@@ -1422,8 +1889,21 @@ function NewsCard({
           resizeMode="cover"
         />
       ) : (
-        <View style={styles.newsThumbFallbackWide}>
-          <Ionicons name="newspaper-outline" size={22} color={BRAND.white} />
+        <View
+          style={[
+            styles.newsThumbFallbackWide,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                }
+              : null,
+          ]}
+        >
+          <Ionicons
+            name="newspaper-outline"
+            size={22}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
         </View>
       )}
 
@@ -1433,16 +1913,18 @@ function NewsCard({
             {sportLabel}
           </Text>
         </View>
-        <Text style={styles.newsCardTitle} numberOfLines={2}>
+        <Text style={[styles.newsCardTitle, { color: theme.colors.text }]} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={styles.newsCardMeta}>{item.date || 'Latest'}</Text>
+        <Text style={[styles.newsCardMeta, { color: theme.colors.mutedText }]}>
+          {item.date || 'Latest'}
+        </Text>
       </View>
 
       <Ionicons
         name="chevron-forward"
         size={20}
-        color={BRAND.gray}
+        color={theme.colors.mutedText}
         style={styles.newsChevron}
       />
     </Pressable>
@@ -1464,20 +1946,70 @@ function StoryDetailScreen({
   const sportName = item.sportLabel?.trim() || 'Athletics';
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+    >
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={styles.storyDetailHero}
+        style={[styles.storyDetailHero, getThemeHeroShellStyle(theme)]}
       >
-        <Pressable style={styles.storyDetailBackButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+        <Pressable
+          style={[
+            styles.storyDetailBackButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
 
         <View style={styles.storyDetailHeroContent}>
-          {sportName ? <Text style={styles.storyDetailKicker}>{sportName}</Text> : null}
-          {item.date ? <Text style={styles.storyDetailDate}>{item.date}</Text> : null}
-          <Text style={styles.storyDetailTitle}>{item.title}</Text>
+          {sportName ? (
+            <Text
+              style={[
+                styles.storyDetailKicker,
+                { color: isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.lightGray },
+              ]}
+            >
+              {sportName}
+            </Text>
+          ) : null}
+          {item.date ? (
+            <Text
+              style={[
+                styles.storyDetailDate,
+                { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.8)' },
+              ]}
+            >
+              {item.date}
+            </Text>
+          ) : null}
+          <Text
+            style={[
+              styles.storyDetailTitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            {item.title}
+          </Text>
         </View>
       </LinearGradient>
 
@@ -1490,8 +2022,13 @@ function StoryDetailScreen({
       ) : null}
 
       {articleText ? (
-        <View style={styles.storyDetailArticlePanel}>
-          <Text style={styles.storyDetailBody}>{articleText}</Text>
+        <View
+          style={[
+            styles.storyDetailArticlePanel,
+            getThemeSoftCardStyle(theme),
+          ]}
+        >
+          <Text style={[styles.storyDetailBody, { color: theme.colors.text }]}>{articleText}</Text>
         </View>
       ) : null}
     </ScrollView>
@@ -1508,20 +2045,92 @@ function StoryCarouselCard({
   theme?: AthleticOSResolvedTheme;
 }) {
   const sportLabel = item.sportLabel?.trim() || 'Athletics';
+  const isCleanSlate = isCleanSlateTheme(theme);
+
+  if (isCleanSlate) {
+    return (
+      <Pressable
+        style={[
+          styles.storyCarouselCard,
+          getThemeSurfaceCardStyle(theme),
+          {
+            height: 286,
+            borderRadius: 14,
+          },
+        ]}
+        onPress={onPress}
+      >
+        {item.image ? (
+          <Image
+            source={{ uri: item.image }}
+            style={[
+              styles.storyCarouselImage,
+              {
+                position: 'relative',
+                width: '100%',
+                height: 158,
+              },
+            ]}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            style={[
+              styles.storyCarouselImage,
+              {
+                position: 'relative',
+                width: '100%',
+                height: 158,
+                backgroundColor: theme.colors.cardAlt,
+              },
+            ]}
+          />
+        )}
+
+        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 }}>
+          <View style={[styles.storyCarouselMetaRow, { marginBottom: 10 }]}>
+            <View style={[styles.featuredPill, getThemeEditorialPillStyle(theme), { marginBottom: 0 }]}>
+              <Text style={[styles.featuredPillText, { color: theme.colors.accent }]}>
+                {sportLabel}
+              </Text>
+            </View>
+            <Text style={[styles.storyCarouselMeta, { color: theme.colors.mutedText, marginLeft: 8 }]}>
+              {item.date || 'Latest News'}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.storyCarouselTitle,
+              { color: theme.colors.text, fontSize: 22, lineHeight: 28 },
+            ]}
+            numberOfLines={3}
+          >
+            {item.title}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
-    <Pressable style={styles.storyCarouselCard} onPress={onPress}>
+    <Pressable style={[styles.storyCarouselCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
         <Image source={{ uri: item.image }} style={styles.storyCarouselImage} />
       ) : (
         <LinearGradient
-          colors={[BRAND.primaryDark, BRAND.black]}
+          colors={isCleanSlateTheme(theme)
+            ? [theme.colors.cardAlt, theme.colors.surface]
+            : [BRAND.primaryDark, BRAND.black]}
           style={styles.storyCarouselImage}
         />
       )}
 
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.92)']}
+        colors={
+          isCleanSlateTheme(theme)
+            ? ['rgba(255,255,255,0)', 'rgba(255,255,255,0.88)']
+            : ['transparent', 'rgba(0,0,0,0.92)']
+        }
         style={styles.storyCarouselOverlay}
       />
 
@@ -1532,10 +2141,12 @@ function StoryCarouselCard({
               {sportLabel}
             </Text>
           </View>
-          <Text style={styles.storyCarouselMeta}>{item.date || 'Latest News'}</Text>
+          <Text style={[styles.storyCarouselMeta, { color: theme.colors.mutedText }]}>
+            {item.date || 'Latest News'}
+          </Text>
         </View>
 
-        <Text style={styles.storyCarouselTitle} numberOfLines={3}>
+        <Text style={[styles.storyCarouselTitle, { color: theme.colors.text }]} numberOfLines={3}>
           {item.title}
         </Text>
       </View>
@@ -1546,33 +2157,129 @@ function StoryCarouselCard({
 function VideoCarouselCard({
   item,
   onPress,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: VideoItem;
   onPress: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  if (isCleanSlateTheme(theme)) {
+    return (
+      <Pressable
+        style={[
+          styles.videoCarouselCard,
+          getThemeSurfaceCardStyle(theme),
+          {
+            height: 210,
+            borderRadius: 14,
+          },
+        ]}
+        onPress={onPress}
+      >
+        {item.image ? (
+          <Image
+            source={{ uri: item.image }}
+            style={[
+              styles.videoCarouselImage,
+              {
+                position: 'relative',
+                width: '100%',
+                height: 118,
+              },
+            ]}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            style={[
+              styles.videoCarouselImage,
+              {
+                position: 'relative',
+                width: '100%',
+                height: 118,
+                backgroundColor: theme.colors.cardAlt,
+              },
+            ]}
+          />
+        )}
+
+        <View
+          style={[
+            styles.videoPlayBadge,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+              top: 12,
+              right: 12,
+            },
+          ]}
+        >
+          <Ionicons name="play" size={18} color={theme.colors.accent} />
+        </View>
+
+        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12 }}>
+          <Text style={[styles.videoCarouselMeta, { color: theme.colors.mutedText }]}>
+            {item.date || 'Latest Video'}
+          </Text>
+          <Text
+            style={[
+              styles.videoCarouselTitle,
+              { color: theme.colors.text, fontSize: 20, lineHeight: 26 },
+            ]}
+            numberOfLines={3}
+          >
+            {item.title}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
+
   return (
-    <Pressable style={styles.videoCarouselCard} onPress={onPress}>
+    <Pressable style={[styles.videoCarouselCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
         <Image source={{ uri: item.image }} style={styles.videoCarouselImage} />
       ) : (
         <LinearGradient
-          colors={[BRAND.primaryDark, BRAND.black]}
+          colors={isCleanSlateTheme(theme)
+            ? [theme.colors.cardAlt, theme.colors.surface]
+            : [BRAND.primaryDark, BRAND.black]}
           style={styles.videoCarouselImage}
         />
       )}
 
       <LinearGradient
-        colors={['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.88)']}
+        colors={
+          isCleanSlateTheme(theme)
+            ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.9)']
+            : ['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.88)']
+        }
         style={styles.videoCarouselOverlay}
       />
 
-      <View style={styles.videoPlayBadge}>
-        <Ionicons name="play" size={18} color={BRAND.white} />
+      <View
+        style={[
+          styles.videoPlayBadge,
+          isCleanSlateTheme(theme)
+            ? {
+                backgroundColor: 'rgba(255,255,255,0.92)',
+                borderColor: theme.colors.border,
+              }
+            : null,
+        ]}
+      >
+        <Ionicons
+          name="play"
+          size={18}
+          color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.white}
+        />
       </View>
 
       <View style={styles.videoCarouselContent}>
-        <Text style={styles.videoCarouselMeta}>{item.date || 'Latest Video'}</Text>
-        <Text style={styles.videoCarouselTitle} numberOfLines={3}>
+        <Text style={[styles.videoCarouselMeta, { color: theme.colors.mutedText }]}>
+          {item.date || 'Latest Video'}
+        </Text>
+        <Text style={[styles.videoCarouselTitle, { color: theme.colors.text }]} numberOfLines={3}>
           {item.title}
         </Text>
       </View>
@@ -1583,32 +2290,107 @@ function VideoCarouselCard({
 function GalleryCarouselCard({
   item,
   onPress,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: GalleryItem;
   onPress: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  if (isCleanSlateTheme(theme)) {
+    return (
+      <Pressable
+        style={[
+          styles.galleryCarouselCard,
+          getThemeSurfaceCardStyle(theme),
+          {
+            height: 230,
+            borderRadius: 14,
+          },
+        ]}
+        onPress={onPress}
+      >
+        {item.image ? (
+          <Image
+            source={{ uri: item.image }}
+            style={[
+              styles.galleryCarouselImage,
+              {
+                position: 'relative',
+                width: '100%',
+                height: 134,
+              },
+            ]}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            style={[
+              styles.galleryCarouselImage,
+              {
+                position: 'relative',
+                width: '100%',
+                height: 134,
+                backgroundColor: theme.colors.cardAlt,
+              },
+            ]}
+          />
+        )}
+
+        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 }}>
+          <View style={[styles.storyCarouselMetaRow, { marginBottom: 10 }]}>
+            <Text style={[styles.galleryCarouselMeta, { color: theme.colors.accent, marginLeft: 0 }]}>
+              {item.sport || 'Gallery'}
+            </Text>
+            <Text style={[styles.galleryCarouselMeta, { color: theme.colors.mutedText }]}>
+              {item.date || 'Latest'}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.galleryCarouselTitle,
+              { color: theme.colors.text, fontSize: 22, lineHeight: 28 },
+            ]}
+            numberOfLines={3}
+          >
+            {item.title}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
+
   return (
-    <Pressable style={styles.galleryCarouselCard} onPress={onPress}>
+    <Pressable style={[styles.galleryCarouselCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
         <Image source={{ uri: item.image }} style={styles.galleryCarouselImage} />
       ) : (
         <LinearGradient
-          colors={[BRAND.primaryDark, BRAND.black]}
+          colors={isCleanSlateTheme(theme)
+            ? [theme.colors.cardAlt, theme.colors.surface]
+            : [BRAND.primaryDark, BRAND.black]}
           style={styles.galleryCarouselImage}
         />
       )}
 
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.9)']}
+        colors={
+          isCleanSlateTheme(theme)
+            ? ['rgba(255,255,255,0)', 'rgba(255,255,255,0.88)']
+            : ['transparent', 'rgba(0,0,0,0.9)']
+        }
         style={styles.galleryCarouselOverlay}
       />
 
       <View style={styles.galleryCarouselContent}>
         <View style={styles.storyCarouselMetaRow}>
-          <Text style={styles.galleryCarouselMeta}>{item.sport || 'Gallery'}</Text>
-          <Text style={styles.galleryCarouselMeta}>{item.date || 'Latest'}</Text>
+          <Text style={[styles.galleryCarouselMeta, { color: theme.colors.mutedText }]}>
+            {item.sport || 'Gallery'}
+          </Text>
+          <Text style={[styles.galleryCarouselMeta, { color: theme.colors.mutedText }]}>
+            {item.date || 'Latest'}
+          </Text>
         </View>
-        <Text style={styles.galleryCarouselTitle} numberOfLines={3}>
+        <Text style={[styles.galleryCarouselTitle, { color: theme.colors.text }]} numberOfLines={3}>
           {item.title}
         </Text>
       </View>
@@ -1619,10 +2401,106 @@ function GalleryCarouselCard({
 function PromotionCard({
   promotion,
   onPress,
+  theme = DEFAULT_APP_THEME,
 }: {
   promotion: AthleticOSPromotionCard;
   onPress?: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
+  if (isCleanSlateTheme(theme)) {
+    const cleanBody = (
+      <>
+        {promotion.image_url ? (
+          <Image
+            source={{ uri: promotion.image_url }}
+            style={{
+              width: '100%',
+              height: 150,
+            }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={{ width: '100%', height: 150, backgroundColor: theme.colors.cardAlt }} />
+        )}
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
+          <View
+            style={[
+              styles.promotionPill,
+              getThemeEditorialPillStyle(theme),
+              { marginBottom: 12 },
+            ]}
+          >
+            <Text style={[styles.promotionPillText, { color: theme.colors.accent }]}>
+              Featured
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.promotionCardTitle,
+              { color: theme.colors.text, fontSize: 28, lineHeight: 34 },
+            ]}
+            numberOfLines={3}
+          >
+            {promotion.title?.trim() || 'Promotion'}
+          </Text>
+          {promotion.subtitle?.trim() ? (
+            <Text
+              style={[
+                styles.promotionCardSubtitle,
+                { color: theme.colors.mutedText, marginTop: 10 },
+              ]}
+              numberOfLines={3}
+            >
+              {promotion.subtitle.trim()}
+            </Text>
+          ) : null}
+          {promotion.cta_text?.trim() ? (
+            <View
+              style={[
+                styles.promotionCardButton,
+                getThemeEditorialButtonStyle(theme),
+                { marginTop: 18, paddingHorizontal: 14, paddingVertical: 11 },
+              ]}
+            >
+              <Text style={[styles.promotionCardButtonText, { color: theme.colors.buttonText }]}>
+                {promotion.cta_text.trim()}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.buttonText} />
+            </View>
+          ) : null}
+        </View>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <Pressable
+          style={[
+            styles.promotionCard,
+            getThemeSurfaceCardStyle(theme),
+            { minHeight: 0, borderRadius: 14 },
+          ]}
+          onPress={onPress}
+        >
+          {cleanBody}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.promotionCard,
+          getThemeSurfaceCardStyle(theme),
+          { minHeight: 0, borderRadius: 14 },
+        ]}
+      >
+        {cleanBody}
+      </View>
+    );
+  }
+
   const cardBody = (
     <>
       {promotion.image_url ? (
@@ -1633,34 +2511,79 @@ function PromotionCard({
         />
       ) : (
         <LinearGradient
-          colors={[BRAND.primaryDark, BRAND.surface]}
+          colors={
+            isCleanSlateTheme(theme)
+              ? [theme.colors.cardAlt, theme.colors.surface]
+              : [BRAND.primaryDark, BRAND.surface]
+          }
           style={styles.promotionCardImage}
         />
       )}
 
       <LinearGradient
-        colors={promotion.image_url ? ['transparent', 'rgba(0,0,0,0.92)'] : ['rgba(0,0,0,0)', 'rgba(0,0,0,0)']}
+        colors={
+          promotion.image_url
+            ? isCleanSlateTheme(theme)
+              ? ['rgba(255,255,255,0)', 'rgba(255,255,255,0.88)']
+              : ['transparent', 'rgba(0,0,0,0.92)']
+            : ['rgba(0,0,0,0)', 'rgba(0,0,0,0)']
+        }
         style={styles.promotionCardOverlay}
       />
 
       <View style={styles.promotionCardContent}>
-        <View style={styles.promotionPill}>
-          <Text style={styles.promotionPillText}>Featured</Text>
+        <View
+          style={[
+            styles.promotionPill,
+            isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.pillBackground } : null,
+          ]}
+        >
+          <Text
+            style={[
+              styles.promotionPillText,
+              isCleanSlateTheme(theme) ? { color: theme.colors.pillText } : null,
+            ]}
+          >
+            Featured
+          </Text>
         </View>
-        <Text style={styles.promotionCardTitle} numberOfLines={3}>
+        <Text
+          style={[styles.promotionCardTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}
+          numberOfLines={3}
+        >
           {promotion.title?.trim() || 'Promotion'}
         </Text>
         {promotion.subtitle?.trim() ? (
-          <Text style={styles.promotionCardSubtitle} numberOfLines={3}>
+          <Text
+            style={[
+              styles.promotionCardSubtitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+            numberOfLines={3}
+          >
             {promotion.subtitle.trim()}
           </Text>
         ) : null}
         {promotion.cta_text?.trim() ? (
-          <View style={styles.promotionCardButton}>
-            <Text style={styles.promotionCardButtonText}>
+          <View
+            style={[
+              styles.promotionCardButton,
+              getThemeEditorialButtonStyle(theme),
+            ]}
+          >
+            <Text
+              style={[
+                styles.promotionCardButtonText,
+                isCleanSlateTheme(theme) ? { color: theme.colors.buttonText } : null,
+              ]}
+            >
               {promotion.cta_text.trim()}
             </Text>
-            <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={isCleanSlateTheme(theme) ? theme.colors.buttonText : BRAND.white}
+            />
           </View>
         ) : null}
       </View>
@@ -1669,13 +2592,13 @@ function PromotionCard({
 
   if (onPress) {
     return (
-      <Pressable style={styles.promotionCard} onPress={onPress}>
+      <Pressable style={[styles.promotionCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
         {cardBody}
       </Pressable>
     );
   }
 
-  return <View style={styles.promotionCard}>{cardBody}</View>;
+  return <View style={[styles.promotionCard, getThemeSurfaceCardStyle(theme)]}>{cardBody}</View>;
 }
 
 function AppPrerollScreen({
@@ -1783,14 +2706,107 @@ function AppPrerollScreen({
 function AthleteOfWeekCard({
   item,
   onPress,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: AthleticOSAthleteOfTheWeek;
   onPress?: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const imageUrl = item.featuredImageUrl || item.headshotUrl || null;
   const title = item.sportName || item.awardWeekLabel || 'Athlete of the Week';
   const subtitle = item.summary || item.opponent || null;
   const statsLine = item.stats?.trim() || null;
+
+  if (isCleanSlateTheme(theme)) {
+    const cardBody = (
+      <>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{ width: '100%', height: 162 }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={{ width: '100%', height: 162, backgroundColor: theme.colors.cardAlt }} />
+        )}
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
+          {item.athleteName ? (
+            <Text
+              style={[
+                styles.athleteOfWeekName,
+                { color: theme.colors.accent, marginBottom: 10 },
+              ]}
+              numberOfLines={1}
+            >
+              {item.athleteName}
+            </Text>
+          ) : null}
+
+          <Text
+            style={[
+              styles.athleteOfWeekTitle,
+              { color: theme.colors.text, fontSize: 26, lineHeight: 32 },
+            ]}
+            numberOfLines={3}
+          >
+            {title}
+          </Text>
+
+          {subtitle ? (
+            <Text
+              style={[
+                styles.athleteOfWeekSubtitle,
+                { color: theme.colors.mutedText, marginTop: 10 },
+              ]}
+              numberOfLines={3}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+
+          {statsLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekStats,
+                { color: theme.colors.mutedText },
+              ]}
+              numberOfLines={2}
+            >
+              {statsLine}
+            </Text>
+          ) : null}
+        </View>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <Pressable
+          style={[
+            styles.athleteOfWeekCard,
+            getThemeSurfaceCardStyle(theme),
+            { minHeight: 0, borderRadius: 14 },
+          ]}
+          onPress={onPress}
+        >
+          {cardBody}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.athleteOfWeekCard,
+          getThemeSurfaceCardStyle(theme),
+          { minHeight: 0, borderRadius: 14 },
+        ]}
+      >
+        {cardBody}
+      </View>
+    );
+  }
 
   const cardBody = (
     <>
@@ -1802,41 +2818,79 @@ function AthleteOfWeekCard({
         />
       ) : (
         <LinearGradient
-          colors={[BRAND.primaryDark, BRAND.surface]}
+          colors={
+            isCleanSlateTheme(theme)
+              ? [theme.colors.cardAlt, theme.colors.surface]
+              : [BRAND.primaryDark, BRAND.surface]
+          }
           style={styles.athleteOfWeekImage}
         />
       )}
 
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.92)']}
+        colors={
+          isCleanSlateTheme(theme)
+            ? ['rgba(255,255,255,0)', 'rgba(255,255,255,0.88)']
+            : ['transparent', 'rgba(0,0,0,0.92)']
+        }
         style={styles.athleteOfWeekOverlay}
       />
 
       <View style={styles.athleteOfWeekContent}>
         <View style={styles.athleteOfWeekTopRow}>
-          <View style={styles.promotionPill}>
-            <Text style={styles.promotionPillText}>Athlete of the Week</Text>
+          <View
+            style={[
+              styles.promotionPill,
+              isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.pillBackground } : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.promotionPillText,
+                isCleanSlateTheme(theme) ? { color: theme.colors.pillText } : null,
+              ]}
+            >
+              Athlete of the Week
+            </Text>
           </View>
         </View>
 
         {item.athleteName ? (
-          <Text style={styles.athleteOfWeekName} numberOfLines={1}>
+          <Text
+            style={[styles.athleteOfWeekName, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}
+            numberOfLines={1}
+          >
             {item.athleteName}
           </Text>
         ) : null}
 
-        <Text style={styles.athleteOfWeekTitle} numberOfLines={3}>
+        <Text
+          style={[styles.athleteOfWeekTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}
+          numberOfLines={3}
+        >
           {title}
         </Text>
 
         {subtitle ? (
-          <Text style={styles.athleteOfWeekSubtitle} numberOfLines={3}>
+          <Text
+            style={[
+              styles.athleteOfWeekSubtitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+            numberOfLines={3}
+          >
             {subtitle}
           </Text>
         ) : null}
 
         {statsLine ? (
-          <Text style={styles.athleteOfWeekStats} numberOfLines={2}>
+          <Text
+            style={[
+              styles.athleteOfWeekStats,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+            numberOfLines={2}
+          >
             {statsLine}
           </Text>
         ) : null}
@@ -1847,34 +2901,50 @@ function AthleteOfWeekCard({
 
   if (onPress) {
     return (
-      <Pressable style={styles.athleteOfWeekCard} onPress={onPress}>
+      <Pressable style={[styles.athleteOfWeekCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
         {cardBody}
       </Pressable>
     );
   }
 
-  return <View style={styles.athleteOfWeekCard}>{cardBody}</View>;
+  return <View style={[styles.athleteOfWeekCard, getThemeSurfaceCardStyle(theme)]}>{cardBody}</View>;
 }
 
 function AthleteOfWeekDetailScreen({
   item,
   onBack,
+  theme = DEFAULT_APP_THEME,
 }: {
   item: AthleticOSAthleteOfTheWeek;
   onBack: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const imageUrl = item.featuredImageUrl || item.headshotUrl || null;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+    >
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={[styles.sportHeader, isCleanSlateTheme(theme) ? getThemeHeroShellStyle(theme) : null]}
+      >
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme)
+              ? { backgroundColor: theme.colors.cardAlt, borderColor: theme.colors.border }
+              : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons name="arrow-back" size={20} color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white} />
+          <Text style={[styles.backButtonText, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Back</Text>
         </Pressable>
-        <Text style={styles.sportHeaderTitle}>Athlete of the Week</Text>
+        <Text style={[styles.sportHeaderTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Athlete of the Week</Text>
         {item.awardWeekLabel ? (
-          <Text style={styles.sportHeaderSub}>{item.awardWeekLabel}</Text>
+          <Text style={[styles.sportHeaderSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>{item.awardWeekLabel}</Text>
         ) : null}
       </LinearGradient>
 
@@ -1887,39 +2957,50 @@ function AthleteOfWeekDetailScreen({
           />
         ) : null}
 
-        <View style={styles.aotwDetailCard}>
-          <Text style={styles.aotwDetailName}>{item.athleteName}</Text>
+        <View
+          style={[
+            styles.aotwDetailCard,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+            getThemeSurfaceCardStyle(theme),
+          ]}
+        >
+          <Text style={[styles.aotwDetailName, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>{item.athleteName}</Text>
 
           {item.sportName ? (
-            <Text style={styles.aotwDetailMeta}>{item.sportName}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>{item.sportName}</Text>
           ) : null}
 
           {item.classYear ? (
-            <Text style={styles.aotwDetailMeta}>Class Year: {item.classYear}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Class Year: {item.classYear}</Text>
           ) : null}
 
           {item.position ? (
-            <Text style={styles.aotwDetailMeta}>Position: {item.position}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Position: {item.position}</Text>
           ) : null}
 
           {item.awardWeekLabel ? (
-            <Text style={styles.aotwDetailMeta}>Week: {item.awardWeekLabel}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Week: {item.awardWeekLabel}</Text>
           ) : null}
 
           {item.awardDate ? (
-            <Text style={styles.aotwDetailMeta}>
+            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>
               Award Date: {formatDate(item.awardDate)}
             </Text>
           ) : null}
 
           {item.opponent ? (
-            <Text style={styles.aotwDetailMeta}>Opponent: {item.opponent}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Opponent: {item.opponent}</Text>
           ) : null}
 
           {item.summary ? (
             <View style={styles.aotwDetailSection}>
-              <Text style={styles.aotwDetailSectionTitle}>Summary</Text>
-              <Text style={styles.aotwDetailBody}>{item.summary}</Text>
+              <Text style={[styles.aotwDetailSectionTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Summary</Text>
+              <Text style={[styles.aotwDetailBody, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>{item.summary}</Text>
             </View>
           ) : null}
 
@@ -1959,32 +3040,52 @@ function EventCard({
 
   return (
     <Pressable
-      style={[styles.eventCard, normalized.hasScore ? styles.resultEventCard : null]}
+      style={[
+        styles.eventCard,
+        normalized.hasScore ? styles.resultEventCard : null,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+        getThemeCardShellStyle(theme),
+      ]}
       onPress={onPress}
     >
       {!normalized.hasScore ? (
         <>
           <View style={styles.eventTopRow}>
-            <Text style={[styles.eventSportLine, { color: theme.colors.pillBackground }]}>
+            <Text
+              style={[
+                styles.eventSportLine,
+                { color: isCleanSlateTheme(theme) ? theme.colors.accent : theme.colors.pillBackground },
+              ]}
+            >
               {normalized.sport}
             </Text>
             {normalized.homeAway ? (
-              <Text style={styles.eventVsLine}>{normalized.homeAway}</Text>
+              <Text style={[styles.eventVsLine, { color: theme.colors.mutedText }]}>
+                {normalized.homeAway}
+              </Text>
             ) : null}
           </View>
 
           <View style={styles.eventMainRow}>
             <View style={styles.eventTextWrap}>
-              <Text style={styles.eventOpponentLine} numberOfLines={2}>
+              <Text style={[styles.eventOpponentLine, { color: theme.colors.text }]} numberOfLines={2}>
                 {normalized.opponent}
               </Text>
 
-              <Text style={styles.eventMeta}>{normalized.displayDate}</Text>
+              <Text style={[styles.eventMeta, { color: theme.colors.text }]}>{normalized.displayDate}</Text>
               {showTime && normalized.timeLabel ? (
-                <Text style={styles.eventMetaSecondary}>{normalized.timeLabel}</Text>
+                <Text style={[styles.eventMetaSecondary, { color: theme.colors.mutedText }]}>
+                  {normalized.timeLabel}
+                </Text>
               ) : null}
               {normalized.locationLabel ? (
-                <Text style={styles.eventMetaSecondary} numberOfLines={1}>
+                <Text
+                  style={[styles.eventMetaSecondary, { color: theme.colors.mutedText }]}
+                  numberOfLines={1}
+                >
                   {normalized.locationLabel}
                 </Text>
               ) : null}
@@ -2018,7 +3119,17 @@ function EventCard({
           <View style={styles.resultMainRow}>
             <View style={styles.resultTeamRowLeft}>
               {normalized.opponentLogoUrl ? (
-                <View style={styles.resultLogoPlate}>
+                <View
+                  style={[
+                    styles.resultLogoPlate,
+                    isCleanSlateTheme(theme)
+                      ? {
+                          backgroundColor: theme.colors.cardAlt,
+                          borderColor: theme.colors.border,
+                        }
+                      : null,
+                  ]}
+                >
                   <Image
                     source={{ uri: normalized.opponentLogoUrl }}
                     style={styles.resultLogo}
@@ -2026,16 +3137,16 @@ function EventCard({
                   />
                 </View>
               ) : null}
-              <Text style={styles.resultOpponentName} numberOfLines={2}>
+              <Text style={[styles.resultOpponentName, { color: theme.colors.text }]} numberOfLines={2}>
                 {matchupLabel}
               </Text>
             </View>
-            <Text style={styles.resultScore}>
+            <Text style={[styles.resultScore, { color: theme.colors.text }]}>
               {normalized.teamScore} - {normalized.opponentScore}
             </Text>
           </View>
 
-          <Text style={styles.eventMeta}>{normalized.displayDate}</Text>
+          <Text style={[styles.eventMeta, { color: theme.colors.text }]}>{normalized.displayDate}</Text>
         </>
       )}
     </Pressable>
@@ -2099,22 +3210,63 @@ function PulseDot() {
 function TeamTile({
   sport,
   onPress,
+  theme = DEFAULT_APP_THEME,
 }: {
   sport: SportType;
   onPress: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   return (
     <Pressable style={styles.teamTile} onPress={onPress}>
       <LinearGradient
-        colors={[BRAND.surfaceAlt, BRAND.surface]}
-        style={styles.teamTileInner}
+        colors={
+          isCleanSlateTheme(theme)
+            ? [theme.colors.surface, theme.colors.cardAlt]
+            : [BRAND.surfaceAlt, BRAND.surface]
+        }
+        style={[
+          styles.teamTileInner,
+          isCleanSlateTheme(theme)
+            ? {
+                borderColor: theme.colors.border,
+                borderRadius: 14,
+              }
+            : null,
+        ]}
       >
-        <Text style={styles.teamTileTitle}>
+        {isCleanSlateTheme(theme) ? (
+          <View
+            style={{
+              width: 24,
+              height: 3,
+              borderRadius: 999,
+              backgroundColor: theme.colors.accent,
+              marginBottom: 12,
+            }}
+          />
+        ) : null}
+        <Text style={[styles.teamTileTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>
           {sport.shortLabel || sport.label}
         </Text>
-        <Text style={styles.teamTileSub}>News, roster, schedule</Text>
-        <View style={styles.teamTileArrowWrap}>
-          <Ionicons name="chevron-forward" size={18} color={BRAND.red} />
+        <Text style={[styles.teamTileSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray }]}>
+          News, roster, schedule
+        </Text>
+        <View
+          style={[
+            styles.teamTileArrowWrap,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.red}
+          />
         </View>
       </LinearGradient>
     </Pressable>
@@ -2320,22 +3472,6 @@ function HomeScreen({
     return () => clearInterval(interval);
   }, [sponsorCarouselPlacements.length]);
 
-  useEffect(() => {
-    console.log('[AthleticOS] sponsor placement counts:', {
-      all: sponsorPlacements.length,
-      renderable: enabledSponsorPlacements.length,
-      presenting: heroSponsorPlacement ? 1 : 0,
-      sponsors: standardSponsorPlacements.length,
-      carousel: sponsorCarouselPlacements.length,
-    });
-  }, [
-    enabledSponsorPlacements.length,
-    heroSponsorPlacement,
-    sponsorCarouselPlacements.length,
-    sponsorPlacements.length,
-    standardSponsorPlacements.length,
-  ]);
-
   let heroEyebrow = 'Live Coverage';
   let heroTitle = 'Live Coverage';
   let heroText =
@@ -2401,18 +3537,101 @@ function HomeScreen({
         style={({ pressed }) => [
           styles.liveNowCard,
           isAnythingLive ? styles.liveNowCardLive : null,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: isAnythingLive && !isCleanSlateTheme(theme)
+              ? 'rgba(239,68,68,0.45)'
+              : theme.colors.border,
+          },
+          getThemeCardShellStyle(theme),
+          isCleanSlateTheme(theme)
+            ? {
+                paddingHorizontal: 18,
+                paddingVertical: 18,
+                borderRadius: 14,
+                borderLeftWidth: 0,
+                borderTopWidth: 1,
+                borderTopColor: withAlpha(theme.colors.accent, '30'),
+                shadowColor: withAlpha(theme.colors.text, '22'),
+                shadowOpacity: 0.08,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 6 },
+                elevation: 2,
+              }
+            : null,
           pressed ? { opacity: 0.88, transform: [{ scale: 0.985 }] } : null,
         ]}
         onPress={handleOpenLiveCoverage}
       >
         <View style={styles.liveNowLeft}>
-          <Text style={styles.liveNowEyebrow}>{eyebrow}</Text>
-          <Text style={styles.liveNowTitle}>{title}</Text>
-          {bodyCopy ? <Text style={styles.liveNowText}>{bodyCopy}</Text> : null}
+          <Text
+            style={[
+              styles.liveNowEyebrow,
+              isCleanSlateTheme(theme)
+                ? {
+                    color: theme.colors.accent,
+                    fontSize: 11,
+                    letterSpacing: 0.9,
+                    marginBottom: 6,
+                  }
+                : { color: BRAND.red },
+            ]}
+          >
+            {eyebrow}
+          </Text>
+          <Text
+            style={[
+              styles.liveNowTitle,
+              isCleanSlateTheme(theme)
+                ? {
+                    color: theme.colors.text,
+                    fontSize: 20,
+                    lineHeight: 24,
+                    marginBottom: 6,
+                  }
+                : { color: theme.colors.text },
+            ]}
+          >
+            {title}
+          </Text>
+          {bodyCopy ? (
+            <Text
+              style={[
+                styles.liveNowText,
+                isCleanSlateTheme(theme)
+                  ? {
+                      color: theme.colors.mutedText,
+                      fontSize: 13,
+                      lineHeight: 19,
+                    }
+                  : { color: theme.colors.mutedText },
+              ]}
+            >
+              {bodyCopy}
+            </Text>
+          ) : null}
 
           <View style={styles.liveNowCTA}>
-            <Text style={styles.liveNowCTAText}>{ctaLabel}</Text>
-            <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
+            <Text
+              style={[
+                styles.liveNowCTAText,
+                isCleanSlateTheme(theme)
+                  ? {
+                      color: theme.colors.accent,
+                      fontSize: 11,
+                      letterSpacing: 0.8,
+                      textTransform: 'uppercase',
+                    }
+                  : { color: BRAND.red },
+              ]}
+            >
+              {ctaLabel}
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.white}
+            />
           </View>
         </View>
 
@@ -2421,7 +3640,21 @@ function HomeScreen({
             <View
               style={[
                 styles.heroStatusPill,
-                isAnythingLive ? styles.heroStatusPillLive : styles.heroStatusPillOff,
+                isAnythingLive
+                  ? isCleanSlateTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.surface,
+                        borderWidth: 1,
+                        borderColor: withAlpha(theme.colors.accent, '24'),
+                      }
+                    : styles.heroStatusPillLive
+                  : isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.surface,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                    }
+                  : styles.heroStatusPillOff,
               ]}
             >
               {isAnythingLive ? <PulseDot /> : null}
@@ -2435,11 +3668,16 @@ function HomeScreen({
                     : 'radio-outline'
                 }
                 size={16}
-                color={BRAND.white}
+                color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
                 style={styles.heroStatusIcon}
               />
 
-              <Text style={styles.heroStatusText}>
+              <Text
+                style={[
+                  styles.heroStatusText,
+                  { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                ]}
+              >
                 {isVideoLive && isAudioLive
                   ? 'Live Audio + Video'
                   : isVideoLive
@@ -2457,22 +3695,23 @@ function HomeScreen({
 
   const renderStoriesModule = (title: string) => (
     <React.Fragment key="stories">
-      <OptionalSectionHeader
-        title={title}
-        actionLabel={hasMainSiteUrl ? 'Website' : undefined}
-        onAction={
-          hasMainSiteUrl
-            ? () => onOpenEmbedded('Website', schoolConfig.mainSiteUrl)
-            : undefined
-        }
-      />
+        <OptionalSectionHeader
+          title={title}
+          actionLabel={hasMainSiteUrl ? 'Website' : undefined}
+          onAction={
+            hasMainSiteUrl
+              ? () => onOpenEmbedded('Website', schoolConfig.mainSiteUrl)
+              : undefined
+          }
+          theme={theme}
+        />
       {newsLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : storyCarouselItems.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No news stories found.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No news stories found.</Text>
         </View>
       ) : (
         <ScrollView
@@ -2502,7 +3741,7 @@ function HomeScreen({
 
     return (
       <React.Fragment key="videos">
-        <OptionalSectionHeader title={title} />
+        <OptionalSectionHeader title={title} theme={theme} />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -2514,6 +3753,7 @@ function HomeScreen({
             <VideoCarouselCard
               key={`${item.id}-${index}`}
               item={item}
+              theme={theme}
               onPress={() => {
                 Linking.openURL(item.link).catch((error) => {
                   console.log('Video open error:', error);
@@ -2533,7 +3773,7 @@ function HomeScreen({
 
     return (
       <React.Fragment key="galleries">
-        <OptionalSectionHeader title={title} />
+        <OptionalSectionHeader title={title} theme={theme} />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -2545,6 +3785,7 @@ function HomeScreen({
             <GalleryCarouselCard
               key={`${item.id}-${index}`}
               item={item}
+              theme={theme}
               onPress={() => onOpenEmbedded(item.title, item.link)}
             />
           ))}
@@ -2555,15 +3796,19 @@ function HomeScreen({
 
   const renderRecentResultsModule = (title: string) => (
     <React.Fragment key="recent_results">
-      <OptionalSectionHeader title={title} />
+      <OptionalSectionHeader title={title} theme={theme} />
       {eventsLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : visibleRecentEvents.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No recent finals from the last 7 days.</Text>
-          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            No recent finals from the last 7 days.
+          </Text>
+          <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
+            Pull down to refresh and check again.
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -2591,15 +3836,20 @@ function HomeScreen({
         title={title}
         actionLabel={hasScheduleUrl ? 'Schedule' : undefined}
         onAction={hasScheduleUrl ? onOpenSchedule : undefined}
+        theme={theme}
       />
       {eventsLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : visibleUpcomingEvents.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No upcoming events in the next 7 days.</Text>
-          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            No upcoming events in the next 7 days.
+          </Text>
+          <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
+            Pull down to refresh and check again.
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -2622,10 +3872,10 @@ function HomeScreen({
 
   const renderNextGameModule = (title: string) => (
     <React.Fragment key="next_game">
-      <OptionalSectionHeader title={title} />
+      <OptionalSectionHeader title={title} theme={theme} />
       {eventsLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : firstUpcomingEvent ? (
         <View style={styles.newsList}>
@@ -2636,8 +3886,8 @@ function HomeScreen({
           />
         </View>
       ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No upcoming games scheduled.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No upcoming games scheduled.</Text>
         </View>
       )}
     </React.Fragment>
@@ -2646,8 +3896,8 @@ function HomeScreen({
   const renderAthleteOfWeekModule = (title: string) => (
     athleteOfWeek?.athleteName?.trim() ? (
       <React.Fragment key="athlete_of_week">
-        <OptionalSectionHeader title={title} />
-        <AthleteOfWeekCard item={athleteOfWeek} />
+        <OptionalSectionHeader title={title} theme={theme} />
+        <AthleteOfWeekCard item={athleteOfWeek} theme={theme} />
       </React.Fragment>
     ) : null
   );
@@ -2660,9 +3910,13 @@ function HomeScreen({
     const card = (
       <>
         <View style={styles.sponsorTextWrap}>
-          <Text style={styles.sponsorEyebrow}>Presented by</Text>
-          <Text style={styles.sponsorTitle}>{sponsorCardTitle}</Text>
-          <Text style={styles.sponsorText}>
+          <Text style={[styles.sponsorEyebrow, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : '#F5D7DD' }]}>
+            Presented by
+          </Text>
+          <Text style={[styles.sponsorTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>
+            {sponsorCardTitle}
+          </Text>
+          <Text style={[styles.sponsorText, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : '#F3F4F6' }]}>
             Premium sponsor placement for the AthleticOS app experience.
           </Text>
         </View>
@@ -2679,16 +3933,16 @@ function HomeScreen({
 
     return (
       <React.Fragment key="sponsors">
-        <OptionalSectionHeader title={title} />
+        <OptionalSectionHeader title={title} theme={theme} />
         {hasSponsorCardLink ? (
           <Pressable
-            style={styles.sponsorCard}
+            style={[styles.sponsorCard, getThemeSoftCardStyle(theme)]}
             onPress={() => onOpenEmbedded(sponsorCardTitle, sponsorCardLink)}
           >
             {card}
           </Pressable>
         ) : (
-          <View style={styles.sponsorCard}>{card}</View>
+          <View style={[styles.sponsorCard, getThemeSoftCardStyle(theme)]}>{card}</View>
         )}
       </React.Fragment>
     );
@@ -2706,9 +3960,13 @@ function HomeScreen({
     const card = (
       <>
         <View style={styles.sponsorTextWrap}>
-          <Text style={styles.sponsorEyebrow}>{title}</Text>
-          <Text style={styles.sponsorTitle}>{presentingTitle}</Text>
-          <Text style={styles.sponsorText}>
+          <Text style={[styles.sponsorEyebrow, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : '#F5D7DD' }]}>
+            {title}
+          </Text>
+          <Text style={[styles.sponsorTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>
+            {presentingTitle}
+          </Text>
+          <Text style={[styles.sponsorText, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : '#F3F4F6' }]}>
             Official presenting sponsor for the AthleticOS app experience.
           </Text>
         </View>
@@ -2727,13 +3985,13 @@ function HomeScreen({
       <React.Fragment key="presenting_sponsor">
         {hasPresentingLink ? (
           <Pressable
-            style={styles.sponsorCard}
+            style={[styles.sponsorCard, getThemeSoftCardStyle(theme)]}
             onPress={() => onOpenEmbedded(presentingTitle, presentingLink)}
           >
             {card}
           </Pressable>
         ) : (
-          <View style={styles.sponsorCard}>{card}</View>
+          <View style={[styles.sponsorCard, getThemeSoftCardStyle(theme)]}>{card}</View>
         )}
       </React.Fragment>
     );
@@ -2749,6 +4007,7 @@ function HomeScreen({
         <OptionalSectionHeader
           title={title}
           containerStyle={styles.sectionHeaderTightTop}
+          theme={theme}
         />
         <ScrollView
           ref={sponsorCarouselRef}
@@ -2781,7 +4040,13 @@ function HomeScreen({
                     />
                   </View>
                 ) : (
-                  <Text style={styles.sponsorCarouselName} numberOfLines={2}>
+                  <Text
+                    style={[
+                      styles.sponsorCarouselName,
+                      { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                    ]}
+                    numberOfLines={2}
+                  >
                     {sponsorName}
                   </Text>
                 )}
@@ -2791,7 +4056,7 @@ function HomeScreen({
             return hasSponsorLink ? (
               <Pressable
                 key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
-                style={styles.sponsorCarouselCard}
+                style={[styles.sponsorCarouselCard, getThemeSoftCardStyle(theme)]}
                 onPress={() => onOpenEmbedded(sponsorName, sponsorLink)}
               >
                 {card}
@@ -2799,7 +4064,7 @@ function HomeScreen({
             ) : (
               <View
                 key={`${placement.id ?? placement.placement_key ?? sponsorName}-${index}`}
-                style={styles.sponsorCarouselCard}
+                style={[styles.sponsorCarouselCard, getThemeSoftCardStyle(theme)]}
               >
                 {card}
               </View>
@@ -2817,10 +4082,11 @@ function HomeScreen({
 
     return (
       <React.Fragment key="promotion">
-        <OptionalSectionHeader title={title} />
+        <OptionalSectionHeader title={title} theme={theme} />
         <View style={styles.promotionModuleBottomSpacing}>
           <PromotionCard
             promotion={promotionCard}
+            theme={theme}
             onPress={
               hasPromotionCtaUrl
                 ? () =>
@@ -2874,8 +4140,8 @@ function HomeScreen({
 
   return (
     <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.screenContent}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -2888,30 +4154,116 @@ function HomeScreen({
         colors={getThemeHeroGradient(theme)}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.homeHeader}
+        style={[
+          styles.homeHeader,
+          getThemeHeroShellStyle(theme),
+          isCleanSlateTheme(theme)
+            ? {
+                marginTop: 4,
+                paddingTop: 6,
+                paddingHorizontal: 14,
+                paddingBottom: 8,
+                borderRadius: 16,
+              }
+            : null,
+        ]}
       >
-        <View style={styles.heroBackdropGlow} />
+        {isCleanSlateTheme(theme) ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 14,
+              bottom: 14,
+              width: 3,
+              borderTopRightRadius: 999,
+              borderBottomRightRadius: 999,
+              backgroundColor: theme.colors.primary,
+            }}
+          />
+        ) : null}
+        <View
+          style={[
+            styles.heroBackdropGlow,
+            isCleanSlateTheme(theme)
+              ? {
+                  width: 72,
+                  height: 72,
+                  top: 8,
+                  right: 8,
+                  backgroundColor: withAlpha(theme.colors.primary, '08'),
+                }
+              : null,
+          ]}
+        />
         <View style={styles.headerTopRow}>
           <View style={styles.headerLeft}>
             {hasSchoolLogo ? (
-              <View style={styles.teamLogoBox}>
+              <View
+                style={[
+                  styles.teamLogoBox,
+                  isCleanSlateTheme(theme)
+                    ? {
+                        width: 52,
+                        height: 52,
+                        borderRadius: 12,
+                        marginRight: 10,
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                      }
+                    : null,
+                ]}
+              >
                 <Image
                   source={{ uri: schoolConfig.logoUrl }}
-                  style={styles.headerTeamLogo}
+                  style={[
+                    styles.headerTeamLogo,
+                    isCleanSlateTheme(theme) ? { width: 36, height: 36 } : null,
+                  ]}
                   resizeMode="contain"
                 />
               </View>
             ) : null}
 
             <View style={styles.headerTitleWrap}>
-              <Text style={styles.appTitle} numberOfLines={1} adjustsFontSizeToFit>
+              <Text
+                style={[
+                  styles.appTitle,
+                  {
+                    color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
+                    ...(isCleanSlateTheme(theme)
+                      ? { fontSize: 22, letterSpacing: 0, fontWeight: '800' as const }
+                      : null),
+                  },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 {heroBrandTitle}
               </Text>
-              <Text style={styles.appSubtitle} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.appSubtitle,
+                  { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.78)' },
+                  isCleanSlateTheme(theme)
+                    ? { fontSize: 12, marginTop: 2, fontWeight: '600' as const }
+                    : null,
+                ]}
+                numberOfLines={1}
+              >
                 {heroBrandSubtitle}
               </Text>
               {showHeroSponsor && heroSponsorName ? (
-                <Text style={styles.heroSponsorInlineText} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.heroSponsorInlineText,
+                    { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(255,255,255,0.72)' },
+                    isCleanSlateTheme(theme)
+                      ? { fontSize: 10, marginTop: 4, letterSpacing: 0.4 }
+                      : null,
+                  ]}
+                  numberOfLines={1}
+                >
                   Presented by {heroSponsorName}
                 </Text>
               ) : null}
@@ -2921,7 +4273,18 @@ function HomeScreen({
           {showHeroSponsor && hasHeroSponsorLogo ? (
             hasHeroSponsorLink ? (
               <Pressable
-                style={styles.heroSponsorLogoWrap}
+                style={[
+                  styles.heroSponsorLogoWrap,
+                  isCleanSlateTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.surface,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 12,
+                        paddingHorizontal: 10,
+                      }
+                    : null,
+                ]}
                 onPress={() =>
                   onOpenEmbedded(heroSponsorName || 'Sponsor', heroSponsorLink)
                 }
@@ -2933,7 +4296,20 @@ function HomeScreen({
                 />
               </Pressable>
             ) : (
-              <View style={styles.heroSponsorLogoWrap}>
+              <View
+                style={[
+                  styles.heroSponsorLogoWrap,
+                  isCleanSlateTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.surface,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 12,
+                        paddingHorizontal: 10,
+                      }
+                    : null,
+                ]}
+              >
                 <Image
                   source={{ uri: heroSponsorLogo }}
                   style={styles.heroSponsorLogo}
@@ -2948,22 +4324,30 @@ function HomeScreen({
           style={[
             styles.heroButtonRow,
             heroActionCount >= 4 ? styles.heroButtonRowCompact : null,
+            isCleanSlateTheme(theme)
+              ? {
+                  marginTop: 2,
+                  gap: 8,
+                }
+              : null,
           ]}
         >
           {hasWatchUrl ? (
             <TopIcon
               label="Watch"
               icon="videocam"
+              theme={theme}
               onPress={() => onOpenExternal(schoolConfig.watchUrl)}
             />
           ) : null}
           {hasListenUrl ? (
-            <TopIcon label="Listen" icon="headset" onPress={onToggleAudio} />
+            <TopIcon label="Listen" icon="headset" onPress={onToggleAudio} theme={theme} />
           ) : null}
           {hasScheduleUrl ? (
             <TopIcon
               label="Schedule"
               icon="calendar"
+              theme={theme}
               onPress={onOpenSchedule}
             />
           ) : null}
@@ -2971,6 +4355,7 @@ function HomeScreen({
             <TopIcon
               label="Website"
               icon="globe-outline"
+              theme={theme}
               onPress={() => onOpenEmbedded('Website', schoolConfig.mainSiteUrl)}
             />
           ) : null}
@@ -2978,29 +4363,80 @@ function HomeScreen({
       </LinearGradient>
 
       {showNotificationPrompt && !notificationsEnabled && (
-        <View style={styles.notificationSignupCard}>
+        <View
+          style={[
+            styles.notificationSignupCard,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+        >
           <View style={styles.notificationTextWrap}>
-            <Text style={styles.notificationSignupTitle}>
+            <Text
+              style={[
+                styles.notificationSignupTitle,
+                { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+              ]}
+            >
               Get live broadcast + final score alerts
             </Text>
-            <Text style={styles.notificationSignupText}>
+            <Text
+              style={[
+                styles.notificationSignupText,
+                { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray },
+              ]}
+            >
               Be the first to know when your teams are live and when finals go official.
             </Text>
           </View>
 
           <View style={styles.notificationButtonRow}>
             <Pressable
-              style={styles.notificationPrimaryButton}
+              style={[
+                styles.notificationPrimaryButton,
+                isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.surface,
+                      borderWidth: 1,
+                      borderColor: theme.colors.primary,
+                    }
+                  : null,
+              ]}
               onPress={onEnableNotifications}
             >
-              <Text style={styles.notificationPrimaryButtonText}>Enable</Text>
+              <Text
+                style={[
+                  styles.notificationPrimaryButtonText,
+                  isCleanSlateTheme(theme) ? { color: theme.colors.primary } : null,
+                ]}
+              >
+                Enable
+              </Text>
             </Pressable>
 
             <Pressable
-              style={styles.notificationSecondaryButton}
+              style={[
+                styles.notificationSecondaryButton,
+                isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                    }
+                  : null,
+              ]}
               onPress={onDismissNotificationPrompt}
             >
-              <Text style={styles.notificationSecondaryButtonText}>Not Now</Text>
+              <Text
+                style={[
+                  styles.notificationSecondaryButtonText,
+                  isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+                ]}
+              >
+                Not Now
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -3043,22 +4479,30 @@ function TeamsScreen({
       ]}
     >
       <LinearGradient
-        colors={[
-          `${theme.colors.secondary}22`,
-          `${theme.colors.primary}12`,
-          theme.colors.background,
-        ]}
+        colors={getThemeBackdropGradient(theme)}
         style={styles.teamsScreenBackdrop}
         pointerEvents="none"
       />
       <LinearGradient
-        colors={[theme.colors.primary, theme.colors.secondary]}
-        style={styles.teamsHubHero}
+        colors={getThemeHeroGradient(theme)}
+        style={[
+          styles.teamsHubHero,
+          getThemeHeroShellStyle(theme),
+          isCleanSlateTheme(theme)
+            ? {
+                marginTop: 4,
+                marginBottom: 14,
+                borderRadius: 16,
+                paddingHorizontal: 16,
+                paddingVertical: 16,
+              }
+            : null,
+        ]}
       >
         <View
           style={[
             styles.teamsHubAccentRail,
-            { backgroundColor: theme.colors.accent },
+            { backgroundColor: theme.colors.primary },
           ]}
         />
 
@@ -3071,10 +4515,12 @@ function TeamsScreen({
         ) : null}
 
         <View style={styles.teamsHubContent}>
-          <Text style={styles.teamsHubEyebrow}>Teams</Text>
-          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
-          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
-          <Text style={styles.teamsHubText}>{heroText}</Text>
+          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>Teams</Text>
+          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
+          {heroMascot ? (
+            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
+          ) : null}
+          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>{heroText}</Text>
         </View>
       </LinearGradient>
 
@@ -3088,18 +4534,34 @@ function TeamsScreen({
                 backgroundColor: theme.colors.card,
                 borderColor: theme.colors.border,
               },
+              getThemeCardShellStyle(theme),
+              isCleanSlateTheme(theme)
+                ? {
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 14,
+                  }
+                : null,
             ]}
             onPress={() => onOpenSport(sport)}
           >
             <View
               style={[
                 styles.teamDirectoryAccent,
-                { backgroundColor: theme.colors.accent },
+                {
+                  backgroundColor: theme.colors.primary,
+                  width: isCleanSlateTheme(theme) ? 3 : 4,
+                  marginRight: isCleanSlateTheme(theme) ? 12 : 14,
+                },
               ]}
             />
             <View style={styles.teamDirectoryContent}>
-              <Text style={styles.teamDirectoryTitle}>{sport.shortLabel || sport.label}</Text>
-              <Text style={styles.teamDirectorySub}>Open team page</Text>
+              <Text style={[styles.teamDirectoryTitle, { color: theme.colors.text }]}>
+                {sport.shortLabel || sport.label}
+              </Text>
+              <Text style={[styles.teamDirectorySub, { color: theme.colors.mutedText }]}>
+                Open team page
+              </Text>
             </View>
             <View
               style={[
@@ -3107,13 +4569,14 @@ function TeamsScreen({
                 {
                   backgroundColor: theme.colors.cardAlt,
                   borderColor: theme.colors.border,
+                  borderRadius: isCleanSlateTheme(theme) ? 12 : undefined,
                 },
               ]}
             >
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={BRAND.white}
+                color={isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.text}
               />
             </View>
           </Pressable>
@@ -3186,6 +4649,7 @@ function MediaScreen({
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.border,
         },
+        getThemeCardShellStyle(theme),
       ]}
       onPress={onPress}
     >
@@ -3204,11 +4668,11 @@ function MediaScreen({
           },
         ]}
       >
-        <Ionicons name={icon} size={22} color={BRAND.white} />
+        <Ionicons name={icon} size={22} color={theme.colors.text} />
       </View>
       <View style={styles.mediaActionBody}>
-        <Text style={styles.mediaActionTitle}>{title}</Text>
-        <Text style={styles.mediaActionText}>{subtitle}</Text>
+        <Text style={[styles.mediaActionTitle, { color: theme.colors.text }]}>{title}</Text>
+        <Text style={[styles.mediaActionText, { color: theme.colors.mutedText }]}>{subtitle}</Text>
       </View>
       <View
         style={[
@@ -3219,7 +4683,7 @@ function MediaScreen({
           },
         ]}
       >
-        <Ionicons name="chevron-forward" size={18} color={BRAND.white} />
+        <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
       </View>
     </Pressable>
   );
@@ -3233,16 +4697,15 @@ function MediaScreen({
       ]}
     >
       <LinearGradient
-        colors={[
-          `${theme.colors.secondary}22`,
-          `${theme.colors.primary}12`,
-          theme.colors.background,
-        ]}
+        colors={getThemeBackdropGradient(theme)}
         style={styles.teamsScreenBackdrop}
         pointerEvents="none"
       />
 
-      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={[styles.teamsHubHero, styles.newsHubHero]}>
+      <LinearGradient
+        colors={getThemeHeroGradient(theme)}
+        style={[styles.teamsHubHero, styles.newsHubHero, getThemeHeroShellStyle(theme)]}
+      >
         <View
           style={[
             styles.teamsHubAccentRail,
@@ -3259,18 +4722,33 @@ function MediaScreen({
         ) : null}
 
         <View style={styles.teamsHubContent}>
-          <Text style={styles.teamsHubEyebrow}>Watch + Listen</Text>
-          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
-          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
-          <Text style={styles.teamsHubText}>
+          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>
+            Watch + Listen
+          </Text>
+          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
+          {heroMascot ? (
+            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
+          ) : null}
+          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>
             Open live coverage, schedules, and school links when available.
           </Text>
         </View>
       </LinearGradient>
 
       {!hasActions ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No media links are available.</Text>
+        <View
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+            getThemeCardShellStyle(theme),
+          ]}
+        >
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            No media links are available.
+          </Text>
         </View>
       ) : null}
 
@@ -3418,16 +4896,38 @@ function ScheduleScreen({
   return (
     <ScrollView
       ref={scheduleScrollRef}
-      style={styles.screen}
-      contentContainerStyle={styles.screenContent}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
     >
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={styles.scheduleHero}
+        style={[styles.scheduleHero, getThemeHeroShellStyle(theme)]}
       >
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
 
         {hasResolvedUrl(schoolLogoUrl) ? (
@@ -3440,21 +4940,41 @@ function ScheduleScreen({
           </View>
         ) : null}
 
-        <Text style={styles.scheduleHeroTitle}>{headerTitle || 'Schedule'}</Text>
+        <Text
+          style={[
+            styles.scheduleHeroTitle,
+            { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+          ]}
+        >
+          {headerTitle || 'Schedule'}
+        </Text>
         {headerSubtitle ? (
-          <Text style={styles.scheduleHeroSub}>{headerSubtitle}</Text>
+          <Text
+            style={[
+              styles.scheduleHeroSub,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+          >
+            {headerSubtitle}
+          </Text>
         ) : null}
       </LinearGradient>
 
       {eventsLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
-          <Text style={styles.scheduleLoadingText}>Loading schedule...</Text>
+          <ActivityIndicator color={theme.colors.primary} />
+          <Text style={[styles.scheduleLoadingText, { color: theme.colors.mutedText }]}>
+            Loading schedule...
+          </Text>
         </View>
       ) : normalized.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No schedule events are available.</Text>
-          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            No schedule events are available.
+          </Text>
+          <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
+            Pull down to refresh and check again.
+          </Text>
         </View>
       ) : (
         normalized.map((item, index) => (
@@ -3682,18 +5202,40 @@ function RosterScreen({
     });
   }, [rosterEntries, sortKey]);
 
-  console.log('ROSTER UI DEBUG', {
-    incomingRoster: rosterEntries?.length ?? 0,
-    sortedRoster: sortedRoster?.length ?? 0,
-    sortKey,
-  });
-
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <LinearGradient colors={getThemeDarkHeroGradient(theme)} style={styles.scheduleHero}>
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+    >
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={[styles.scheduleHero, getThemeHeroShellStyle(theme)]}
+      >
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
 
         {hasResolvedUrl(schoolLogoUrl) ? (
@@ -3706,19 +5248,41 @@ function RosterScreen({
           </View>
         ) : null}
 
-        <Text style={styles.scheduleHeroTitle}>{headerTitle}</Text>
-        {headerSubtitle ? <Text style={styles.scheduleHeroSub}>{headerSubtitle}</Text> : null}
+        <Text
+          style={[
+            styles.scheduleHeroTitle,
+            { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+          ]}
+        >
+          {headerTitle}
+        </Text>
+        {headerSubtitle ? (
+          <Text
+            style={[
+              styles.scheduleHeroSub,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+          >
+            {headerSubtitle}
+          </Text>
+        ) : null}
       </LinearGradient>
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
-          <Text style={styles.scheduleLoadingText}>Loading roster...</Text>
+          <ActivityIndicator color={theme.colors.primary} />
+          <Text style={[styles.scheduleLoadingText, { color: theme.colors.mutedText }]}>
+            Loading roster...
+          </Text>
         </View>
       ) : !sortedRoster.length ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No roster entries are available.</Text>
-          <Text style={styles.emptyText}>Pull down to refresh and check again.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            No roster entries are available.
+          </Text>
+          <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
+            Pull down to refresh and check again.
+          </Text>
         </View>
       ) : (
         <View style={styles.rosterList}>
@@ -3736,10 +5300,15 @@ function RosterScreen({
                   style={[
                     styles.rosterSortChip,
                     active
-                      ? {
-                          backgroundColor: theme.colors.buttonBackground,
-                          borderColor: theme.colors.buttonBackground,
-                        }
+                      ? isCleanSlateTheme(theme)
+                        ? {
+                            backgroundColor: theme.colors.buttonBackground,
+                            borderColor: theme.colors.primary,
+                          }
+                        : {
+                            backgroundColor: theme.colors.buttonBackground,
+                            borderColor: theme.colors.buttonBackground,
+                          }
                       : null,
                   ]}
                   onPress={() => setSortKey(key)}
@@ -3837,15 +5406,50 @@ function AthleteProfileScreen({
   ].filter(Boolean);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <LinearGradient colors={getThemeDarkHeroGradient(theme)} style={styles.storyDetailHero}>
-        <Pressable style={styles.storyDetailBackButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+    >
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={[styles.storyDetailHero, getThemeHeroShellStyle(theme)]}
+      >
+        <Pressable
+          style={[
+            styles.storyDetailBackButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
 
         <View style={styles.storyDetailHeroContent}>
-          <Text style={styles.storyDetailTitle}>{athlete.fullName}</Text>
+          <Text
+            style={[
+              styles.storyDetailTitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            {athlete.fullName}
+          </Text>
         </View>
       </LinearGradient>
 
@@ -3853,22 +5457,35 @@ function AthleteProfileScreen({
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={styles.rosterProfileImage} resizeMode="cover" />
         ) : (
-          <View style={styles.rosterProfileImageFallback}>
-            <Ionicons name="person" size={40} color={BRAND.white} />
+          <View
+            style={[
+              styles.rosterProfileImageFallback,
+              isCleanSlateTheme(theme)
+                ? { backgroundColor: theme.colors.cardAlt }
+                : null,
+            ]}
+          >
+            <Ionicons
+              name="person"
+              size={40}
+              color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            />
           </View>
         )}
 
-        <View style={styles.rosterProfileCard}>
+        <View style={[styles.rosterProfileCard, getThemeSoftCardStyle(theme)]}>
           {infoRows.length > 0 ? (
-            <Text style={styles.rosterProfileMeta}>{infoRows.join(' • ')}</Text>
+            <Text style={[styles.rosterProfileMeta, { color: theme.colors.text }]}>
+              {infoRows.join(' • ')}
+            </Text>
           ) : null}
           {bodyRows.map((row) => (
-            <Text key={row} style={styles.rosterProfileDetail}>
+            <Text key={row} style={[styles.rosterProfileDetail, { color: theme.colors.mutedText }]}>
               {row}
             </Text>
           ))}
           {athlete.bio ? (
-            <Text style={styles.rosterProfileBio}>{athlete.bio}</Text>
+            <Text style={[styles.rosterProfileBio, { color: theme.colors.text }]}>{athlete.bio}</Text>
           ) : null}
         </View>
       </View>
@@ -3920,15 +5537,44 @@ function RecruitingScreen({
     >
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={styles.sportHeader}
+        style={[styles.sportHeader, getThemeHeroShellStyle(theme)]}
       >
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
 
         <View style={styles.teamPageHeader}>
-          <Text style={styles.sportHeaderTitle}>{title}</Text>
+          <Text
+            style={[
+              styles.sportHeaderTitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            {title}
+          </Text>
 
           {hasResolvedUrl(schoolLogoUrl) ? (
             <Image
@@ -3940,7 +5586,14 @@ function RecruitingScreen({
         </View>
 
         {headerSubtitle ? (
-          <Text style={styles.sportHeaderSub}>{headerSubtitle}</Text>
+          <Text
+            style={[
+              styles.sportHeaderSub,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+          >
+            {headerSubtitle}
+          </Text>
         ) : null}
       </LinearGradient>
 
@@ -4495,19 +6148,9 @@ function SportDetailScreen({
   const visibleEvents = events;
   const hasScheduleAccess = hasScheduleUrl || allTeamScheduleEvents.length > 0;
   const handleOpenTeamRoster = () => {
-    console.log('TEAM PAGE ROSTER TAP -> handleOpenTeamRoster', {
-      sportKey: sport.key,
-      sportId: teamSportId,
-    });
-
     if (!teamSportId) {
       return;
     }
-
-    console.log('TEAM PAGE ROSTER TAP -> onOpenRoster', {
-      sportKey: sport.key,
-      sportId: teamSportId,
-    });
     onOpenRoster({
       sport,
       sportId: teamSportId,
@@ -4789,20 +6432,47 @@ function SportDetailScreen({
 
   return (
     <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.screenContent}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
     >
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={styles.sportHeader}
+        style={[styles.sportHeader, getThemeHeroShellStyle(theme)]}
       >
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
 
         <View style={styles.teamPageHeader}>
-          <Text style={styles.sportHeaderTitle}>
+          <Text
+            style={[
+              styles.sportHeaderTitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
             {sport.shortLabel || sport.label}
           </Text>
 
@@ -4816,19 +6486,37 @@ function SportDetailScreen({
         </View>
 
         {schoolConfig.displayName ? (
-          <Text style={styles.sportHeaderSub}>{schoolConfig.displayName}</Text>
+          <Text
+            style={[
+              styles.sportHeaderSub,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+          >
+            {schoolConfig.displayName}
+          </Text>
         ) : null}
 
         <Pressable
           style={[
             styles.followTeamButton,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.buttonBackground,
+                  borderColor: theme.colors.primary,
+                }
+              : null,
             isFollowing
               ? [
                   styles.followTeamButtonActive,
-                  {
-                    backgroundColor: theme.colors.buttonBackground,
-                    borderColor: theme.colors.buttonBackground,
-                  },
+                  isCleanSlateTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.buttonBackground,
+                        borderColor: theme.colors.primary,
+                      }
+                    : {
+                        backgroundColor: theme.colors.buttonBackground,
+                        borderColor: theme.colors.buttonBackground,
+                      },
                 ]
               : null,
           ]}
@@ -4837,9 +6525,9 @@ function SportDetailScreen({
           <Ionicons
             name={isFollowing ? 'notifications' : 'notifications-outline'}
             size={18}
-            color={BRAND.white}
+            color={theme.colors.buttonText}
           />
-          <Text style={styles.followTeamButtonText}>
+          <Text style={[styles.followTeamButtonText, { color: theme.colors.buttonText }]}>
             {isFollowing
               ? `Following ${sport.shortLabel || sport.label}`
               : `Follow ${sport.shortLabel || sport.label}`}
@@ -4858,28 +6546,45 @@ function SportDetailScreen({
           {resolvedTeamNavActions.map((action) => (
             <Pressable
               key={action.key}
-              style={
+              style={[
                 resolvedTeamNavActions.length === 1
                   ? styles.sportActionCardFull
-                  : styles.sportActionCard
-              }
+                  : styles.sportActionCard,
+                isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border,
+                    }
+                  : null,
+              ]}
               onPress={action.onPress}
             >
-              <Ionicons name={action.icon} size={22} color={BRAND.white} />
-              <Text style={styles.sportActionText}>{action.label}</Text>
+              <Ionicons
+                name={action.icon}
+                size={22}
+                color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.white}
+              />
+              <Text
+                style={[
+                  styles.sportActionText,
+                  { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                ]}
+              >
+                {action.label}
+              </Text>
             </Pressable>
           ))}
         </View>
       ) : null}
 
-      <SectionHeader title="Upcoming Games" />
+      <SectionHeader title="Upcoming Games" theme={theme} />
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : visibleEvents.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No upcoming games found.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No upcoming games found.</Text>
         </View>
       ) : (
         <ScrollView
@@ -4900,7 +6605,15 @@ function SportDetailScreen({
             return (
               <Pressable
                 key={item.id}
-                style={styles.teamGameCard}
+                style={[
+                  styles.teamGameCard,
+                  isCleanSlateTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                      }
+                    : null,
+                ]}
                 onPress={() =>
                   onOpenSchedule({
                     events: visibleEvents,
@@ -4914,36 +6627,99 @@ function SportDetailScreen({
               >
                 <View style={styles.teamGameMainRow}>
                   <View style={styles.teamGameTextWrap}>
-                    <Text style={styles.teamGameSport} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.teamGameSport,
+                        { color: isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.lightGray },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {normalized.sport}
                     </Text>
                     {normalized.statusLabel ? (
-                      <Text style={styles.teamGameStatus}>{normalized.statusLabel}</Text>
+                      <Text
+                        style={[
+                          styles.teamGameStatus,
+                          { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray },
+                        ]}
+                      >
+                        {normalized.statusLabel}
+                      </Text>
                     ) : null}
-                    <Text style={styles.teamGameMatchup} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.teamGameMatchup,
+                        { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                      ]}
+                      numberOfLines={2}
+                    >
                       {matchupLine}
                     </Text>
 
                     {normalized.hasScore && normalized.teamScore && normalized.opponentScore ? (
                       <View style={styles.teamGameScoreRow}>
-                        <Text style={styles.teamGameScoreValue}>{normalized.teamScore}</Text>
-                        <Text style={styles.teamGameScoreSeparator}>-</Text>
-                        <Text style={styles.teamGameScoreValue}>{normalized.opponentScore}</Text>
+                        <Text
+                          style={[
+                            styles.teamGameScoreValue,
+                            { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                          ]}
+                        >
+                          {normalized.teamScore}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.teamGameScoreSeparator,
+                            { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.white },
+                          ]}
+                        >
+                          -
+                        </Text>
+                        <Text
+                          style={[
+                            styles.teamGameScoreValue,
+                            { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                          ]}
+                        >
+                          {normalized.opponentScore}
+                        </Text>
                       </View>
                     ) : null}
 
                     {dateTimeLine ? (
-                      <Text style={styles.teamGameDate}>{dateTimeLine}</Text>
+                      <Text
+                        style={[
+                          styles.teamGameDate,
+                          { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                        ]}
+                      >
+                        {dateTimeLine}
+                      </Text>
                     ) : null}
                     {normalized.locationLabel ? (
-                      <Text style={styles.teamGameVenue} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.teamGameVenue,
+                          { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {normalized.locationLabel}
                       </Text>
                     ) : null}
                   </View>
 
                   {normalized.opponentLogoUrl ? (
-                    <View style={styles.teamGameLogoPlate}>
+                    <View
+                      style={[
+                        styles.teamGameLogoPlate,
+                        isCleanSlateTheme(theme)
+                          ? {
+                              backgroundColor: theme.colors.cardAlt,
+                              borderColor: theme.colors.border,
+                            }
+                          : null,
+                      ]}
+                    >
                       <Image
                         source={{ uri: normalized.opponentLogoUrl }}
                         style={styles.teamGameLogo}
@@ -4958,14 +6734,14 @@ function SportDetailScreen({
         </ScrollView>
       )}
 
-      <SectionHeader title="Latest Team News" />
+      <SectionHeader title="Latest Team News" theme={theme} />
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : newsItems.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No team news found.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No team news found.</Text>
         </View>
       ) : (
         <View style={styles.newsList}>
@@ -5016,16 +6792,15 @@ function NewsListScreen({
       ]}
     >
       <LinearGradient
-        colors={[
-          `${theme.colors.secondary}22`,
-          `${theme.colors.primary}12`,
-          theme.colors.background,
-        ]}
+        colors={getThemeBackdropGradient(theme)}
         style={styles.teamsScreenBackdrop}
         pointerEvents="none"
       />
 
-      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={styles.teamsHubHero}>
+      <LinearGradient
+        colors={getThemeHeroGradient(theme)}
+        style={[styles.teamsHubHero, getThemeHeroShellStyle(theme)]}
+      >
         <View
           style={[
             styles.teamsHubAccentRail,
@@ -5042,10 +6817,14 @@ function NewsListScreen({
         ) : null}
 
         <View style={styles.teamsHubContent}>
-          <Text style={styles.teamsHubEyebrow}>Latest News</Text>
-          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
-          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
-          <Text style={styles.teamsHubText}>
+          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>
+            Latest News
+          </Text>
+          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
+          {heroMascot ? (
+            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
+          ) : null}
+          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>
             School-wide athletics stories, features, and updates in one native feed.
           </Text>
         </View>
@@ -5053,12 +6832,25 @@ function NewsListScreen({
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={BRAND.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : newsItems.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No stories available right now.</Text>
-          <Text style={styles.emptyText}>Check back soon for the latest athletics updates.</Text>
+        <View
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+            getThemeCardShellStyle(theme),
+          ]}
+        >
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            No stories available right now.
+          </Text>
+          <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
+            Check back soon for the latest athletics updates.
+          </Text>
         </View>
       ) : (
         <View style={styles.newsArchiveList}>
@@ -5075,6 +6867,7 @@ function NewsListScreen({
                     backgroundColor: theme.colors.card,
                     borderColor: theme.colors.border,
                   },
+                  getThemeCardShellStyle(theme),
                 ]}
                 onPress={() => onOpenStoryDetail(item)}
               >
@@ -5122,15 +6915,23 @@ function NewsListScreen({
                         {sportLabel}
                       </Text>
                     </View>
-                    <Text style={styles.newsArchiveDate}>{item.date || 'Latest'}</Text>
+                    <Text style={[styles.newsArchiveDate, { color: theme.colors.mutedText }]}>
+                      {item.date || 'Latest'}
+                    </Text>
                   </View>
 
-                  <Text style={styles.newsArchiveTitle} numberOfLines={3}>
+                  <Text
+                    style={[styles.newsArchiveTitle, { color: theme.colors.text }]}
+                    numberOfLines={3}
+                  >
                     {item.title}
                   </Text>
 
                   {summary ? (
-                    <Text style={styles.newsArchiveSummary} numberOfLines={3}>
+                    <Text
+                      style={[styles.newsArchiveSummary, { color: theme.colors.mutedText }]}
+                      numberOfLines={3}
+                    >
                       {summary}
                     </Text>
                   ) : null}
@@ -5145,7 +6946,7 @@ function NewsListScreen({
                     },
                   ]}
                 >
-                  <Ionicons name="chevron-forward" size={18} color={BRAND.white} />
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
                 </View>
               </Pressable>
             );
@@ -5226,49 +7027,68 @@ function TicketsScreen({
   onOpenEmbedded,
   ticketsUrl,
   themeMode,
+  theme = DEFAULT_APP_THEME,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
   ticketsUrl: string;
   themeMode: 'light' | 'dark';
+  theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
   const hasTicketsUrl = hasResolvedUrl(ticketsUrl);
 
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      style={[
+        styles.screen,
+        isLightMode ? styles.screenLight : null,
+        { backgroundColor: theme.colors.background },
+      ]}
       contentContainerStyle={[
         styles.screenContent,
         isLightMode ? styles.screenContentLight : null,
+        { backgroundColor: theme.colors.background },
       ]}
     >
       <LinearGradient
-        colors={[BRAND.red, BRAND.primaryDark]}
-        style={styles.tabHero}
+        colors={isCleanSlateTheme(theme) ? [theme.colors.surface, theme.colors.surface, theme.colors.surface] : [BRAND.red, BRAND.primaryDark]}
+        style={[styles.tabHero, isCleanSlateTheme(theme) ? getThemeHeroShellStyle(theme) : null]}
       >
-        <Text style={styles.tabHeroEyebrow}>Tickets</Text>
-        <Text style={styles.tabHeroTitle}>Game Tickets</Text>
-        <Text style={styles.tabHeroText}>
+        <Text style={[styles.tabHeroEyebrow, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Tickets</Text>
+        <Text style={[styles.tabHeroTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Game Tickets</Text>
+        <Text style={[styles.tabHeroText, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>
           Open ticketing links when available.
         </Text>
       </LinearGradient>
 
       {hasTicketsUrl ? (
         <Pressable
-          style={styles.watchPrimaryCard}
+          style={[
+            styles.watchPrimaryCard,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
           onPress={() => onOpenEmbedded('Tickets', ticketsUrl)}
         >
-          <Ionicons name="ticket-outline" size={28} color={BRAND.white} />
+          <Ionicons
+            name="ticket-outline"
+            size={28}
+            color={isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.white}
+          />
           <View style={styles.watchCardBody}>
-            <Text style={styles.watchCardTitle}>Open Tickets</Text>
-            <Text style={styles.watchCardText}>
+            <Text style={[styles.watchCardTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Open Tickets</Text>
+            <Text style={[styles.watchCardText, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>
               View and purchase tickets.
             </Text>
           </View>
         </Pressable>
       ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No ticket link is available.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No ticket link is available.</Text>
         </View>
       )}
     </ScrollView>
@@ -5280,23 +7100,39 @@ function MoreListRow({
   subtitle,
   onPress,
   trailing,
+  theme = DEFAULT_APP_THEME,
 }: {
   title: string;
   subtitle?: string;
   onPress?: () => void;
   trailing?: React.ReactNode;
+  theme?: AthleticOSResolvedTheme;
 }) {
   return (
     <Pressable
-      style={styles.teamListCard}
+      style={[
+        styles.teamListCard,
+        isCleanSlateTheme(theme)
+          ? {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            }
+          : null,
+      ]}
       onPress={onPress}
       disabled={!onPress}
     >
       <View style={styles.moreRowTextWrap}>
-        <Text style={styles.teamListTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.teamListSub}>{subtitle}</Text> : null}
+        <Text style={[styles.teamListTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>{title}</Text>
+        {subtitle ? <Text style={[styles.teamListSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray }]}>{subtitle}</Text> : null}
       </View>
-      {trailing ?? <Ionicons name="chevron-forward" size={22} color={BRAND.gray} />}
+      {trailing ?? (
+        <Ionicons
+          name="chevron-forward"
+          size={22}
+          color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.gray}
+        />
+      )}
     </Pressable>
   );
 }
@@ -5354,7 +7190,7 @@ function MoreScreen({
         <Text style={[styles.teamListTitle, { color: theme.colors.text }]}>{title}</Text>
         <Text style={[styles.teamListSub, { color: theme.colors.mutedText }]}>{subtitle}</Text>
       </View>
-      <Text style={[styles.settingsValueText, { color: theme.colors.accent }]}>
+      <Text style={[styles.settingsValueText, { color: theme.colors.primary }]}>
         {value}
       </Text>
     </Pressable>
@@ -5369,20 +7205,20 @@ function MoreScreen({
       ]}
     >
       <LinearGradient
-        colors={[
-          `${theme.colors.secondary}22`,
-          `${theme.colors.primary}12`,
-          theme.colors.background,
-        ]}
+        colors={getThemeBackdropGradient(theme)}
         style={styles.teamsScreenBackdrop}
         pointerEvents="none"
       />
 
-      <LinearGradient colors={[theme.colors.primary, theme.colors.secondary]} style={styles.teamsHubHero}>
+      <LinearGradient
+        colors={getThemeHeroGradient(theme)}
+        style={[styles.teamsHubHero, getThemeHeroShellStyle(theme)]}
+      >
         <View
           style={[
             styles.teamsHubAccentRail,
             { backgroundColor: theme.colors.accent },
+            isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
           ]}
         />
 
@@ -5395,10 +7231,12 @@ function MoreScreen({
         ) : null}
 
         <View style={styles.teamsHubContent}>
-          <Text style={styles.teamsHubEyebrow}>More</Text>
-          <Text style={styles.teamsHubTitle}>{heroSchoolName}</Text>
-          {heroMascot ? <Text style={styles.teamsHubMascot}>{heroMascot}</Text> : null}
-          <Text style={styles.teamsHubText}>
+          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>More</Text>
+          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
+          {heroMascot ? (
+            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
+          ) : null}
+          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>
             Manage your teams and app settings in one place.
           </Text>
         </View>
@@ -5416,6 +7254,7 @@ function MoreScreen({
               backgroundColor: theme.colors.card,
               borderColor: theme.colors.border,
             },
+            getThemeCardShellStyle(theme),
           ]}
           onPress={onOpenManageTeams}
         >
@@ -5442,7 +7281,7 @@ function MoreScreen({
               },
             ]}
           >
-            <Ionicons name="chevron-forward" size={18} color={BRAND.white} />
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
           </View>
         </Pressable>
 
@@ -5456,6 +7295,11 @@ function MoreScreen({
               backgroundColor: theme.colors.cardAlt,
               borderColor: theme.colors.border,
             },
+            isCleanSlateTheme(theme)
+              ? {
+                  borderRadius: 18,
+                }
+              : null,
           ]}
         >
           {renderSettingRow(
@@ -5491,44 +7335,64 @@ function ManageTeamsScreen({
   followedTeams,
   onToggleFollowTeam,
   themeMode,
+  theme = DEFAULT_APP_THEME,
 }: {
   onBack: () => void;
   sports: FollowableSport[];
   followedTeams: string[];
   onToggleFollowTeam: (teamKey: string) => void;
   themeMode: 'light' | 'dark';
+  theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.screenContent,
         isLightMode ? styles.screenContentLight : null,
+        { backgroundColor: theme.colors.background },
       ]}
     >
-      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={[styles.sportHeader, isCleanSlateTheme(theme) ? getThemeHeroShellStyle(theme) : null]}
+      >
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.cardAlt, borderColor: theme.colors.border } : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons name="arrow-back" size={20} color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white} />
+          <Text style={[styles.backButtonText, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Back</Text>
         </Pressable>
-        <Text style={styles.sportHeaderTitle}>My Teams</Text>
-        <Text style={styles.sportHeaderSub}>Manage followed teams for notifications.</Text>
+        <Text style={[styles.sportHeaderTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>My Teams</Text>
+        <Text style={[styles.sportHeaderSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Manage followed teams for notifications.</Text>
       </LinearGradient>
 
       {sports.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No teams are available.</Text>
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No teams are available.</Text>
         </View>
       ) : (
         <View style={styles.teamsList}>
           {sports.map((sport) => {
             const isFollowing = followedTeams.includes(sport.id);
             return (
-              <View key={sport.id} style={styles.teamListCard}>
+              <View
+                key={sport.id}
+                style={[
+                  styles.teamListCard,
+                  isCleanSlateTheme(theme)
+                    ? { backgroundColor: theme.colors.card, borderColor: theme.colors.border }
+                    : null,
+                ]}
+              >
                 <View style={styles.moreRowTextWrap}>
-                  <Text style={styles.teamListTitle}>{sport.label}</Text>
-                  <Text style={styles.teamListSub}>
+                  <Text style={[styles.teamListTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>{sport.label}</Text>
+                  <Text style={[styles.teamListSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray }]}>
                     {isFollowing ? 'Following' : 'Not following'}
                   </Text>
                 </View>
@@ -5536,10 +7400,23 @@ function ManageTeamsScreen({
                   style={[
                     styles.inlineFollowButton,
                     isFollowing ? styles.inlineFollowButtonActive : null,
+                    isCleanSlateTheme(theme)
+                      ? {
+                          backgroundColor: theme.colors.buttonBackground,
+                          borderColor: isFollowing ? theme.colors.primary : theme.colors.border,
+                        }
+                      : null,
                   ]}
                   onPress={() => onToggleFollowTeam(sport.id)}
                 >
-                  <Text style={styles.inlineFollowButtonText}>
+                  <Text
+                    style={[
+                      styles.inlineFollowButtonText,
+                      isCleanSlateTheme(theme)
+                        ? { color: isFollowing ? theme.colors.buttonText : theme.colors.text }
+                        : null,
+                    ]}
+                  >
                     {isFollowing ? 'Following' : 'Follow'}
                   </Text>
                 </Pressable>
@@ -5562,6 +7439,7 @@ function SettingsScreen({
   onToggleUseLocalTimezone,
   themeMode,
   onOpenManageTeams,
+  theme = DEFAULT_APP_THEME,
 }: {
   onBack: () => void;
   notificationsEnabled: boolean;
@@ -5572,23 +7450,34 @@ function SettingsScreen({
   onToggleUseLocalTimezone: () => void;
   themeMode: 'light' | 'dark';
   onOpenManageTeams: () => void;
+  theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null]}
+      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.screenContent,
         isLightMode ? styles.screenContentLight : null,
+        { backgroundColor: theme.colors.background },
       ]}
     >
-      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={[styles.sportHeader, isCleanSlateTheme(theme) ? getThemeHeroShellStyle(theme) : null]}
+      >
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.cardAlt, borderColor: theme.colors.border } : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons name="arrow-back" size={20} color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white} />
+          <Text style={[styles.backButtonText, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Back</Text>
         </Pressable>
-        <Text style={styles.sportHeaderTitle}>Settings</Text>
-        <Text style={styles.sportHeaderSub}>Manage notifications, playback, and theme.</Text>
+        <Text style={[styles.sportHeaderTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Settings</Text>
+        <Text style={[styles.sportHeaderSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Manage notifications, playback, and theme.</Text>
       </LinearGradient>
 
       <View style={styles.teamsList}>
@@ -5596,8 +7485,9 @@ function SettingsScreen({
           title="Push Notifications"
           subtitle={notificationsEnabled ? 'Enabled' : 'Disabled'}
           onPress={onToggleNotifications}
+          theme={theme}
           trailing={
-            <Text style={styles.settingsValueText}>
+            <Text style={[styles.settingsValueText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.red }]}>
               {notificationsEnabled ? 'On' : 'Off'}
             </Text>
           }
@@ -5606,13 +7496,15 @@ function SettingsScreen({
           title="Manage Notifications"
           subtitle="Choose followed teams"
           onPress={onOpenManageTeams}
+          theme={theme}
         />
         <MoreListRow
           title="Auto-play Video"
           subtitle={autoPlayVideo ? 'Enabled' : 'Disabled'}
           onPress={onToggleAutoPlayVideo}
+          theme={theme}
           trailing={
-            <Text style={styles.settingsValueText}>
+            <Text style={[styles.settingsValueText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.red }]}>
               {autoPlayVideo ? 'On' : 'Off'}
             </Text>
           }
@@ -5621,8 +7513,9 @@ function SettingsScreen({
           title="Use Local Timezone"
           subtitle={useLocalTimezone ? 'Enabled' : 'Disabled'}
           onPress={onToggleUseLocalTimezone}
+          theme={theme}
           trailing={
-            <Text style={styles.settingsValueText}>
+            <Text style={[styles.settingsValueText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.red }]}>
               {useLocalTimezone ? 'On' : 'Off'}
             </Text>
           }
@@ -5635,27 +7528,38 @@ function SettingsScreen({
 function SavedEventsScreen({
   onBack,
   themeMode,
+  theme = DEFAULT_APP_THEME,
 }: {
   onBack: () => void;
   themeMode: 'light' | 'dark';
+  theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null]}
-      contentContainerStyle={styles.screenContent}
+      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
     >
-      <LinearGradient colors={[BRAND.black, BRAND.primaryDark]} style={styles.sportHeader}>
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
-          <Text style={styles.backButtonText}>Back</Text>
+      <LinearGradient
+        colors={getThemeDarkHeroGradient(theme)}
+        style={[styles.sportHeader, isCleanSlateTheme(theme) ? getThemeHeroShellStyle(theme) : null]}
+      >
+        <Pressable
+          style={[
+            styles.backButton,
+            isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.cardAlt, borderColor: theme.colors.border } : null,
+          ]}
+          onPress={onBack}
+        >
+          <Ionicons name="arrow-back" size={20} color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white} />
+          <Text style={[styles.backButtonText, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Back</Text>
         </Pressable>
-        <Text style={styles.sportHeaderTitle}>My Saved Events</Text>
-        <Text style={styles.sportHeaderSub}>Saved events will appear here.</Text>
+        <Text style={[styles.sportHeaderTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>My Saved Events</Text>
+        <Text style={[styles.sportHeaderSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Saved events will appear here.</Text>
       </LinearGradient>
 
-      <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>No saved events yet.</Text>
+      <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No saved events yet.</Text>
       </View>
     </ScrollView>
   );
@@ -5673,6 +7577,7 @@ function BottomNav({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
+  const isCleanSlate = isCleanSlateTheme(theme);
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const homeItem = items.find((item) => item.key === 'home');
   const homeActive = homeItem?.active ?? false;
@@ -5710,7 +7615,31 @@ function BottomNav({
   }, [homeActive, homePulse]);
 
   return (
-    <View style={[styles.bottomNav, isLightMode ? styles.bottomNavLight : null]}>
+    <View
+      style={[
+        styles.bottomNav,
+        isLightMode ? styles.bottomNavLight : null,
+        isCleanSlate
+          ? {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+              paddingTop: 10,
+              paddingBottom: 12,
+              minHeight: 70,
+              marginHorizontal: 12,
+              marginBottom: 8,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              borderRadius: 20,
+              shadowColor: withAlpha(theme.colors.text, '20'),
+              shadowOpacity: 0.08,
+              shadowRadius: 14,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 3,
+            }
+          : null,
+      ]}
+    >
       {items.map((item) => {
         const active = item.active;
 
@@ -5728,20 +7657,46 @@ function BottomNav({
                 <Animated.View
                   style={[
                     styles.asnTabFloatWrap,
+                    isCleanSlate ? { marginTop: -18, marginBottom: 4 } : null,
                     { transform: [{ scale: homePulse }] },
                   ]}
                 >
                   <View
-                    style={[
-                      styles.asnTabWrap,
-                      active ? styles.asnTabWrapActive : null,
+                      style={[
+                        styles.asnTabWrap,
+                        active ? styles.asnTabWrapActive : null,
+                        isCleanSlate
+                          ? {
+                              width: 68,
+                              height: 68,
+                              borderRadius: 20,
+                              shadowOpacity: 0,
+                              shadowRadius: 0,
+                              elevation: 0,
+                          }
+                        : null,
                     ]}
                   >
                     <View
                       style={[
                         styles.asnTabGlowWrap,
                         active ? styles.asnTabGlowWrapActive : null,
-                        active
+                        isCleanSlate
+                          ? {
+                              width: 56,
+                              height: 56,
+                              borderRadius: 16,
+                              backgroundColor: active ? withAlpha(theme.colors.primary, '10') : theme.colors.surface,
+                              borderWidth: 1,
+                              borderColor: active ? theme.colors.primary : theme.colors.border,
+                              shadowColor: withAlpha(theme.colors.text, '14'),
+                              shadowOpacity: active ? 0.06 : 0,
+                              shadowRadius: 8,
+                              shadowOffset: { width: 0, height: 3 },
+                              elevation: active ? 1 : 0,
+                            }
+                          : null,
+                        active && !isCleanSlate
                           ? {
                               shadowColor: theme.colors.glow,
                               borderColor: theme.colors.glow,
@@ -5752,14 +7707,17 @@ function BottomNav({
                       {hasCenterLogo ? (
                         <Image
                           source={{ uri: centerLogoUrl }}
-                          style={styles.centerNavLogo}
+                          style={[
+                            styles.centerNavLogo,
+                            isCleanSlate ? { width: 46, height: 46 } : null,
+                          ]}
                           resizeMode="contain"
                         />
                       ) : (
                         <Ionicons
                           name="radio-outline"
                           size={18}
-                          color={active ? BRAND.white : BRAND.gray}
+                          color={active ? theme.colors.primary : theme.colors.mutedText}
                         />
                       )}
                     </View>
@@ -5768,7 +7726,7 @@ function BottomNav({
                 <Text
                   style={[
                     styles.asnTabLabel,
-                    active ? styles.bottomNavLabelActive : null,
+                    { color: active ? theme.colors.primary : theme.colors.mutedText },
                   ]}
                 >
                   {item.label}
@@ -5779,12 +7737,12 @@ function BottomNav({
                 <Ionicons
                   name={item.icon!}
                   size={22}
-                  color={active ? BRAND.primary : BRAND.gray}
+                  color={active ? theme.colors.primary : theme.colors.mutedText}
                 />
                 <Text
                   style={[
                     styles.bottomNavLabel,
-                    active ? styles.bottomNavLabelActive : null,
+                    { color: active ? theme.colors.primary : theme.colors.mutedText },
                   ]}
                 >
                   {item.label}
@@ -5876,6 +7834,15 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     () => resolveAthleticOSTheme(appThemeConfig),
     [appThemeConfig]
   );
+  const appThemeMode: 'light' | 'dark' = useMemo(
+    () =>
+      resolvedTheme.meta.themeKey === 'clean_slate' ||
+      resolvedTheme.styles.backgroundStyle === 'light_canvas' ||
+      resolvedTheme.styles.surfaceStyle === 'light_surface'
+        ? 'light'
+        : 'dark',
+    [resolvedTheme]
+  );
   const appDisplayName = schoolConfig.displayName.trim() || 'Athletics';
   const [newsLoading, setNewsLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -5931,6 +7898,10 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   }, []);
 
   useEffect(() => {
+    console.log('[AthleticOS Theme] configuredSchoolSlug:', schoolSlug);
+  }, [schoolSlug]);
+
+  useEffect(() => {
     let mounted = true;
 
     async function resolveSchool() {
@@ -5947,8 +7918,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
           console.log(`No school found for slug "${schoolSlug}"`);
         }
 
-        console.log('[AthleticOS] schoolSlug:', schoolSlug);
-        console.log('[AthleticOS] schoolId:', nextSchoolId);
+        console.log('[AthleticOS Theme] resolvedSchoolId:', nextSchoolId);
         setResolvedSchoolId(nextSchoolId);
       } catch (error) {
         console.log(`School lookup failed for slug "${schoolSlug}":`, error);
@@ -6170,18 +8140,21 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
           ? schoolAppConfig.shop_url.trim()
           : undefined) ?? nextSchoolConfig.shopUrl,
     };
+    const nextThemeKey =
+      nextThemeConfig?.theme_key?.trim().toLowerCase().replace(/[\s-]+/g, '_') ||
+      'sec_power5';
     const nextSchoolAccentColor =
-      (typeof schoolAppConfig?.accent_color === 'string' &&
-      schoolAppConfig.accent_color.trim()
-        ? schoolAppConfig.accent_color.trim()
+      (typeof nextSchoolConfig.accentColor === 'string' &&
+      nextSchoolConfig.accentColor.trim()
+        ? nextSchoolConfig.accentColor.trim()
         : '') ||
-      (typeof schoolAppConfig?.secondary_color === 'string' &&
-      schoolAppConfig.secondary_color.trim()
-        ? schoolAppConfig.secondary_color.trim()
+      (typeof nextSchoolConfig.secondaryColor === 'string' &&
+      nextSchoolConfig.secondaryColor.trim()
+        ? nextSchoolConfig.secondaryColor.trim()
         : '') ||
-      (typeof schoolAppConfig?.primary_color === 'string' &&
-      schoolAppConfig.primary_color.trim()
-        ? schoolAppConfig.primary_color.trim()
+      (typeof nextSchoolConfig.primaryColor === 'string' &&
+      nextSchoolConfig.primaryColor.trim()
+        ? nextSchoolConfig.primaryColor.trim()
         : '') ||
       BRAND.primary;
     const mergedThemeConfig = {
@@ -6189,20 +8162,23 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       theme_key: nextThemeConfig?.theme_key?.trim() || 'sec_power5',
       primary_color:
         nextThemeConfig?.primary_color?.trim() ||
-        schoolAppConfig?.primary_color?.trim() ||
+        nextSchoolConfig.primaryColor?.trim() ||
         BRAND.primary,
       secondary_color:
         nextThemeConfig?.secondary_color?.trim() ||
-        schoolAppConfig?.secondary_color?.trim() ||
+        nextSchoolConfig.secondaryColor?.trim() ||
         BRAND.primaryDark,
       accent_color:
         nextThemeConfig?.accent_color?.trim() ||
-        schoolAppConfig?.accent_color?.trim() ||
-        nextSchoolAccentColor,
+        (nextThemeKey === 'clean_slate'
+          ? nextSchoolConfig.primaryColor?.trim() ||
+            nextSchoolConfig.accentColor?.trim() ||
+            nextSchoolConfig.secondaryColor?.trim() ||
+            nextSchoolAccentColor
+          : nextSchoolConfig.accentColor?.trim() || nextSchoolAccentColor),
     } satisfies AthleticOSAppThemeConfig;
 
-    console.log('[AthleticOS] appConfig:', schoolAppConfig);
-    console.log('[AthleticOS] modules:', moduleConfig);
+    console.log('[AthleticOS Theme] fetchedThemeKey:', nextThemeConfig?.theme_key ?? null);
 
     const news = stories
       .map((story) =>
@@ -6217,18 +8193,6 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         ...item,
         date: formatDate(item.rawDate),
       }));
-
-    console.log(
-      'NORMALIZED HOME STORY SAMPLE',
-      news.slice(0, 3).map((item) => ({
-        title: item.title,
-        sportLabel: item.sportLabel,
-        sportId: item.sportId,
-      }))
-    );
-
-    console.log('[AthleticOS] stories count:', stories?.length);
-    console.log('[AthleticOS] stories sample:', stories?.[0]);
 
     const allScheduleEvents = scheduleEvents.map((event) => {
       const mapped = mapScheduleEventToHomeEventItem(
@@ -6245,7 +8209,6 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
     const recent = filterRecentResultEvents(allScheduleEvents).slice(0, 10);
     const upcoming = filterUpcomingWeekEvents(allScheduleEvents).slice(0, 10);
-    const nextGame = upcoming[0] ?? null;
     const nextVideoItems = await fetchYoutubePlaylistVideos(videosConfig);
     const resolvedModules = getResolvedHomeModules(moduleConfig);
     const nextGalleryItems = resolvedModules.some(
@@ -6253,11 +8216,6 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     )
       ? await fetchGalleryItems(mergedSchoolConfig.mainSiteUrl)
       : [];
-
-    console.log('[AthleticOS] upcomingGames:', upcoming?.length);
-    console.log('[AthleticOS] recentResults:', recent?.length);
-    console.log('[AthleticOS] nextGame:', nextGame);
-    console.log('[AthleticOS] sponsors:', sponsorConfig);
 
     const sportConfigById = new Map(
       sportAppConfig
@@ -6471,12 +8429,6 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   }, [pushNotificationsEnabled]);
 
   useEffect(() => {
-    if (expoPushToken) {
-      console.log('Expo push token:', expoPushToken);
-    }
-  }, [expoPushToken]);
-
-  useEffect(() => {
     if (!expoPushToken || !resolvedSchoolId || followedTeams.length === 0) {
       return;
     }
@@ -6625,7 +8577,6 @@ const handleEnableNotifications = async () => {
   };
 
   const openEmbedded = (title: string, url: string) => {
-    console.log('EMBED PATH HIT -> openEmbedded', { title, url });
     setEmbeddedTitle(title);
     setEmbeddedUrl(url);
     setScreenMode('embedded');
@@ -6637,11 +8588,6 @@ const handleEnableNotifications = async () => {
   };
 
   const openRosterScreen = (options: OpenRosterOptions) => {
-    console.log('TEAM PAGE ROSTER TAP -> openRosterScreen', {
-      sportKey: options.sport.key,
-      sportId: options.sportId,
-      headerTitle: options.headerTitle,
-    });
     setPreviousScreenMode(screenMode);
     setSelectedRosterSport(options.sport);
     setSelectedRosterSportId(options.sportId);
@@ -6968,6 +8914,7 @@ if (showLaunchSplash) {
       splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
       splashLogoUrl={schoolConfig.splashLogoUrl}
       schoolDisplayName={schoolConfig.displayName}
+      theme={resolvedTheme}
     />
   );
 }
@@ -6978,6 +8925,7 @@ if (!prerollDecisionComplete) {
       splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
       splashLogoUrl={schoolConfig.splashLogoUrl}
       schoolDisplayName={schoolConfig.displayName}
+      theme={resolvedTheme}
     />
   );
 }
@@ -7077,7 +9025,8 @@ if (showPreroll && prerollConfig) {
         sports={followableSports}
         followedTeams={followedTeams}
         onToggleFollowTeam={toggleFollowTeam}
-        themeMode={themeMode}
+        themeMode={appThemeMode}
+        theme={resolvedTheme}
       />
     );
   } else if (screenMode === 'settings') {
@@ -7090,13 +9039,14 @@ if (showPreroll && prerollConfig) {
         onToggleAutoPlayVideo={toggleAutoPlayVideoSetting}
         useLocalTimezone={useLocalTimezone}
         onToggleUseLocalTimezone={toggleUseLocalTimezoneSetting}
-        themeMode={themeMode}
+        themeMode={appThemeMode}
         onOpenManageTeams={() => setScreenMode('manageTeams')}
+        theme={resolvedTheme}
       />
     );
   } else if (screenMode === 'savedEvents') {
     mainContent = (
-      <SavedEventsScreen onBack={closeSpecialScreen} themeMode={themeMode} />
+      <SavedEventsScreen onBack={closeSpecialScreen} themeMode={appThemeMode} theme={resolvedTheme} />
     );
   } else if (screenMode === 'schedule') {
     mainContent = (
@@ -7182,7 +9132,7 @@ if (showPreroll && prerollConfig) {
             schoolDisplayName={appDisplayName}
             mascotName={schoolConfig.mascotName}
             schoolLogoUrl={schoolConfig.logoUrl}
-            themeMode={themeMode}
+            themeMode={appThemeMode}
             theme={resolvedTheme}
           />
         ) : null}
@@ -7202,7 +9152,7 @@ if (showPreroll && prerollConfig) {
             schoolLogoUrl={schoolConfig.logoUrl}
             isAudioPlaying={isPlaying}
             liveStatus={liveStatus}
-            themeMode={themeMode}
+            themeMode={appThemeMode}
             scheduleAvailable={eventsLoading || allEvents.length > 0}
             theme={resolvedTheme}
           />
@@ -7212,7 +9162,8 @@ if (showPreroll && prerollConfig) {
           <TicketsScreen
             onOpenEmbedded={openEmbedded}
             ticketsUrl={schoolConfig.ticketsUrl}
-            themeMode={themeMode}
+            themeMode={appThemeMode}
+            theme={resolvedTheme}
           />
         ) : null}
 
@@ -7237,9 +9188,17 @@ if (showPreroll && prerollConfig) {
   }
 
   return (
-    <SafeAreaView style={[styles.appShell, themeMode === 'light' ? styles.appShellLight : null]}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.appContent}>{mainContent}</View>
+    <ThemeProvider theme={resolvedTheme}>
+    <SafeAreaView
+      style={[
+        styles.appShell,
+        { backgroundColor: resolvedTheme.colors.background },
+      ]}
+    >
+      <StatusBar barStyle={isCleanSlateTheme(resolvedTheme) ? 'dark-content' : appThemeMode === 'light' ? 'dark-content' : 'light-content'} />
+      <View style={[styles.appContent, { backgroundColor: resolvedTheme.colors.background }]}>
+        {mainContent}
+      </View>
 
       <AudioMiniPlayer
         isPlaying={isPlaying}
@@ -7247,14 +9206,16 @@ if (showPreroll && prerollConfig) {
         title={appDisplayName}
         enabled={audioPlayerVisible && hasListenUrl}
         onToggle={toggleAudio}
+        theme={resolvedTheme}
       />
       <BottomNav
         items={bottomNavRenderItems}
-        themeMode={themeMode}
+        themeMode={appThemeMode}
         centerLogoUrl={schoolConfig.logoUrl}
         theme={resolvedTheme}
       />
     </SafeAreaView>
+    </ThemeProvider>
   );
 }
 
