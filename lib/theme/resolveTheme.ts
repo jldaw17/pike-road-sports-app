@@ -262,6 +262,11 @@ function resolveThemeHeroTokens(
         heroStart: '#FFFFFF',
         heroEnd: '#FFFFFF',
       };
+    case 'broadcast_gradient':
+      return {
+        heroStart: resolvedPrimary || DEFAULT_THEME_COLORS.primary,
+        heroEnd: resolvedSecondary || DEFAULT_THEME_COLORS.secondary,
+      };
     case 'light_gradient':
       return {
         heroStart: '#FFFFFF',

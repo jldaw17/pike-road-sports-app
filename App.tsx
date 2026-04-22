@@ -113,6 +113,22 @@ function isCleanSlateTheme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'clean_slate';
 }
 
+function isPower5Theme(theme: AthleticOSResolvedTheme) {
+  return theme.meta.themeKey === 'sec_power5';
+}
+
+function getThemeHeroAccentColor(theme: AthleticOSResolvedTheme) {
+  if (isPower5Theme(theme)) {
+    return theme.colors.primary;
+  }
+
+  if (isCleanSlateTheme(theme)) {
+    return theme.colors.primary;
+  }
+
+  return theme.colors.accent;
+}
+
 function withAlpha(color: string, alphaHex: string) {
   const normalized = color?.trim() ?? '';
   return /^#[0-9a-f]{6}$/i.test(normalized) ? `${normalized}${alphaHex}` : normalized;
@@ -249,6 +265,10 @@ function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   };
+}
+
+function logPower5ColorDebug(stage: string, payload: Record<string, unknown>) {
+  console.log(`[POWER5 COLOR DEBUG][${stage}]`, payload);
 }
 
 function normalizeConfiguredSchoolSlug(value?: string) {
@@ -5272,7 +5292,7 @@ function MediaScreen({
         <View
           style={[
             styles.teamsHubAccentRail,
-            { backgroundColor: theme.colors.accent },
+            { backgroundColor: getThemeHeroAccentColor(theme) },
           ]}
         />
 
@@ -7527,7 +7547,7 @@ function NewsListScreen({
         <View
           style={[
             styles.teamsHubAccentRail,
-            { backgroundColor: theme.colors.accent },
+            { backgroundColor: getThemeHeroAccentColor(theme) },
           ]}
         />
 
@@ -8014,8 +8034,7 @@ function MoreScreen({
         <View
           style={[
             styles.teamsHubAccentRail,
-            { backgroundColor: theme.colors.accent },
-            isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
+            { backgroundColor: getThemeHeroAccentColor(theme) },
           ]}
         />
 
@@ -8632,6 +8651,29 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     () => resolveAthleticOSTheme(appThemeConfig),
     [appThemeConfig]
   );
+  useEffect(() => {
+    if (!isPower5Theme(resolvedTheme)) {
+      return;
+    }
+
+    logPower5ColorDebug('resolved', {
+      themeKey: resolvedTheme.meta.themeKey,
+      resolvedColors: {
+        primary: resolvedTheme.colors.primary,
+        secondary: resolvedTheme.colors.secondary,
+        accent: resolvedTheme.colors.accent,
+        heroStart: resolvedTheme.colors.heroStart,
+        heroEnd: resolvedTheme.colors.heroEnd,
+        cardAlt: resolvedTheme.colors.cardAlt,
+      },
+      renderedValues: {
+        homeHeroGradient: getThemeHeroGradient(resolvedTheme),
+        darkHeroGradient: getThemeDarkHeroGradient(resolvedTheme),
+        headerAccentRail: getThemeHeroAccentColor(resolvedTheme),
+        topIconGradient: getThemeTopIconGradient(resolvedTheme),
+      },
+    });
+  }, [resolvedTheme]);
   const appThemeMode: 'light' | 'dark' = useMemo(
     () =>
       resolvedTheme.meta.themeKey === 'clean_slate' ||
@@ -8881,6 +8923,21 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
     const mergedSchoolConfig = {
       ...nextSchoolConfig,
+      primaryColor:
+        (typeof schoolAppConfig?.primary_color === 'string' &&
+        schoolAppConfig.primary_color.trim()
+          ? schoolAppConfig.primary_color.trim()
+          : undefined) ?? nextSchoolConfig.primaryColor,
+      secondaryColor:
+        (typeof schoolAppConfig?.secondary_color === 'string' &&
+        schoolAppConfig.secondary_color.trim()
+          ? schoolAppConfig.secondary_color.trim()
+          : undefined) ?? nextSchoolConfig.secondaryColor,
+      accentColor:
+        (typeof schoolAppConfig?.accent_color === 'string' &&
+        schoolAppConfig.accent_color.trim()
+          ? schoolAppConfig.accent_color.trim()
+          : undefined) ?? nextSchoolConfig.accentColor,
       logoUrl:
         (typeof schoolAppConfig?.logo_url === 'string' &&
         schoolAppConfig.logo_url.trim()
@@ -8946,41 +9003,85 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       nextThemeConfig?.theme_key?.trim().toLowerCase().replace(/[\s-]+/g, '_') ||
       'sec_power5';
     const nextSchoolAccentColor =
-      (typeof nextSchoolConfig.accentColor === 'string' &&
-      nextSchoolConfig.accentColor.trim()
-        ? nextSchoolConfig.accentColor.trim()
+      (typeof mergedSchoolConfig.accentColor === 'string' &&
+      mergedSchoolConfig.accentColor.trim()
+        ? mergedSchoolConfig.accentColor.trim()
         : '') ||
-      (typeof nextSchoolConfig.secondaryColor === 'string' &&
-      nextSchoolConfig.secondaryColor.trim()
-        ? nextSchoolConfig.secondaryColor.trim()
+      (typeof mergedSchoolConfig.secondaryColor === 'string' &&
+      mergedSchoolConfig.secondaryColor.trim()
+        ? mergedSchoolConfig.secondaryColor.trim()
         : '') ||
-      (typeof nextSchoolConfig.primaryColor === 'string' &&
-      nextSchoolConfig.primaryColor.trim()
-        ? nextSchoolConfig.primaryColor.trim()
+      (typeof mergedSchoolConfig.primaryColor === 'string' &&
+      mergedSchoolConfig.primaryColor.trim()
+        ? mergedSchoolConfig.primaryColor.trim()
         : '') ||
       BRAND.primary;
     const mergedThemeConfig = {
       ...(nextThemeConfig ?? {}),
       theme_key: nextThemeConfig?.theme_key?.trim() || 'sec_power5',
       primary_color:
-        nextThemeConfig?.primary_color?.trim() ||
-        nextSchoolConfig.primaryColor?.trim() ||
+        (nextThemeKey === 'sec_power5'
+          ? mergedSchoolConfig.primaryColor?.trim() ||
+            nextThemeConfig?.primary_color?.trim()
+          : nextThemeConfig?.primary_color?.trim() ||
+            mergedSchoolConfig.primaryColor?.trim()) ||
         BRAND.primary,
       secondary_color:
-        nextThemeConfig?.secondary_color?.trim() ||
-        nextSchoolConfig.secondaryColor?.trim() ||
+        (nextThemeKey === 'sec_power5'
+          ? mergedSchoolConfig.secondaryColor?.trim() ||
+            nextThemeConfig?.secondary_color?.trim()
+          : nextThemeConfig?.secondary_color?.trim() ||
+            mergedSchoolConfig.secondaryColor?.trim()) ||
         BRAND.primaryDark,
       accent_color:
-        nextThemeConfig?.accent_color?.trim() ||
-        (nextThemeKey === 'clean_slate'
-          ? nextSchoolConfig.primaryColor?.trim() ||
-            nextSchoolConfig.accentColor?.trim() ||
-            nextSchoolConfig.secondaryColor?.trim() ||
-            nextSchoolAccentColor
-          : nextSchoolConfig.accentColor?.trim() || nextSchoolAccentColor),
+        (nextThemeKey === 'sec_power5'
+          ? mergedSchoolConfig.accentColor?.trim() ||
+            mergedSchoolConfig.primaryColor?.trim() ||
+            mergedSchoolConfig.secondaryColor?.trim() ||
+            nextThemeConfig?.accent_color?.trim()
+          : nextThemeConfig?.accent_color?.trim() ||
+            (nextThemeKey === 'clean_slate'
+              ? mergedSchoolConfig.primaryColor?.trim() ||
+                mergedSchoolConfig.accentColor?.trim() ||
+                mergedSchoolConfig.secondaryColor?.trim() ||
+                nextSchoolAccentColor
+              : mergedSchoolConfig.accentColor?.trim() || nextSchoolAccentColor)),
     } satisfies AthleticOSAppThemeConfig;
 
     console.log('[AthleticOS Theme] fetchedThemeKey:', nextThemeConfig?.theme_key ?? null);
+    if (nextThemeKey === 'sec_power5') {
+      logPower5ColorDebug('raw', {
+        schoolColors: {
+          primary: nextSchoolConfig.primaryColor,
+          secondary: nextSchoolConfig.secondaryColor,
+          accent: nextSchoolConfig.accentColor,
+        },
+        schoolAppConfigColors: {
+          primary: schoolAppConfig?.primary_color ?? null,
+          secondary: schoolAppConfig?.secondary_color ?? null,
+          accent: schoolAppConfig?.accent_color ?? null,
+        },
+        appThemeConfigColors: {
+          primary: nextThemeConfig?.primary_color ?? null,
+          secondary: nextThemeConfig?.secondary_color ?? null,
+          accent: nextThemeConfig?.accent_color ?? null,
+        },
+      });
+      logPower5ColorDebug('merged', {
+        themeKey: nextThemeKey,
+        mergedSchoolConfigColors: {
+          primary: mergedSchoolConfig.primaryColor,
+          secondary: mergedSchoolConfig.secondaryColor,
+          accent: mergedSchoolConfig.accentColor,
+        },
+        mergedThemeConfigColors: {
+          primary: mergedThemeConfig.primary_color,
+          secondary: mergedThemeConfig.secondary_color,
+          accent: mergedThemeConfig.accent_color,
+        },
+        nextSchoolAccentColor,
+      });
+    }
 
     const news = stories
       .map((story) =>
