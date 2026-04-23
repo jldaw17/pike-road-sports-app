@@ -110,11 +110,174 @@ const DEFAULT_APP_THEME = resolveAthleticOSTheme();
 const BOOTSTRAP_LIGHT_THEME = resolveAthleticOSTheme({ theme_key: 'clean_slate' });
 
 function isCleanSlateTheme(theme: AthleticOSResolvedTheme) {
-  return theme.meta.themeKey === 'clean_slate';
+  return theme.meta.themeKey === 'clean_slate' || theme.meta.themeKey === 'modern';
+}
+
+function isModernTheme(theme: AthleticOSResolvedTheme) {
+  return theme.meta.themeKey === 'modern';
+}
+
+function isLightAppTheme(theme: AthleticOSResolvedTheme) {
+  return isCleanSlateTheme(theme) || isModernTheme(theme);
 }
 
 function isPower5Theme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'sec_power5';
+}
+
+function getModernDisplayLabel(label: string, fallback?: string) {
+  const normalized = (label || fallback || '').trim();
+
+  switch (normalized.toLowerCase()) {
+    case 'headlines':
+      return '📰 Headlines';
+    case 'upcoming games':
+      return '📅 Upcoming Games';
+    case 'live coverage':
+      return '📡 Live Coverage';
+    case 'website':
+    case 'open website':
+      return '🌐 Website';
+    case 'schedule':
+    case 'view schedule':
+      return '📆 Schedule';
+    case 'teams':
+    case 'my teams':
+      return '👥 Teams';
+    case 'home':
+      return '🏠 Home';
+    default:
+      return normalized;
+  }
+}
+
+function getModernNavPlainLabel(iconKey?: string, fallbackLabel?: string) {
+  const normalized = (iconKey || fallbackLabel || '').trim().toLowerCase();
+
+  switch (normalized) {
+    case 'news':
+    case 'newspaper':
+      return 'News';
+    case 'teams':
+    case 'people':
+      return 'Teams';
+    case 'schedule':
+    case 'calendar':
+    case 'all_schedules':
+      return 'Schedule';
+    case 'tickets':
+    case 'ticket':
+      return 'Tickets';
+    case 'website':
+    case 'external_url':
+    case 'custom_page':
+      return 'Website';
+    case 'more':
+    case 'ellipsis-horizontal':
+      return 'More';
+    case 'home':
+      return 'Home';
+    case 'broadcast':
+    case 'broadcast_audio':
+    case 'broadcast_video':
+    case 'media':
+    case 'radio-outline':
+    case 'play-circle-outline':
+    case 'watch':
+    case 'livestream':
+      return 'Broadcast';
+    default:
+      return (fallbackLabel || '').trim();
+  }
+}
+
+function getModernNavEmoji(iconKey?: string, fallbackLabel?: string) {
+  const normalized = (iconKey || fallbackLabel || '').trim().toLowerCase();
+
+  switch (normalized) {
+    case 'news':
+    case 'newspaper':
+      return '📰';
+    case 'teams':
+    case 'people':
+      return '👥';
+    case 'schedule':
+    case 'calendar':
+    case 'all_schedules':
+      return '📅';
+    case 'tickets':
+    case 'ticket':
+      return '🎟️';
+    case 'website':
+    case 'external_url':
+    case 'custom_page':
+      return '🌐';
+    case 'more':
+    case 'ellipsis-horizontal':
+      return '⋯';
+    case 'home':
+      return '🏠';
+    case 'broadcast':
+    case 'broadcast_audio':
+    case 'broadcast_video':
+    case 'media':
+    case 'radio-outline':
+    case 'play-circle-outline':
+    case 'watch':
+    case 'livestream':
+      return '📡';
+    default:
+      return '';
+  }
+}
+
+function getModernHeroActionEmoji(
+  icon: keyof typeof Ionicons.glyphMap,
+  label: string
+) {
+  const normalizedLabel = label.trim().toLowerCase();
+
+  if (
+    normalizedLabel.includes('schedule') ||
+    icon === 'calendar-outline' ||
+    icon === 'calendar'
+  ) {
+    return '📅';
+  }
+
+  if (
+    normalizedLabel.includes('website') ||
+    icon === 'globe-outline' ||
+    icon === 'globe'
+  ) {
+    return '🌐';
+  }
+
+  if (
+    normalizedLabel.includes('watch') ||
+    icon === 'videocam-outline' ||
+    icon === 'play-circle-outline' ||
+    icon === 'play'
+  ) {
+    return '📺';
+  }
+
+  if (
+    normalizedLabel.includes('listen') ||
+    icon === 'headset-outline' ||
+    icon === 'headset'
+  ) {
+    return '🎧';
+  }
+
+  if (
+    normalizedLabel.includes('ticket') ||
+    icon === 'ticket-outline'
+  ) {
+    return '🎟️';
+  }
+
+  return '';
 }
 
 function getThemeHeroAccentColor(theme: AthleticOSResolvedTheme) {
@@ -122,7 +285,7 @@ function getThemeHeroAccentColor(theme: AthleticOSResolvedTheme) {
     return theme.colors.primary;
   }
 
-  if (isCleanSlateTheme(theme)) {
+  if (isLightAppTheme(theme)) {
     return theme.colors.primary;
   }
 
@@ -139,12 +302,28 @@ function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
     return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
   }
 
+  if (isModernTheme(theme)) {
+    return [
+      withAlpha(theme.colors.primary, '1A'),
+      withAlpha(theme.colors.secondary, '12'),
+      theme.colors.surface,
+    ];
+  }
+
   return [theme.colors.heroStart, theme.colors.heroEnd, theme.colors.cardAlt];
 }
 
 function getThemeDarkHeroGradient(theme: AthleticOSResolvedTheme) {
   if (isCleanSlateTheme(theme)) {
     return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
+  }
+
+  if (isModernTheme(theme)) {
+    return [
+      withAlpha(theme.colors.primary, '1A'),
+      withAlpha(theme.colors.secondary, '12'),
+      theme.colors.surface,
+    ];
   }
 
   return [BRAND.black, theme.colors.heroEnd, theme.colors.cardAlt];
@@ -155,12 +334,34 @@ function getThemeBackdropGradient(theme: AthleticOSResolvedTheme) {
     return [theme.colors.background, theme.colors.background, theme.colors.background];
   }
 
+  if (isModernTheme(theme)) {
+    return [
+      withAlpha(theme.colors.primary, '10'),
+      withAlpha(theme.colors.secondary, '0A'),
+      theme.colors.background,
+    ];
+  }
+
   return [`${theme.colors.secondary}22`, `${theme.colors.primary}12`, theme.colors.background];
 }
 
 function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isCleanSlateTheme(theme)) {
+  if (!isLightAppTheme(theme)) {
     return null;
+  }
+
+  if (isModernTheme(theme)) {
+    return {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: withAlpha(theme.colors.primary, '16'),
+      borderRadius: 10,
+      shadowColor: withAlpha(theme.colors.primary, '10'),
+      shadowOpacity: 0.055,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    };
   }
 
   return {
@@ -177,8 +378,21 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 }
 
 function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isCleanSlateTheme(theme)) {
+  if (!isLightAppTheme(theme)) {
     return null;
+  }
+
+  if (isModernTheme(theme)) {
+    return {
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: withAlpha(theme.colors.primary, '12'),
+      shadowColor: withAlpha(theme.colors.primary, '10'),
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    };
   }
 
   return {
@@ -194,8 +408,22 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 }
 
 function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isCleanSlateTheme(theme)) {
+  if (!isLightAppTheme(theme)) {
     return null;
+  }
+
+  if (isModernTheme(theme)) {
+    return {
+      backgroundColor: theme.colors.card,
+      borderColor: withAlpha(theme.colors.primary, '10'),
+      borderWidth: 1,
+      borderRadius: 12,
+      shadowColor: withAlpha(theme.colors.primary, '10'),
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    };
   }
 
   return {
@@ -212,8 +440,22 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
 }
 
 function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isCleanSlateTheme(theme)) {
+  if (!isLightAppTheme(theme)) {
     return null;
+  }
+
+  if (isModernTheme(theme)) {
+    return {
+      backgroundColor: theme.colors.cardAlt,
+      borderColor: withAlpha(theme.colors.primary, '10'),
+      borderWidth: 1,
+      borderRadius: 12,
+      shadowColor: withAlpha(theme.colors.primary, '0E'),
+      shadowOpacity: 0.045,
+      shadowRadius: 7,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    };
   }
 
   return {
@@ -230,7 +472,7 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
 }
 
 function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
-  if (isCleanSlateTheme(theme)) {
+  if (isLightAppTheme(theme)) {
     return [theme.colors.surface, theme.colors.cardAlt];
   }
 
@@ -238,8 +480,21 @@ function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
 }
 
 function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isCleanSlateTheme(theme)) {
+  if (!isLightAppTheme(theme)) {
     return null;
+  }
+
+  if (isModernTheme(theme)) {
+    return {
+      backgroundColor: theme.colors.primary,
+      borderWidth: 0,
+      borderRadius: 999,
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    };
   }
 
   return {
@@ -250,8 +505,22 @@ function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle |
 }
 
 function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isCleanSlateTheme(theme)) {
+  if (!isLightAppTheme(theme)) {
     return null;
+  }
+
+  if (isModernTheme(theme)) {
+    return {
+      backgroundColor: theme.colors.surface,
+      borderColor: withAlpha(theme.colors.primary, '18'),
+      borderWidth: 1,
+      borderRadius: 10,
+      shadowColor: withAlpha(theme.colors.primary, '0E'),
+      shadowOpacity: 0.05,
+      shadowRadius: 7,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    };
   }
 
   return {
@@ -650,6 +919,7 @@ type OpenRecruitingOptions = {
 type BottomNavRenderItem = {
   key: string;
   label: string;
+  iconKey?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   active: boolean;
@@ -1474,6 +1744,8 @@ function TopIcon({
   theme?: AthleticOSResolvedTheme;
 }) {
   if (isCleanSlateTheme(theme)) {
+    const resolvedLabel = label;
+    const modernEmoji = isModernTheme(theme) ? getModernHeroActionEmoji(icon, label) : '';
     return (
       <Pressable style={styles.topIconWrap} onPress={onPress}>
         <View
@@ -1481,34 +1753,42 @@ function TopIcon({
             styles.topIconCircle,
             {
               backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
-              borderRadius: 6,
+              borderColor: isModernTheme(theme)
+                ? withAlpha(theme.colors.primary, '14')
+                : theme.colors.border,
+              borderRadius: isModernTheme(theme) ? 10 : 6,
               marginBottom: 4,
-              width: 40,
-              height: 40,
-              shadowColor: withAlpha(theme.colors.text, '12'),
-              shadowOpacity: 0.03,
-              shadowRadius: 3,
-              shadowOffset: { width: 0, height: 1 },
-              elevation: 1,
+              width: isModernTheme(theme) ? 42 : 40,
+              height: isModernTheme(theme) ? 42 : 40,
+              shadowColor: isModernTheme(theme)
+                ? withAlpha(theme.colors.primary, '10')
+                : withAlpha(theme.colors.text, '12'),
+              shadowOpacity: isModernTheme(theme) ? 0.05 : 0.03,
+              shadowRadius: isModernTheme(theme) ? 6 : 3,
+              shadowOffset: { width: 0, height: isModernTheme(theme) ? 2 : 1 },
+              elevation: isModernTheme(theme) ? 2 : 1,
             },
           ]}
         >
-          <Ionicons name={icon} size={17} color={theme.colors.primary} />
+          {isModernTheme(theme) && modernEmoji ? (
+            <Text style={{ fontSize: 17, lineHeight: 19 }}>{modernEmoji}</Text>
+          ) : (
+            <Ionicons name={icon} size={17} color={theme.colors.primary} />
+          )}
         </View>
         <Text
           style={[
             styles.topIconLabel,
             {
               color: theme.colors.text,
-              fontSize: 9,
+              fontSize: isModernTheme(theme) ? 10 : 9,
               fontWeight: '800',
-              letterSpacing: 0.45,
+              letterSpacing: isModernTheme(theme) ? 0.3 : 0.45,
               textTransform: 'uppercase',
             },
           ]}
         >
-          {label}
+          {resolvedLabel}
         </Text>
       </Pressable>
     );
@@ -1562,6 +1842,7 @@ function SectionHeader({
   theme?: AthleticOSResolvedTheme;
 }) {
   if (isCleanSlateTheme(theme)) {
+    const resolvedTitle = isModernTheme(theme) ? getModernDisplayLabel(title) : title;
     return (
       <View
         style={[
@@ -1569,9 +1850,11 @@ function SectionHeader({
           {
             marginTop: 24,
             marginBottom: 12,
-            paddingBottom: 8,
+            paddingBottom: isModernTheme(theme) ? 7 : 8,
             borderBottomWidth: 1,
-            borderBottomColor: withAlpha(theme.colors.text, '10'),
+            borderBottomColor: isModernTheme(theme)
+              ? withAlpha(theme.colors.primary, '14')
+              : withAlpha(theme.colors.text, '10'),
           },
           containerStyle,
         ]}
@@ -1582,7 +1865,7 @@ function SectionHeader({
               width: 22,
               height: 2,
               borderRadius: 999,
-              backgroundColor: theme.colors.accent,
+              backgroundColor: theme.colors.primary,
               marginRight: 10,
             }}
           />
@@ -1591,14 +1874,14 @@ function SectionHeader({
               styles.sectionTitle,
               {
                 color: theme.colors.text,
-                fontSize: 13,
+                fontSize: isModernTheme(theme) ? 14 : 13,
                 fontWeight: '800',
-                letterSpacing: 1,
+                letterSpacing: isModernTheme(theme) ? 0.8 : 1,
                 textTransform: 'uppercase',
               },
             ]}
           >
-            {title}
+            {resolvedTitle}
           </Text>
         </View>
         {actionLabel && onAction ? (
@@ -1607,7 +1890,7 @@ function SectionHeader({
               style={[
                 styles.sectionAction,
                 {
-                  color: theme.colors.accent,
+                  color: theme.colors.primary,
                   fontSize: 10,
                   fontWeight: '800',
                   letterSpacing: 0.7,
@@ -4068,6 +4351,15 @@ function HomeScreen({
     heroTitle = 'Live Audio';
     heroText = 'Open the live coverage hub to listen now.';
     heroCta = 'Listen Live';
+  }
+
+  if (isModernTheme(theme)) {
+    if (heroEyebrow === 'Live Coverage') {
+      heroEyebrow = '📡 Live Coverage';
+    }
+    if (heroTitle === 'Live Coverage') {
+      heroTitle = '📡 Live Coverage';
+    }
   }
 
   const handleOpenLiveCoverage = () => {
@@ -8530,6 +8822,7 @@ function BottomNav({
 }) {
   const isLightMode = themeMode === 'light';
   const isCleanSlate = isCleanSlateTheme(theme);
+  const isModern = isModernTheme(theme);
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const homeItem = items.find((item) => item.key === 'home');
   const homeActive = homeItem?.active ?? false;
@@ -8686,18 +8979,36 @@ function BottomNav({
               </>
             ) : (
               <>
-                <Ionicons
-                  name={item.icon!}
-                  size={22}
-                  color={active ? theme.colors.primary : theme.colors.mutedText}
-                />
+                {isModern ? (
+                  <Text
+                    style={[
+                      styles.bottomNavLabel,
+                      {
+                        color: active ? theme.colors.primary : theme.colors.mutedText,
+                        fontSize: 18,
+                        lineHeight: 20,
+                        marginBottom: 2,
+                      },
+                    ]}
+                  >
+                    {getModernNavEmoji(item.iconKey || item.key, item.label)}
+                  </Text>
+                ) : (
+                  <Ionicons
+                    name={item.icon!}
+                    size={22}
+                    color={active ? theme.colors.primary : theme.colors.mutedText}
+                  />
+                )}
                 <Text
                   style={[
                     styles.bottomNavLabel,
                     { color: active ? theme.colors.primary : theme.colors.mutedText },
                   ]}
                 >
-                  {item.label}
+                  {isModern
+                    ? getModernNavPlainLabel(item.iconKey || item.key, item.label)
+                    : item.label}
                 </Text>
               </>
             )}
@@ -9737,6 +10048,7 @@ const handleEnableNotifications = async () => {
         return {
           key: 'slot-1-media',
           label: 'Broadcast',
+          iconKey: 'broadcast',
           icon: 'radio-outline',
           activeTabKey: 'media',
           onPress: () => handleBottomNavChange('media'),
@@ -9745,6 +10057,7 @@ const handleEnableNotifications = async () => {
         return {
           key: 'slot-2-teams',
           label: 'Teams',
+          iconKey: 'teams',
           icon: 'people',
           activeTabKey: 'teams',
           onPress: () => handleBottomNavChange('teams'),
@@ -9754,6 +10067,7 @@ const handleEnableNotifications = async () => {
         return {
           key: 'slot-4-tickets',
           label: 'Tickets',
+          iconKey: 'tickets',
           icon: 'ticket-outline',
           activeTabKey: 'tickets',
           onPress: () => handleBottomNavChange('tickets'),
@@ -9839,6 +10153,7 @@ const handleEnableNotifications = async () => {
     return {
       key: `slot-${slotNumber}`,
       label,
+      iconKey: configuredItem.iconKey || fallbackItem.iconKey,
       icon,
       onPress,
       active,
@@ -9851,6 +10166,7 @@ const handleEnableNotifications = async () => {
     {
       key: 'home',
       label: 'Home',
+      iconKey: 'home',
       onPress: () => handleBottomNavChange('home'),
       active: screenMode === 'tabs' && activeTab === 'home',
     },
@@ -9858,6 +10174,7 @@ const handleEnableNotifications = async () => {
     {
       key: 'more',
       label: 'More',
+      iconKey: 'more',
       icon: 'ellipsis-horizontal',
       onPress: () => handleBottomNavChange('more'),
       active: screenMode === 'tabs' && activeTab === 'more',
