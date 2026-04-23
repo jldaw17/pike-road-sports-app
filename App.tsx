@@ -767,6 +767,142 @@ function stripHtml(value = '') {
     .trim();
 }
 
+type StoryBodySegment = {
+  text: string;
+  href?: string;
+};
+
+function htmlToStoryDisplayText(value = '') {
+  return decodeHtml(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|section|article|blockquote|h[1-6]|ul|ol)>/gi, '\n\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+function parseStoryBodySegments(value = '') {
+  const sanitized = value
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
+  const anchorPattern = /<a\b[^>]*href=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+  const segments: StoryBodySegment[] = [];
+  let lastIndex = 0;
+
+  const pushTextSegment = (text: string) => {
+    const normalized = htmlToStoryDisplayText(text);
+    if (normalized) {
+      segments.push({ text: normalized });
+    }
+  };
+
+  let match: RegExpExecArray | null;
+  while ((match = anchorPattern.exec(sanitized))) {
+    pushTextSegment(sanitized.slice(lastIndex, match.index));
+
+    const href = decodeHtml(match[2] ?? '').trim();
+    const label = htmlToStoryDisplayText(match[3] ?? '').trim() || href;
+    if (label) {
+      segments.push({
+        text: label,
+        href: hasResolvedUrl(href) ? normalizeUrl(href) : undefined,
+      });
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  pushTextSegment(sanitized.slice(lastIndex));
+  return segments;
+}
+
+function renderStoryBodyContent(
+  articleText: string,
+  theme: AthleticOSResolvedTheme
+) {
+  const segments = parseStoryBodySegments(articleText);
+
+  if (!segments.length) {
+    const plainText = stripHtml(articleText);
+    if (!plainText) {
+      return null;
+    }
+
+    return (
+      <Text style={[styles.storyDetailBodyParagraph, { color: theme.colors.text }]}>
+        {plainText}
+      </Text>
+    );
+  }
+
+  const paragraphs: StoryBodySegment[][] = [];
+  let currentParagraph: StoryBodySegment[] = [];
+
+  const pushCurrentParagraph = () => {
+    if (currentParagraph.length) {
+      paragraphs.push(currentParagraph);
+      currentParagraph = [];
+    }
+  };
+
+  segments.forEach((segment) => {
+    const parts = segment.text.split(/\n{2,}/);
+
+    parts.forEach((part, index) => {
+      const normalizedPart = part.replace(/[ \t]{2,}/g, ' ');
+      if (normalizedPart.trim()) {
+        currentParagraph.push({
+          ...segment,
+          text: normalizedPart,
+        });
+      }
+
+      if (index < parts.length - 1) {
+        pushCurrentParagraph();
+      }
+    });
+  });
+
+  pushCurrentParagraph();
+
+  return paragraphs.map((paragraph, paragraphIndex) => (
+    <Text
+      key={`story-body-paragraph-${paragraphIndex}`}
+      style={[styles.storyDetailBodyParagraph, { color: theme.colors.text }]}
+    >
+      {paragraph.map((segment, segmentIndex) =>
+        segment.href ? (
+          <Text
+            key={`story-body-segment-${paragraphIndex}-${segmentIndex}`}
+            style={[
+              styles.storyDetailBodyLink,
+              { color: theme.colors.primary },
+            ]}
+            onPress={() => {
+              Linking.openURL(segment.href!).catch((error) => {
+                console.warn('Unable to open story body link', error);
+              });
+            }}
+          >
+            {segment.text}
+          </Text>
+        ) : (
+          <Text key={`story-body-segment-${paragraphIndex}-${segmentIndex}`}>
+            {segment.text}
+          </Text>
+        )
+      )}
+    </Text>
+  ));
+}
+
 function getTagValue(xml: string, tag: string) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i'));
   return match?.[1]?.trim() ?? '';
@@ -2213,7 +2349,7 @@ function StoryDetailScreen({
             getThemeSoftCardStyle(theme),
           ]}
         >
-          <Text style={[styles.storyDetailBody, { color: theme.colors.text }]}>{articleText}</Text>
+          {renderStoryBodyContent(articleText, theme)}
         </View>
       ) : null}
     </ScrollView>
@@ -11349,10 +11485,15 @@ bannerImage: {
     paddingVertical: 22,
   },
 
-  storyDetailBody: {
+  storyDetailBodyParagraph: {
     color: BRAND.lightGray,
     fontSize: 16,
     lineHeight: 28,
+    marginBottom: 14,
+  },
+
+  storyDetailBodyLink: {
+    textDecorationLine: 'underline',
   },
 
   eventsRow: {
