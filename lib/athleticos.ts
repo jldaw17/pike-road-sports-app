@@ -374,6 +374,7 @@ export type AthleticOSAthlete = {
   last_name?: string;
   default_photo_url?: string;
   photo_url?: string;
+  offers?: string[] | string;
   hometown?: string;
   recruitable?: boolean;
   recruit_profile_slug?: string;
@@ -1133,7 +1134,6 @@ export async function getTeamNavBySportId(
       .select('*')
       .eq('school_id', schoolId)
       .eq('sport_id', sportId)
-      .eq('is_enabled', true)
       .order('sort_order', { ascending: true })
       .order('id', { ascending: true });
 
@@ -1145,7 +1145,8 @@ export async function getTeamNavBySportId(
       .map((item) => ({
         navKey: pickFirstString(item, ['nav_key']) ?? '',
         label: pickFirstString(item, ['label']) ?? '',
-        isEnabled: true,
+        isEnabled:
+          pickFirstBoolean(item, ['is_enabled', 'enabled', 'is_active', 'active']) ?? true,
         sortOrder: pickFirstNumber(item, ['sort_order']) ?? 0,
       }))
       .filter((item) => item.navKey)
@@ -1638,6 +1639,7 @@ export async function getRecruitingPlayersBySport(
           first_name,
           last_name,
           hometown,
+          offers,
           default_photo_url,
           recruitable,
           recruit_profile_slug,
@@ -1716,6 +1718,7 @@ export async function getRecruitingPlayersBySport(
         instagram_url: athlete?.instagram_url ?? null,
         tiktok_url: athlete?.tiktok_url ?? null,
         youtube_url: athlete?.youtube_url ?? null,
+        offers: readStringArray((athlete ?? {}).offers),
         bio:
           pickFirstString((athlete ?? {}) as Record<string, unknown>, ['recruiting_bio']) ??
           null,

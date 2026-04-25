@@ -9,7 +9,7 @@ import { Video, type AVPlaybackStatus } from 'expo-av';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -110,226 +110,11 @@ const DEFAULT_APP_THEME = resolveAthleticOSTheme();
 const BOOTSTRAP_LIGHT_THEME = resolveAthleticOSTheme({ theme_key: 'clean_slate' });
 
 function isCleanSlateTheme(theme: AthleticOSResolvedTheme) {
-  return theme.meta.themeKey === 'clean_slate' || theme.meta.themeKey === 'modern';
-}
-
-function isModernTheme(theme: AthleticOSResolvedTheme) {
-  return theme.meta.themeKey === 'modern';
-}
-
-function isLightAppTheme(theme: AthleticOSResolvedTheme) {
-  return isCleanSlateTheme(theme) || isModernTheme(theme);
+  return theme.meta.themeKey === 'clean_slate';
 }
 
 function isPower5Theme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'sec_power5';
-}
-
-function getModernDisplayLabel(label: string, fallback?: string) {
-  const normalized = (label || fallback || '').trim();
-
-  switch (normalized.toLowerCase()) {
-    case 'headlines':
-      return '📰 Headlines';
-    case 'upcoming games':
-      return '📅 Upcoming Games';
-    case 'live coverage':
-      return '📡 Live Coverage';
-    case 'website':
-    case 'open website':
-      return '🌐 Website';
-    case 'schedule':
-    case 'view schedule':
-      return '📆 Schedule';
-    case 'teams':
-    case 'my teams':
-      return '👥 Teams';
-    case 'home':
-      return '🏠 Home';
-    default:
-      return normalized;
-  }
-}
-
-function getModernNavPlainLabel(iconKey?: string, fallbackLabel?: string) {
-  const normalized = (iconKey || fallbackLabel || '').trim().toLowerCase();
-
-  switch (normalized) {
-    case 'news':
-    case 'newspaper':
-      return 'News';
-    case 'teams':
-    case 'people':
-      return 'Teams';
-    case 'schedule':
-    case 'calendar':
-    case 'all_schedules':
-      return 'Schedule';
-    case 'tickets':
-    case 'ticket':
-      return 'Tickets';
-    case 'website':
-    case 'external_url':
-    case 'custom_page':
-      return 'Website';
-    case 'more':
-    case 'ellipsis-horizontal':
-      return 'More';
-    case 'home':
-      return 'Home';
-    case 'broadcast':
-    case 'broadcast_audio':
-    case 'broadcast_video':
-    case 'media':
-    case 'radio-outline':
-    case 'play-circle-outline':
-    case 'watch':
-    case 'livestream':
-      return 'Broadcast';
-    default:
-      return (fallbackLabel || '').trim();
-  }
-}
-
-function getModernNavEmoji(iconKey?: string, fallbackLabel?: string) {
-  const normalized = (iconKey || fallbackLabel || '').trim().toLowerCase();
-
-  switch (normalized) {
-    case 'news':
-    case 'newspaper':
-      return '📰';
-    case 'teams':
-    case 'people':
-      return '👥';
-    case 'schedule':
-    case 'calendar':
-    case 'all_schedules':
-      return '📅';
-    case 'tickets':
-    case 'ticket':
-      return '🎟️';
-    case 'website':
-    case 'external_url':
-    case 'custom_page':
-      return '🌐';
-    case 'more':
-    case 'ellipsis-horizontal':
-      return '⋯';
-    case 'home':
-      return '🏠';
-    case 'broadcast':
-    case 'broadcast_audio':
-    case 'broadcast_video':
-    case 'media':
-    case 'radio-outline':
-    case 'play-circle-outline':
-    case 'watch':
-    case 'livestream':
-      return '📡';
-    default:
-      return '';
-  }
-}
-
-function getModernHeroActionEmoji(
-  icon: keyof typeof Ionicons.glyphMap,
-  label: string
-) {
-  const normalizedLabel = label.trim().toLowerCase();
-
-  if (
-    normalizedLabel.includes('schedule') ||
-    icon === 'calendar-outline' ||
-    icon === 'calendar'
-  ) {
-    return '📅';
-  }
-
-  if (
-    normalizedLabel.includes('website') ||
-    icon === 'globe-outline' ||
-    icon === 'globe'
-  ) {
-    return '🌐';
-  }
-
-  if (
-    normalizedLabel.includes('watch') ||
-    icon === 'videocam-outline' ||
-    icon === 'play-circle-outline' ||
-    icon === 'play'
-  ) {
-    return '📺';
-  }
-
-  if (
-    normalizedLabel.includes('listen') ||
-    icon === 'headset-outline' ||
-    icon === 'headset'
-  ) {
-    return '🎧';
-  }
-
-  if (
-    normalizedLabel.includes('roster') ||
-    normalizedLabel.includes('team') ||
-    icon === 'people-outline' ||
-    icon === 'people'
-  ) {
-    return '👥';
-  }
-
-  if (
-    normalizedLabel.includes('recruit') ||
-    normalizedLabel.includes('scout') ||
-    icon === 'school-outline' ||
-    icon === 'school'
-  ) {
-    return '🎯';
-  }
-
-  if (
-    normalizedLabel.includes('news') ||
-    icon === 'newspaper-outline' ||
-    icon === 'newspaper'
-  ) {
-    return '📰';
-  }
-
-  if (
-    normalizedLabel.includes('coach') ||
-    normalizedLabel.includes('coaches') ||
-    icon === 'clipboard-outline' ||
-    icon === 'megaphone-outline'
-  ) {
-    return '📋';
-  }
-
-  if (
-    normalizedLabel.includes('stat') ||
-    icon === 'stats-chart-outline' ||
-    icon === 'bar-chart-outline'
-  ) {
-    return '📊';
-  }
-
-  if (
-    normalizedLabel.includes('standing') ||
-    normalizedLabel.includes('rank') ||
-    icon === 'trophy-outline' ||
-    icon === 'podium-outline'
-  ) {
-    return '🏆';
-  }
-
-  if (
-    normalizedLabel.includes('ticket') ||
-    icon === 'ticket-outline'
-  ) {
-    return '🎟️';
-  }
-
-  return '';
 }
 
 function getThemeHeroAccentColor(theme: AthleticOSResolvedTheme) {
@@ -337,7 +122,7 @@ function getThemeHeroAccentColor(theme: AthleticOSResolvedTheme) {
     return theme.colors.primary;
   }
 
-  if (isLightAppTheme(theme)) {
+  if (isCleanSlateTheme(theme)) {
     return theme.colors.primary;
   }
 
@@ -354,28 +139,12 @@ function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
     return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
   }
 
-  if (isModernTheme(theme)) {
-    return [
-      withAlpha(theme.colors.primary, '1A'),
-      withAlpha(theme.colors.secondary, '12'),
-      theme.colors.surface,
-    ];
-  }
-
   return [theme.colors.heroStart, theme.colors.heroEnd, theme.colors.cardAlt];
 }
 
 function getThemeDarkHeroGradient(theme: AthleticOSResolvedTheme) {
   if (isCleanSlateTheme(theme)) {
     return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
-  }
-
-  if (isModernTheme(theme)) {
-    return [
-      withAlpha(theme.colors.primary, '1A'),
-      withAlpha(theme.colors.secondary, '12'),
-      theme.colors.surface,
-    ];
   }
 
   return [BRAND.black, theme.colors.heroEnd, theme.colors.cardAlt];
@@ -386,34 +155,12 @@ function getThemeBackdropGradient(theme: AthleticOSResolvedTheme) {
     return [theme.colors.background, theme.colors.background, theme.colors.background];
   }
 
-  if (isModernTheme(theme)) {
-    return [
-      withAlpha(theme.colors.primary, '10'),
-      withAlpha(theme.colors.secondary, '0A'),
-      theme.colors.background,
-    ];
-  }
-
   return [`${theme.colors.secondary}22`, `${theme.colors.primary}12`, theme.colors.background];
 }
 
 function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isLightAppTheme(theme)) {
+  if (!isCleanSlateTheme(theme)) {
     return null;
-  }
-
-  if (isModernTheme(theme)) {
-    return {
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '16'),
-      borderRadius: 10,
-      shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.055,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
-    };
   }
 
   return {
@@ -430,21 +177,8 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 }
 
 function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isLightAppTheme(theme)) {
+  if (!isCleanSlateTheme(theme)) {
     return null;
-  }
-
-  if (isModernTheme(theme)) {
-    return {
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '12'),
-      shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
-    };
   }
 
   return {
@@ -460,22 +194,8 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 }
 
 function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isLightAppTheme(theme)) {
+  if (!isCleanSlateTheme(theme)) {
     return null;
-  }
-
-  if (isModernTheme(theme)) {
-    return {
-      backgroundColor: theme.colors.card,
-      borderColor: withAlpha(theme.colors.primary, '10'),
-      borderWidth: 1,
-      borderRadius: 12,
-      shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
-    };
   }
 
   return {
@@ -492,22 +212,8 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
 }
 
 function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isLightAppTheme(theme)) {
+  if (!isCleanSlateTheme(theme)) {
     return null;
-  }
-
-  if (isModernTheme(theme)) {
-    return {
-      backgroundColor: theme.colors.cardAlt,
-      borderColor: withAlpha(theme.colors.primary, '10'),
-      borderWidth: 1,
-      borderRadius: 12,
-      shadowColor: withAlpha(theme.colors.primary, '0E'),
-      shadowOpacity: 0.045,
-      shadowRadius: 7,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 1,
-    };
   }
 
   return {
@@ -524,7 +230,7 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
 }
 
 function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
-  if (isLightAppTheme(theme)) {
+  if (isCleanSlateTheme(theme)) {
     return [theme.colors.surface, theme.colors.cardAlt];
   }
 
@@ -532,21 +238,8 @@ function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
 }
 
 function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isLightAppTheme(theme)) {
+  if (!isCleanSlateTheme(theme)) {
     return null;
-  }
-
-  if (isModernTheme(theme)) {
-    return {
-      backgroundColor: theme.colors.primary,
-      borderWidth: 0,
-      borderRadius: 999,
-      shadowColor: withAlpha(theme.colors.primary, '14'),
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 1,
-    };
   }
 
   return {
@@ -557,22 +250,8 @@ function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle |
 }
 
 function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (!isLightAppTheme(theme)) {
+  if (!isCleanSlateTheme(theme)) {
     return null;
-  }
-
-  if (isModernTheme(theme)) {
-    return {
-      backgroundColor: theme.colors.surface,
-      borderColor: withAlpha(theme.colors.primary, '18'),
-      borderWidth: 1,
-      borderRadius: 10,
-      shadowColor: withAlpha(theme.colors.primary, '0E'),
-      shadowOpacity: 0.05,
-      shadowRadius: 7,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 1,
-    };
   }
 
   return {
@@ -585,25 +264,6 @@ function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
-  };
-}
-
-function getRecruitingExperiencePalette(theme: AthleticOSResolvedTheme) {
-  const resolvedAccent = theme.colors.accent || theme.colors.primary;
-  const resolvedSecondary = theme.colors.secondary || theme.colors.primary;
-
-  return {
-    background: '#080B12',
-    surface: withAlpha(resolvedSecondary, '12'),
-    surfaceAlt: withAlpha(resolvedAccent, '10'),
-    border: withAlpha(resolvedAccent, '34'),
-    borderSoft: withAlpha(resolvedAccent, '1E'),
-    text: BRAND.white,
-    mutedText: 'rgba(229,231,235,0.72)',
-    accent: resolvedAccent,
-    accentSoft: withAlpha(resolvedAccent, '16'),
-    secondarySoft: withAlpha(resolvedSecondary, '14'),
-    heroGradient: ['#05070C', withAlpha(resolvedSecondary, '26'), withAlpha(resolvedAccent, '1E')],
   };
 }
 
@@ -970,7 +630,6 @@ type TeamNavAction = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
-  disabled?: boolean;
 };
 
 type OpenRosterOptions = {
@@ -991,7 +650,6 @@ type OpenRecruitingOptions = {
 type BottomNavRenderItem = {
   key: string;
   label: string;
-  iconKey?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   active: boolean;
@@ -1816,8 +1474,6 @@ function TopIcon({
   theme?: AthleticOSResolvedTheme;
 }) {
   if (isCleanSlateTheme(theme)) {
-    const resolvedLabel = label;
-    const modernEmoji = isModernTheme(theme) ? getModernHeroActionEmoji(icon, label) : '';
     return (
       <Pressable style={styles.topIconWrap} onPress={onPress}>
         <View
@@ -1825,42 +1481,34 @@ function TopIcon({
             styles.topIconCircle,
             {
               backgroundColor: theme.colors.card,
-              borderColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '14')
-                : theme.colors.border,
-              borderRadius: isModernTheme(theme) ? 10 : 6,
+              borderColor: theme.colors.border,
+              borderRadius: 6,
               marginBottom: 4,
-              width: isModernTheme(theme) ? 42 : 40,
-              height: isModernTheme(theme) ? 42 : 40,
-              shadowColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '10')
-                : withAlpha(theme.colors.text, '12'),
-              shadowOpacity: isModernTheme(theme) ? 0.05 : 0.03,
-              shadowRadius: isModernTheme(theme) ? 6 : 3,
-              shadowOffset: { width: 0, height: isModernTheme(theme) ? 2 : 1 },
-              elevation: isModernTheme(theme) ? 2 : 1,
+              width: 40,
+              height: 40,
+              shadowColor: withAlpha(theme.colors.text, '12'),
+              shadowOpacity: 0.03,
+              shadowRadius: 3,
+              shadowOffset: { width: 0, height: 1 },
+              elevation: 1,
             },
           ]}
         >
-          {isModernTheme(theme) && modernEmoji ? (
-            <Text style={{ fontSize: 17, lineHeight: 19 }}>{modernEmoji}</Text>
-          ) : (
-            <Ionicons name={icon} size={17} color={theme.colors.primary} />
-          )}
+          <Ionicons name={icon} size={17} color={theme.colors.primary} />
         </View>
         <Text
           style={[
             styles.topIconLabel,
             {
               color: theme.colors.text,
-              fontSize: isModernTheme(theme) ? 10 : 9,
+              fontSize: 9,
               fontWeight: '800',
-              letterSpacing: isModernTheme(theme) ? 0.3 : 0.45,
+              letterSpacing: 0.45,
               textTransform: 'uppercase',
             },
           ]}
         >
-          {resolvedLabel}
+          {label}
         </Text>
       </Pressable>
     );
@@ -1914,7 +1562,6 @@ function SectionHeader({
   theme?: AthleticOSResolvedTheme;
 }) {
   if (isCleanSlateTheme(theme)) {
-    const resolvedTitle = isModernTheme(theme) ? getModernDisplayLabel(title) : title;
     return (
       <View
         style={[
@@ -1922,11 +1569,9 @@ function SectionHeader({
           {
             marginTop: 24,
             marginBottom: 12,
-            paddingBottom: isModernTheme(theme) ? 7 : 8,
+            paddingBottom: 8,
             borderBottomWidth: 1,
-            borderBottomColor: isModernTheme(theme)
-              ? withAlpha(theme.colors.primary, '14')
-              : withAlpha(theme.colors.text, '10'),
+            borderBottomColor: withAlpha(theme.colors.text, '10'),
           },
           containerStyle,
         ]}
@@ -1937,7 +1582,7 @@ function SectionHeader({
               width: 22,
               height: 2,
               borderRadius: 999,
-              backgroundColor: theme.colors.primary,
+              backgroundColor: theme.colors.accent,
               marginRight: 10,
             }}
           />
@@ -1946,14 +1591,14 @@ function SectionHeader({
               styles.sectionTitle,
               {
                 color: theme.colors.text,
-                fontSize: isModernTheme(theme) ? 14 : 13,
+                fontSize: 13,
                 fontWeight: '800',
-                letterSpacing: isModernTheme(theme) ? 0.8 : 1,
+                letterSpacing: 1,
                 textTransform: 'uppercase',
               },
             ]}
           >
-            {resolvedTitle}
+            {title}
           </Text>
         </View>
         {actionLabel && onAction ? (
@@ -1962,7 +1607,7 @@ function SectionHeader({
               style={[
                 styles.sectionAction,
                 {
-                  color: theme.colors.primary,
+                  color: theme.colors.accent,
                   fontSize: 10,
                   fontWeight: '800',
                   letterSpacing: 0.7,
@@ -2138,9 +1783,6 @@ function LaunchSplash({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const logoSlide = useRef(new Animated.Value(16)).current;
-  const hasSplashBackground = hasResolvedUrl(splashBackgroundUrl);
-  const hasSplashLogo = hasResolvedUrl(splashLogoUrl);
-  const showDefaultSplash = !hasSplashBackground && !hasSplashLogo;
 
   useEffect(() => {
     Animated.parallel([
@@ -2182,42 +1824,30 @@ function LaunchSplash({
         backgroundColor={isCleanSlateTheme(theme) ? theme.colors.background : '#1F3B7A'}
       />
 
-      {hasSplashBackground ? (
+      {hasResolvedUrl(splashBackgroundUrl) && !isCleanSlateTheme(theme) ? (
         <ImageBackground
           source={{ uri: splashBackgroundUrl }}
           style={styles.flashBackgroundImage}
           imageStyle={styles.flashBackgroundImageInner}
           resizeMode="cover"
         >
-          {showDefaultSplash && !isCleanSlateTheme(theme) ? <View style={styles.flashOverlay} /> : null}
+          <View style={styles.flashOverlay} />
 
-          {showDefaultSplash && !isCleanSlateTheme(theme) ? (
-            <View style={styles.flashTopStripeWrap}>
-              <View style={styles.flashTopStripeBlack} />
-              <View style={styles.flashTopStripeRed} />
-              <View style={styles.flashTopStripeBlack} />
-            </View>
-          ) : null}
+          <View style={styles.flashTopStripeWrap}>
+            <View style={styles.flashTopStripeBlack} />
+            <View style={styles.flashTopStripeRed} />
+            <View style={styles.flashTopStripeBlack} />
+          </View>
 
           <View style={styles.flashCenterArea}>
-            {hasSplashLogo && showDefaultSplash ? <View style={styles.flashShadowLong} /> : null}
+            {hasResolvedUrl(splashLogoUrl) ? <View style={styles.flashShadowLong} /> : null}
             <Animated.View
               style={{
                 transform: [{ translateY: logoSlide }],
               }}
             >
-              {hasSplashLogo ? (
-                <View
-                  style={[
-                    styles.flashLogoPlate,
-                    !showDefaultSplash
-                      ? {
-                          backgroundColor: 'transparent',
-                          borderColor: 'transparent',
-                        }
-                      : null,
-                  ]}
-                >
+              {hasResolvedUrl(splashLogoUrl) ? (
+                <View style={styles.flashLogoPlate}>
                   <Image
                     source={{ uri: splashLogoUrl }}
                     style={styles.flashMainLogo}
@@ -2238,74 +1868,15 @@ function LaunchSplash({
             ]}
           >
             {schoolDisplayName ? (
-              <Text
-                style={[
-                  styles.flashBottomSub,
-                  !showDefaultSplash ? { color: BRAND.white } : null,
-                ]}
-              >
-                {schoolDisplayName}
-              </Text>
+              <Text style={styles.flashBottomSub}>{schoolDisplayName}</Text>
             ) : null}
           </Animated.View>
         </ImageBackground>
-      ) : hasSplashLogo ? (
-        <View
-          style={[
-            styles.flashBackgroundImage,
-            { backgroundColor: theme.colors.background },
-          ]}
-        >
-          <View style={styles.flashCenterArea}>
-            <Animated.View
-              style={{
-                transform: [{ translateY: logoSlide }],
-              }}
-            >
-              <View
-                style={[
-                  styles.flashLogoPlate,
-                  {
-                    backgroundColor: 'transparent',
-                    borderColor: 'transparent',
-                  },
-                ]}
-              >
-                <Image
-                  source={{ uri: splashLogoUrl }}
-                  style={styles.flashMainLogo}
-                  resizeMode="contain"
-                />
-              </View>
-            </Animated.View>
-          </View>
-
-          <Animated.View
-            style={[
-              styles.flashBottomBranding,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: logoSlide }],
-              },
-            ]}
-          >
-            {schoolDisplayName ? (
-              <Text
-                style={[
-                  styles.flashBottomSub,
-                  { color: theme.colors.text },
-                ]}
-              >
-                {schoolDisplayName}
-              </Text>
-            ) : null}
-          </Animated.View>
-        </View>
       ) : (
         <View
           style={[
             styles.flashBackgroundImage,
-            !showDefaultSplash
+            isCleanSlateTheme(theme)
               ? { backgroundColor: theme.colors.background }
               : null,
           ]}
@@ -2327,7 +1898,7 @@ function LaunchSplash({
                 transform: [{ translateY: logoSlide }],
               }}
             >
-              {hasSplashLogo ? (
+              {hasResolvedUrl(splashLogoUrl) ? (
                 <View
                   style={[
                     styles.flashLogoPlate,
@@ -4499,15 +4070,6 @@ function HomeScreen({
     heroCta = 'Listen Live';
   }
 
-  if (isModernTheme(theme)) {
-    if (heroEyebrow === 'Live Coverage') {
-      heroEyebrow = '📡 Live Coverage';
-    }
-    if (heroTitle === 'Live Coverage') {
-      heroTitle = '📡 Live Coverage';
-    }
-  }
-
   const handleOpenLiveCoverage = () => {
     const destinationType = normalizeModuleKey(liveCoverageConfig?.destination_type);
     const destinationValue = liveCoverageConfig?.destination_value?.trim() || '';
@@ -6451,7 +6013,6 @@ function RosterScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const [sortKey, setSortKey] = useState<RosterSortKey>('number');
-  const isModern = isModernTheme(theme);
   const rosterEntries = athletes ?? [];
   const sortedRoster = useMemo(() => {
     const items = [...rosterEntries];
@@ -6609,7 +6170,7 @@ function RosterScreen({
                   style={[
                     styles.rosterSortChip,
                     active
-                      ? isLightAppTheme(theme)
+                      ? isCleanSlateTheme(theme)
                         ? {
                             backgroundColor: theme.colors.buttonBackground,
                             borderColor: theme.colors.primary,
@@ -6618,16 +6179,6 @@ function RosterScreen({
                             backgroundColor: theme.colors.buttonBackground,
                             borderColor: theme.colors.buttonBackground,
                           }
-                      : isModern
-                        ? {
-                            backgroundColor: theme.colors.card,
-                            borderColor: withAlpha(theme.colors.primary, '16'),
-                          }
-                        : null,
-                    isModern
-                      ? {
-                          borderRadius: 10,
-                        }
                       : null,
                   ]}
                   onPress={() => setSortKey(key)}
@@ -6635,11 +6186,7 @@ function RosterScreen({
                   <Text
                     style={[
                       styles.rosterSortChipText,
-                      active
-                        ? { color: theme.colors.buttonText }
-                        : isModern
-                          ? { color: theme.colors.text }
-                          : null,
+                      active ? { color: theme.colors.buttonText } : null,
                     ]}
                   >
                     {label}
@@ -6662,106 +6209,39 @@ function RosterScreen({
             return (
               <Pressable
                 key={athlete.id}
-                style={[
-                  styles.rosterCard,
-                  isModern
-                    ? {
-                        backgroundColor: theme.colors.card,
-                        borderColor: withAlpha(theme.colors.primary, '16'),
-                        borderRadius: 12,
-                        shadowColor: withAlpha(theme.colors.primary, '10'),
-                        shadowOpacity: 0.05,
-                        shadowRadius: 8,
-                        shadowOffset: { width: 0, height: 2 },
-                        elevation: 2,
-                      }
-                    : null,
-                ]}
+                style={styles.rosterCard}
                 onPress={() => onOpenAthlete(athlete)}
               >
                 {imageUrl ? (
                   <Image
                     source={{ uri: imageUrl }}
-                    style={[
-                      styles.rosterPhoto,
-                      isModern
-                        ? {
-                            borderRadius: 12,
-                            backgroundColor: theme.colors.cardAlt,
-                          }
-                        : null,
-                    ]}
+                    style={styles.rosterPhoto}
                     resizeMode="cover"
                   />
                 ) : (
-                  <View
-                    style={[
-                      styles.rosterPhotoFallback,
-                      isModern
-                        ? {
-                            borderRadius: 12,
-                            backgroundColor: theme.colors.primary,
-                          }
-                        : null,
-                    ]}
-                  >
-                    <Ionicons
-                      name="person"
-                      size={22}
-                      color={isModern ? theme.colors.buttonText : BRAND.white}
-                    />
+                  <View style={styles.rosterPhotoFallback}>
+                    <Ionicons name="person" size={22} color={BRAND.white} />
                   </View>
                 )}
 
                 <View style={styles.rosterBody}>
                   <View style={styles.rosterTopRow}>
-                    <Text
-                      style={[
-                        styles.rosterName,
-                        isModern ? { color: theme.colors.text } : null,
-                      ]}
-                      numberOfLines={1}
-                    >
+                    <Text style={styles.rosterName} numberOfLines={1}>
                       {displayName}
                     </Text>
                     {numberLabel ? (
-                      <Text
-                        style={[
-                          styles.rosterNumber,
-                          isModern ? { color: theme.colors.primary } : null,
-                        ]}
-                      >
-                        #{numberLabel}
-                      </Text>
+                      <Text style={styles.rosterNumber}>#{numberLabel}</Text>
                     ) : null}
                   </View>
 
-                  {metaBits ? (
-                    <Text
-                      style={[
-                        styles.rosterMeta,
-                        isModern ? { color: theme.colors.mutedText } : null,
-                      ]}
-                    >
-                      {metaBits}
-                    </Text>
-                  ) : null}
-                  {sizeBits ? (
-                    <Text
-                      style={[
-                        styles.rosterMetaSecondary,
-                        isModern ? { color: theme.colors.text } : null,
-                      ]}
-                    >
-                      {sizeBits}
-                    </Text>
-                  ) : null}
+                  {metaBits ? <Text style={styles.rosterMeta}>{metaBits}</Text> : null}
+                  {sizeBits ? <Text style={styles.rosterMetaSecondary}>{sizeBits}</Text> : null}
                 </View>
 
                 <Ionicons
                   name="chevron-forward"
                   size={20}
-                  color={isModern ? theme.colors.primary : BRAND.gray}
+                  color={BRAND.gray}
                   style={styles.newsChevron}
                 />
               </Pressable>
@@ -6904,10 +6384,6 @@ function RecruitingScreen({
 }) {
   const title = `${sport.shortLabel || sport.label} Recruiting`;
   const [profiles, setProfiles] = useState<Record<string, unknown>[]>([]);
-  const recruitingPalette = useMemo(
-    () => getRecruitingExperiencePalette(theme),
-    [theme]
-  );
 
   useEffect(() => {
     async function loadProfiles() {
@@ -6923,38 +6399,50 @@ function RecruitingScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: recruitingPalette.background }]}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.screenContent,
-        { backgroundColor: recruitingPalette.background },
+        { backgroundColor: theme.colors.background },
       ]}
     >
       <LinearGradient
-        colors={recruitingPalette.heroGradient}
-        style={[
-          styles.sportHeader,
-          {
-            borderBottomWidth: 1,
-            borderBottomColor: recruitingPalette.borderSoft,
-          },
-        ]}
+        colors={getThemeDarkHeroGradient(theme)}
+        style={[styles.sportHeader, getThemeHeroShellStyle(theme)]}
       >
         <Pressable
           style={[
             styles.backButton,
-            {
-              backgroundColor: recruitingPalette.surface,
-              borderColor: recruitingPalette.border,
-            },
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                  borderColor: theme.colors.border,
+                }
+              : null,
           ]}
           onPress={onBack}
         >
-          <Ionicons name="arrow-back" size={20} color={recruitingPalette.text} />
-          <Text style={[styles.backButtonText, { color: recruitingPalette.text }]}>Back</Text>
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
 
         <View style={styles.teamPageHeader}>
-          <Text style={[styles.sportHeaderTitle, { color: recruitingPalette.text }]}>
+          <Text
+            style={[
+              styles.sportHeaderTitle,
+              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            ]}
+          >
             {title}
           </Text>
 
@@ -6968,7 +6456,12 @@ function RecruitingScreen({
         </View>
 
         {headerSubtitle ? (
-          <Text style={[styles.sportHeaderSub, { color: recruitingPalette.mutedText }]}>
+          <Text
+            style={[
+              styles.sportHeaderSub,
+              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+            ]}
+          >
             {headerSubtitle}
           </Text>
         ) : null}
@@ -6976,7 +6469,7 @@ function RecruitingScreen({
 
       <View style={styles.recruitingPanel}>
         {profiles.length === 0 ? (
-          <Text style={{ color: recruitingPalette.mutedText, marginTop: 20 }}>
+          <Text style={{ color: theme.colors.mutedText, marginTop: 20 }}>
             No recruiting profiles yet.
           </Text>
         ) : (
@@ -6986,13 +6479,8 @@ function RecruitingScreen({
               style={[
                 styles.recruitingProfileCard,
                 {
-                  backgroundColor: recruitingPalette.surface,
-                  borderColor: recruitingPalette.border,
-                  shadowColor: recruitingPalette.accent,
-                  shadowOpacity: 0.14,
-                  shadowRadius: 12,
-                  shadowOffset: { width: 0, height: 4 },
-                  elevation: 4,
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
                 },
               ]}
               onPress={() => onOpenPlayer(p)}
@@ -7010,22 +6498,17 @@ function RecruitingScreen({
                     style={[
                       styles.recruitingProfilePhotoFallback,
                       {
-                        backgroundColor: recruitingPalette.surfaceAlt,
-                        borderColor: recruitingPalette.border,
-                        shadowColor: recruitingPalette.accent,
-                        shadowOpacity: 0.12,
-                        shadowRadius: 8,
-                        shadowOffset: { width: 0, height: 2 },
-                        elevation: 2,
+                        backgroundColor: theme.colors.cardAlt,
+                        borderColor: theme.colors.border,
                       },
                     ]}
                   >
-                    <Ionicons name="person-outline" size={26} color={recruitingPalette.text} />
+                    <Ionicons name="person-outline" size={26} color={theme.colors.text} />
                   </View>
                 )}
 
-                <View style={styles.recruitingProfileBody}>
-                  <Text style={[styles.recruitingProfileName, { color: recruitingPalette.text }]}>
+	                <View style={styles.recruitingProfileBody}>
+                  <Text style={[styles.recruitingProfileName, { color: theme.colors.text }]}>
                     {`${String(p.first_name ?? '')} ${String(p.last_name ?? '')}`.trim()}
                   </Text>
 
@@ -7036,7 +6519,7 @@ function RecruitingScreen({
                     <Text
                       style={[
                         styles.recruitingProfileMeta,
-                        { color: recruitingPalette.mutedText },
+                        { color: theme.colors.mutedText },
                       ]}
                     >
                       {`${String(p.position ?? '')} • ${String(p.class_year ?? '')}`.replace(
@@ -7053,7 +6536,7 @@ function RecruitingScreen({
                     <Text
                       style={[
                         styles.recruitingProfileDetail,
-                        { color: recruitingPalette.text },
+                        { color: theme.colors.text },
                       ]}
                     >
                       {`${String(p.height ?? '')} • ${String(p.weight ?? '')}`.replace(
@@ -7067,35 +6550,30 @@ function RecruitingScreen({
                     <Text
                       style={[
                         styles.recruitingProfileDetail,
-                        { color: recruitingPalette.mutedText },
+                        { color: theme.colors.mutedText },
                       ]}
-                    >
-                      {String(p.hometown ?? '').trim()}
-                    </Text>
-                  ) : null}
-                </View>
-                <View
-                  style={[
-                    styles.recruitingProfileChevronWrap,
-                    {
-                      backgroundColor: recruitingPalette.surfaceAlt,
-                      borderColor: recruitingPalette.borderSoft,
-                      shadowColor: recruitingPalette.accent,
-                      shadowOpacity: 0.08,
-                      shadowRadius: 6,
-                      shadowOffset: { width: 0, height: 2 },
-                      elevation: 1,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={recruitingPalette.accent}
-                  />
-                </View>
-              </View>
-            </Pressable>
+	                    >
+	                      {String(p.hometown ?? '').trim()}
+	                    </Text>
+	                  ) : null}
+	                </View>
+	                <View
+	                  style={[
+	                    styles.recruitingProfileChevronWrap,
+	                    {
+	                      backgroundColor: theme.colors.cardAlt,
+	                      borderColor: theme.colors.border,
+	                    },
+	                  ]}
+	                >
+	                  <Ionicons
+	                    name="chevron-forward"
+	                    size={18}
+	                    color={theme.colors.text}
+	                  />
+	                </View>
+	              </View>
+	            </Pressable>
           ))
         )}
       </View>
@@ -7137,16 +6615,6 @@ function RecruitingPlayerScreen({
   const heightValue = String(profile.height ?? '').trim();
   const weightValue = String(profile.weight ?? '').trim();
   const hometownValue = String(profile.hometown ?? '').trim();
-  const offers = (
-    Array.isArray(profile.offers)
-      ? profile.offers
-      : typeof profile.offers === 'string'
-        ? profile.offers.split(',')
-        : []
-  )
-    .filter((offer): offer is string => typeof offer === 'string')
-    .map((offer) => offer.trim())
-    .filter(Boolean);
   const generatedLink = `https://athleticos.ai/${schoolSlug}/${sportSlug}/recruiting/${String(
     recruitProfileSlug || profile.id || ''
   )}`;
@@ -7155,10 +6623,6 @@ function RecruitingPlayerScreen({
     { label: 'Weight', value: weightValue },
     { label: 'Hometown', value: hometownValue },
   ].filter((item) => item.value);
-  const recruitingPalette = useMemo(
-    () => getRecruitingExperiencePalette(theme),
-    [theme]
-  );
 
   const openProfileLink = (url: string) => {
     Linking.openURL(url).catch((error) => {
@@ -7168,45 +6632,23 @@ function RecruitingPlayerScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: recruitingPalette.background }]}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.screenContent,
-        { backgroundColor: recruitingPalette.background },
+        { backgroundColor: theme.colors.background },
       ]}
     >
       <LinearGradient
-        colors={recruitingPalette.heroGradient}
-        style={[
-          styles.sportHeader,
-          {
-            borderBottomWidth: 1,
-            borderBottomColor: recruitingPalette.borderSoft,
-          },
-        ]}
+        colors={getThemeDarkHeroGradient(theme)}
+        style={styles.sportHeader}
       >
-        <Pressable
-          style={[
-            styles.backButton,
-            {
-              backgroundColor: recruitingPalette.surface,
-              borderColor: recruitingPalette.border,
-              shadowColor: recruitingPalette.accent,
-              shadowOpacity: 0.14,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 4,
-            },
-          ]}
-          onPress={onBack}
-        >
-          <Ionicons name="arrow-back" size={20} color={recruitingPalette.text} />
-          <Text style={[styles.backButtonText, { color: recruitingPalette.text }]}>Back</Text>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={BRAND.white} />
+          <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
 
         <View style={styles.teamPageHeader}>
-          <Text style={[styles.sportHeaderTitle, { color: recruitingPalette.text }]}>
-            {playerName || `${sport.shortLabel || sport.label} Recruit`}
-          </Text>
+          <Text style={styles.sportHeaderTitle}>{playerName || `${sport.shortLabel || sport.label} Recruit`}</Text>
 
           {hasResolvedUrl(schoolLogoUrl) ? (
             <Image
@@ -7218,13 +6660,9 @@ function RecruitingPlayerScreen({
         </View>
 
         {metaLine ? (
-          <Text style={[styles.sportHeaderSub, { color: recruitingPalette.mutedText }]}>
-            {metaLine}
-          </Text>
+          <Text style={styles.sportHeaderSub}>{metaLine}</Text>
         ) : headerSubtitle ? (
-          <Text style={[styles.sportHeaderSub, { color: recruitingPalette.mutedText }]}>
-            {headerSubtitle}
-          </Text>
+          <Text style={styles.sportHeaderSub}>{headerSubtitle}</Text>
         ) : null}
       </LinearGradient>
 
@@ -7233,8 +6671,8 @@ function RecruitingPlayerScreen({
           style={[
             styles.recruitingPlayerPhotoCard,
             {
-              backgroundColor: recruitingPalette.surface,
-              borderColor: recruitingPalette.border,
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
             },
           ]}
         >
@@ -7250,17 +6688,12 @@ function RecruitingPlayerScreen({
                 style={[
                   styles.recruitingPlayerPhotoFallback,
                   {
-                    backgroundColor: recruitingPalette.surfaceAlt,
-                    borderColor: recruitingPalette.border,
-                    shadowColor: recruitingPalette.accent,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    shadowOffset: { width: 0, height: 2 },
-                    elevation: 2,
+                    backgroundColor: theme.colors.cardAlt,
+                    borderColor: theme.colors.border,
                   },
                 ]}
               >
-                <Ionicons name="person-outline" size={48} color={recruitingPalette.text} />
+                <Ionicons name="person-outline" size={48} color={theme.colors.text} />
               </View>
             )}
           </View>
@@ -7271,19 +6704,12 @@ function RecruitingPlayerScreen({
             style={[
               styles.recruitingPlayerSection,
               {
-                backgroundColor: recruitingPalette.surfaceAlt,
-                borderColor: recruitingPalette.border,
-                shadowColor: recruitingPalette.accent,
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                shadowOffset: { width: 0, height: 2 },
-                elevation: 2,
+                backgroundColor: theme.colors.cardAlt,
+                borderColor: theme.colors.border,
               },
             ]}
           >
-            <Text
-              style={[styles.recruitingPlayerSectionTitle, { color: recruitingPalette.text }]}
-            >
+            <Text style={[styles.recruitingPlayerSectionTitle, { color: theme.colors.text }]}>
               Player Facts
             </Text>
             <View style={styles.recruitingPlayerFactsList}>
@@ -7293,14 +6719,14 @@ function RecruitingPlayerScreen({
                   style={[
                     styles.recruitingPlayerFactRow,
                     {
-                      borderColor: recruitingPalette.borderSoft,
+                      borderColor: theme.colors.border,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.recruitingPlayerFactLabel,
-                      { color: recruitingPalette.mutedText },
+                      { color: theme.colors.mutedText },
                     ]}
                   >
                     {item.label}
@@ -7308,62 +6734,10 @@ function RecruitingPlayerScreen({
                   <Text
                     style={[
                       styles.recruitingPlayerFactValue,
-                      { color: recruitingPalette.text },
+                      { color: theme.colors.text },
                     ]}
                   >
                     {item.value}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {offers.length ? (
-          <View
-            style={[
-              styles.recruitingPlayerSection,
-              {
-                backgroundColor: recruitingPalette.surfaceAlt,
-                borderColor: recruitingPalette.border,
-                shadowColor: recruitingPalette.accent,
-                shadowOpacity: 0.12,
-                shadowRadius: 10,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 3,
-              },
-            ]}
-          >
-            <Text
-              style={[styles.recruitingPlayerSectionTitle, { color: recruitingPalette.text }]}
-            >
-              Offers
-            </Text>
-            <View style={styles.recruitingPlayerActionsWrap}>
-              {offers.map((offer) => (
-                <View
-                  key={offer}
-                  style={[
-                    styles.recruitingHighlightsButton,
-                    styles.recruitingPlayerHighlightsButton,
-                    {
-                      backgroundColor: recruitingPalette.surface,
-                      borderColor: recruitingPalette.borderSoft,
-                      shadowColor: recruitingPalette.accent,
-                      shadowOpacity: 0.1,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 2 },
-                      elevation: 2,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.recruitingHighlightsButtonText,
-                      { color: recruitingPalette.text },
-                    ]}
-                  >
-                    {offer}
                   </Text>
                 </View>
               ))}
@@ -7376,24 +6750,15 @@ function RecruitingPlayerScreen({
             style={[
               styles.recruitingPlayerSection,
               {
-                backgroundColor: recruitingPalette.surfaceAlt,
-                borderColor: recruitingPalette.border,
-                shadowColor: recruitingPalette.secondarySoft,
-                shadowOpacity: 0.08,
-                shadowRadius: 8,
-                shadowOffset: { width: 0, height: 2 },
-                elevation: 2,
+                backgroundColor: theme.colors.cardAlt,
+                borderColor: theme.colors.border,
               },
             ]}
           >
-            <Text
-              style={[styles.recruitingPlayerSectionTitle, { color: recruitingPalette.text }]}
-            >
+            <Text style={[styles.recruitingPlayerSectionTitle, { color: theme.colors.text }]}>
               Recruiting Bio
             </Text>
-            <Text style={[styles.recruitingPlayerBio, { color: recruitingPalette.text }]}>
-              {bio}
-            </Text>
+            <Text style={[styles.recruitingPlayerBio, { color: theme.colors.text }]}>{bio}</Text>
           </View>
         ) : null}
 
@@ -7401,19 +6766,12 @@ function RecruitingPlayerScreen({
           style={[
             styles.recruitingPlayerSection,
             {
-              backgroundColor: recruitingPalette.surfaceAlt,
-              borderColor: recruitingPalette.border,
-              shadowColor: recruitingPalette.secondarySoft,
-              shadowOpacity: 0.08,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 2,
+              backgroundColor: theme.colors.cardAlt,
+              borderColor: theme.colors.border,
             },
           ]}
         >
-          <Text
-            style={[styles.recruitingPlayerSectionTitle, { color: recruitingPalette.text }]}
-          >
+          <Text style={[styles.recruitingPlayerSectionTitle, { color: theme.colors.text }]}>
             Player Actions
           </Text>
           <View style={styles.recruitingPlayerActionsWrap}>
@@ -7423,13 +6781,8 @@ function RecruitingPlayerScreen({
                   styles.recruitingHighlightsButton,
                   styles.recruitingPlayerHighlightsButton,
                   {
-                    backgroundColor: recruitingPalette.surface,
-                    borderColor: recruitingPalette.borderSoft,
-                    shadowColor: recruitingPalette.accent,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    shadowOffset: { width: 0, height: 2 },
-                    elevation: 2,
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
                   },
                 ]}
                 onPress={() => openProfileLink(hudlUrl)}
@@ -7437,7 +6790,7 @@ function RecruitingPlayerScreen({
                 <Text
                   style={[
                     styles.recruitingHighlightsButtonText,
-                    { color: recruitingPalette.text },
+                    { color: theme.colors.text },
                   ]}
                 >
                   Hudl Highlights
@@ -7445,7 +6798,7 @@ function RecruitingPlayerScreen({
                 <Ionicons
                   name="play-circle-outline"
                   size={18}
-                  color={recruitingPalette.accent}
+                  color={theme.colors.text}
                 />
               </Pressable>
             ) : null}
@@ -7456,13 +6809,8 @@ function RecruitingPlayerScreen({
                   styles.recruitingHighlightsButton,
                   styles.recruitingPlayerHighlightsButton,
                   {
-                    backgroundColor: recruitingPalette.surface,
-                    borderColor: recruitingPalette.borderSoft,
-                    shadowColor: recruitingPalette.accent,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    shadowOffset: { width: 0, height: 2 },
-                    elevation: 2,
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
                   },
                 ]}
                 onPress={() => openProfileLink(youtubeUrl)}
@@ -7470,7 +6818,7 @@ function RecruitingPlayerScreen({
                 <Text
                   style={[
                     styles.recruitingHighlightsButtonText,
-                    { color: recruitingPalette.text },
+                    { color: theme.colors.text },
                   ]}
                 >
                   YouTube
@@ -7478,7 +6826,7 @@ function RecruitingPlayerScreen({
                 <Ionicons
                   name="logo-youtube"
                   size={18}
-                  color={recruitingPalette.accent}
+                  color={theme.colors.text}
                 />
               </Pressable>
             ) : null}
@@ -7489,13 +6837,8 @@ function RecruitingPlayerScreen({
                   styles.recruitingHighlightsButton,
                   styles.recruitingPlayerHighlightsButton,
                   {
-                    backgroundColor: recruitingPalette.surface,
-                    borderColor: recruitingPalette.borderSoft,
-                    shadowColor: recruitingPalette.accent,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    shadowOffset: { width: 0, height: 2 },
-                    elevation: 2,
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
                   },
                 ]}
                 onPress={() => openProfileLink(instagramUrl)}
@@ -7503,7 +6846,7 @@ function RecruitingPlayerScreen({
                 <Text
                   style={[
                     styles.recruitingHighlightsButtonText,
-                    { color: recruitingPalette.text },
+                    { color: theme.colors.text },
                   ]}
                 >
                   Instagram
@@ -7511,7 +6854,7 @@ function RecruitingPlayerScreen({
                 <Ionicons
                   name="logo-instagram"
                   size={18}
-                  color={recruitingPalette.accent}
+                  color={theme.colors.text}
                 />
               </Pressable>
             ) : null}
@@ -7522,13 +6865,8 @@ function RecruitingPlayerScreen({
                   styles.recruitingHighlightsButton,
                   styles.recruitingPlayerHighlightsButton,
                   {
-                    backgroundColor: recruitingPalette.surface,
-                    borderColor: recruitingPalette.borderSoft,
-                    shadowColor: recruitingPalette.accent,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    shadowOffset: { width: 0, height: 2 },
-                    elevation: 2,
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
                   },
                 ]}
                 onPress={() => openProfileLink(twitterUrl)}
@@ -7536,7 +6874,7 @@ function RecruitingPlayerScreen({
                 <Text
                   style={[
                     styles.recruitingHighlightsButtonText,
-                    { color: recruitingPalette.text },
+                    { color: theme.colors.text },
                   ]}
                 >
                   X
@@ -7544,7 +6882,7 @@ function RecruitingPlayerScreen({
                 <Ionicons
                   name="logo-twitter"
                   size={18}
-                  color={recruitingPalette.accent}
+                  color={theme.colors.text}
                 />
               </Pressable>
             ) : null}
@@ -7555,13 +6893,8 @@ function RecruitingPlayerScreen({
                   styles.recruitingHighlightsButton,
                   styles.recruitingPlayerHighlightsButton,
                   {
-                    backgroundColor: recruitingPalette.surface,
-                    borderColor: recruitingPalette.borderSoft,
-                    shadowColor: recruitingPalette.accent,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    shadowOffset: { width: 0, height: 2 },
-                    elevation: 2,
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
                   },
                 ]}
                 onPress={() => openProfileLink(tiktokUrl)}
@@ -7569,7 +6902,7 @@ function RecruitingPlayerScreen({
                 <Text
                   style={[
                     styles.recruitingHighlightsButtonText,
-                    { color: recruitingPalette.text },
+                    { color: theme.colors.text },
                   ]}
                 >
                   TikTok
@@ -7577,7 +6910,7 @@ function RecruitingPlayerScreen({
                 <Ionicons
                   name="musical-notes-outline"
                   size={18}
-                  color={recruitingPalette.accent}
+                  color={theme.colors.text}
                 />
               </Pressable>
             ) : null}
@@ -7587,13 +6920,8 @@ function RecruitingPlayerScreen({
                 styles.recruitingHighlightsButton,
                 styles.recruitingPlayerHighlightsButton,
                 {
-                  backgroundColor: recruitingPalette.surface,
-                  borderColor: recruitingPalette.borderSoft,
-                  shadowColor: recruitingPalette.accent,
-                  shadowOpacity: 0.1,
-                  shadowRadius: 8,
-                  shadowOffset: { width: 0, height: 2 },
-                  elevation: 2,
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
                 },
               ]}
               onPress={async () => {
@@ -7609,7 +6937,7 @@ function RecruitingPlayerScreen({
               <Text
                 style={[
                   styles.recruitingHighlightsButtonText,
-                  { color: recruitingPalette.text },
+                  { color: theme.colors.text },
                 ]}
               >
                 Share Player
@@ -7617,7 +6945,7 @@ function RecruitingPlayerScreen({
               <Ionicons
                 name="share-social-outline"
                 size={18}
-                color={recruitingPalette.accent}
+                color={theme.colors.text}
               />
             </Pressable>
           </View>
@@ -7703,16 +7031,6 @@ function SportDetailScreen({
   };
 
   const isFollowing = followedTeams.includes(sport.key);
-  const openSchoolTickets = useCallback(() => {
-    if (!hasResolvedUrl(schoolConfig.ticketsUrl)) {
-      return;
-    }
-
-    Linking.openURL(schoolConfig.ticketsUrl).catch((error) => {
-      console.warn('Unable to open tickets URL', error);
-    });
-  }, [schoolConfig.ticketsUrl]);
-
   const fallbackTeamNavActions = useMemo(() => {
     const actions: TeamNavAction[] = [];
 
@@ -7785,15 +7103,12 @@ function SportDetailScreen({
         continue;
       }
 
-      const navKey = item.navKey.trim().toLowerCase();
-      const label = item.label || getModernDisplayLabel(navKey, navKey);
-
-      switch (navKey) {
+      switch (item.navKey) {
         case 'schedule':
           if (hasScheduleAccess) {
             actions.push({
               key: 'schedule',
-              label,
+              label: item.label || 'Schedule',
               icon: 'calendar-outline',
               onPress: () =>
                 onOpenSchedule({
@@ -7805,39 +7120,23 @@ function SportDetailScreen({
                   accentColor: scheduleAccentColor,
                 }),
             });
-          } else {
-            actions.push({
-              key: 'schedule',
-              label,
-              icon: 'calendar-outline',
-              onPress: () => {},
-              disabled: true,
-            });
           }
           break;
         case 'roster':
           if (hasNativeRosterAccess) {
             actions.push({
               key: 'roster',
-              label,
+              label: item.label || 'Roster',
               icon: 'people-outline',
               onPress: handleOpenTeamRoster,
-            });
-          } else {
-            actions.push({
-              key: 'roster',
-              label,
-              icon: 'people-outline',
-              onPress: () => {},
-              disabled: true,
             });
           }
           break;
         case 'recruiting':
-          if (teamSportId) {
+          if (hasRecruitingAccess) {
             actions.push({
               key: 'recruiting',
-              label,
+              label: item.label || 'Recruiting',
               icon: 'school-outline',
               onPress: () =>
                 onOpenRecruiting({
@@ -7847,82 +7146,32 @@ function SportDetailScreen({
                   schoolLogoUrl: schoolConfig.logoUrl,
                 }),
             });
-          } else {
-            actions.push({
-              key: 'recruiting',
-              label,
-              icon: 'school-outline',
-              onPress: () => {},
-              disabled: true,
-            });
           }
           break;
         case 'news':
-          actions.push({
-            key: 'news',
-            label,
-            icon: 'newspaper-outline',
-            onPress: () => {},
-            disabled: true,
-          });
-          break;
         case 'coaches':
-          actions.push({
-            key: 'coaches',
-            label,
-            icon: 'clipboard-outline',
-            onPress: () => {},
-            disabled: true,
-          });
-          break;
         case 'stats':
-          actions.push({
-            key: 'stats',
-            label,
-            icon: 'stats-chart-outline',
-            onPress: () => {},
-            disabled: true,
-          });
-          break;
         case 'standings':
-          actions.push({
-            key: 'standings',
-            label,
-            icon: 'trophy-outline',
-            onPress: () => {},
-            disabled: true,
-          });
-          break;
         case 'tickets':
-          actions.push({
-            key: 'tickets',
-            label,
-            icon: 'ticket-outline',
-            onPress: hasResolvedUrl(schoolConfig.ticketsUrl) ? openSchoolTickets : () => {},
-            disabled: !hasResolvedUrl(schoolConfig.ticketsUrl),
-          });
-          break;
         default:
           break;
       }
     }
 
-    return actions;
+    return actions.length > 0 ? actions : fallbackTeamNavActions;
   }, [
     fallbackTeamNavActions,
     handleOpenTeamRoster,
+    hasRecruitingAccess,
     hasNativeRosterAccess,
     hasScheduleAccess,
     onOpenRecruiting,
     onOpenSchedule,
-    openSchoolTickets,
     scheduleAccentColor,
     schoolConfig.displayName,
     schoolConfig.logoUrl,
-    schoolConfig.ticketsUrl,
     sport.label,
     sport.shortLabel,
-    teamSportId,
     teamNavItems,
     allTeamScheduleEvents,
   ]);
@@ -8164,74 +7413,37 @@ function SportDetailScreen({
               : styles.sportActionGrid
           }
         >
-          {resolvedTeamNavActions.map((action) => {
-            const modernEmoji = isModernTheme(theme)
-              ? getModernHeroActionEmoji(action.icon, action.label)
-              : '';
-
-            return (
-              <Pressable
-                key={action.key}
-                disabled={action.disabled}
+          {resolvedTeamNavActions.map((action) => (
+            <Pressable
+              key={action.key}
+              style={[
+                resolvedTeamNavActions.length === 1
+                  ? styles.sportActionCardFull
+                  : styles.sportActionCard,
+                isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border,
+                    }
+                  : null,
+              ]}
+              onPress={action.onPress}
+            >
+              <Ionicons
+                name={action.icon}
+                size={22}
+                color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.white}
+              />
+              <Text
                 style={[
-                  resolvedTeamNavActions.length === 1
-                    ? styles.sportActionCardFull
-                    : styles.sportActionCard,
-                  isModernTheme(theme)
-                    ? {
-                        backgroundColor: theme.colors.card,
-                        borderColor: withAlpha(theme.colors.primary, '16'),
-                        borderRadius: 12,
-                      }
-                    : isCleanSlateTheme(theme)
-                      ? {
-                          backgroundColor: theme.colors.card,
-                          borderColor: theme.colors.border,
-                        }
-                      : null,
-                  action.disabled ? { opacity: 0.58 } : null,
+                  styles.sportActionText,
+                  { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
                 ]}
-                onPress={action.onPress}
               >
-                {isModernTheme(theme) && modernEmoji ? (
-                  <View
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 8,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: action.disabled
-                        ? withAlpha(theme.colors.text, '08')
-                        : withAlpha(theme.colors.primary, '12'),
-                      borderWidth: 1,
-                      borderColor: action.disabled
-                        ? withAlpha(theme.colors.text, '12')
-                        : withAlpha(theme.colors.primary, '1E'),
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, lineHeight: 17 }}>{modernEmoji}</Text>
-                  </View>
-                ) : (
-                  <Ionicons
-                    name={action.icon}
-                    size={22}
-                    color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.white}
-                  />
-                )}
-                <Text
-                  style={[
-                    styles.sportActionText,
-                    {
-                      color: isLightAppTheme(theme) ? theme.colors.text : BRAND.white,
-                    },
-                  ]}
-                >
-                  {action.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+                {action.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
       ) : null}
 
@@ -9318,7 +8530,6 @@ function BottomNav({
 }) {
   const isLightMode = themeMode === 'light';
   const isCleanSlate = isCleanSlateTheme(theme);
-  const isModern = isModernTheme(theme);
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const homeItem = items.find((item) => item.key === 'home');
   const homeActive = homeItem?.active ?? false;
@@ -9475,36 +8686,18 @@ function BottomNav({
               </>
             ) : (
               <>
-                {isModern ? (
-                  <Text
-                    style={[
-                      styles.bottomNavLabel,
-                      {
-                        color: active ? theme.colors.primary : theme.colors.mutedText,
-                        fontSize: 18,
-                        lineHeight: 20,
-                        marginBottom: 2,
-                      },
-                    ]}
-                  >
-                    {getModernNavEmoji(item.iconKey || item.key, item.label)}
-                  </Text>
-                ) : (
-                  <Ionicons
-                    name={item.icon!}
-                    size={22}
-                    color={active ? theme.colors.primary : theme.colors.mutedText}
-                  />
-                )}
+                <Ionicons
+                  name={item.icon!}
+                  size={22}
+                  color={active ? theme.colors.primary : theme.colors.mutedText}
+                />
                 <Text
                   style={[
                     styles.bottomNavLabel,
                     { color: active ? theme.colors.primary : theme.colors.mutedText },
                   ]}
                 >
-                  {isModern
-                    ? getModernNavPlainLabel(item.iconKey || item.key, item.label)
-                    : item.label}
+                  {item.label}
                 </Text>
               </>
             )}
@@ -10544,7 +9737,6 @@ const handleEnableNotifications = async () => {
         return {
           key: 'slot-1-media',
           label: 'Broadcast',
-          iconKey: 'broadcast',
           icon: 'radio-outline',
           activeTabKey: 'media',
           onPress: () => handleBottomNavChange('media'),
@@ -10553,7 +9745,6 @@ const handleEnableNotifications = async () => {
         return {
           key: 'slot-2-teams',
           label: 'Teams',
-          iconKey: 'teams',
           icon: 'people',
           activeTabKey: 'teams',
           onPress: () => handleBottomNavChange('teams'),
@@ -10563,7 +9754,6 @@ const handleEnableNotifications = async () => {
         return {
           key: 'slot-4-tickets',
           label: 'Tickets',
-          iconKey: 'tickets',
           icon: 'ticket-outline',
           activeTabKey: 'tickets',
           onPress: () => handleBottomNavChange('tickets'),
@@ -10649,7 +9839,6 @@ const handleEnableNotifications = async () => {
     return {
       key: `slot-${slotNumber}`,
       label,
-      iconKey: configuredItem.iconKey || fallbackItem.iconKey,
       icon,
       onPress,
       active,
@@ -10662,7 +9851,6 @@ const handleEnableNotifications = async () => {
     {
       key: 'home',
       label: 'Home',
-      iconKey: 'home',
       onPress: () => handleBottomNavChange('home'),
       active: screenMode === 'tabs' && activeTab === 'home',
     },
@@ -10670,7 +9858,6 @@ const handleEnableNotifications = async () => {
     {
       key: 'more',
       label: 'More',
-      iconKey: 'more',
       icon: 'ellipsis-horizontal',
       onPress: () => handleBottomNavChange('more'),
       active: screenMode === 'tabs' && activeTab === 'more',
