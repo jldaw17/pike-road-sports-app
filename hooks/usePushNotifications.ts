@@ -1,22 +1,58 @@
-import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Alert, AppState, Linking, Platform } from 'react-native';
 
-import { registerDeviceToken } from '../lib/pushos';
+import {
+  getPushPermissionStatus,
+  registerForPushNotifications,
+} from '../lib/push/registerForPush';
 
-type SchoolId = string | number | null | undefined;
+type EnableOptions = {
+  interactive?: boolean;
+};
+export const PUSH_PERMISSION_DENIED = '__push_permission_denied__';
 
-export function usePushNotifications(schoolId: SchoolId) {
+export function usePushNotifications(schoolSlug?: string) {
   const [token, setToken] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
   const isRegisteringRef = useRef(false);
+  const autoRegisterAttemptedRef = useRef(false);
+  const hasShownDeniedAlertRef = useRef(false);
 
-  const enable = useCallback(async () => {
-    if (!schoolId || isRegisteringRef.current) {
+  const showDeniedAlert = useCallback(() => {
+    if (hasShownDeniedAlertRef.current) {
+      return;
+    }
+
+    hasShownDeniedAlertRef.current = true;
+    Alert.alert(
+      'Notifications Disabled',
+      'Notifications are disabled for this app. You can enable them in iOS Settings.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Open Settings',
+          onPress: () => {
+            if (typeof Linking.openSettings === 'function') {
+              Linking.openSettings().catch((error) => {
+                console.log('[PushOS] error', error);
+              });
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
+  const enable = useCallback(async (options?: EnableOptions) => {
+    if (!schoolSlug || isRegisteringRef.current) {
       return '';
     }
 
+    console.log('[PushOS] START');
     isRegisteringRef.current = true;
 
     try {
@@ -26,51 +62,37 @@ export function usePushNotifications(schoolId: SchoolId) {
           importance: Notifications.AndroidImportance.MAX,
         });
       }
+      const result = await registerForPushNotifications(schoolSlug);
+      console.log('[PushOS] result:', result.status);
 
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+      if (result.status === 'denied') {
+        setIsEnabled(false);
+        setToken('');
+        if (options?.interactive) {
+          showDeniedAlert();
+        }
+        return PUSH_PERMISSION_DENIED;
       }
 
-      if (finalStatus !== 'granted') {
+      if (!result.token) {
         setIsEnabled(false);
         setToken('');
         return '';
       }
 
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ||
-        Constants?.easConfig?.projectId;
-
-      const tokenResponse = projectId
-        ? await Notifications.getExpoPushTokenAsync({ projectId })
-        : await Notifications.getExpoPushTokenAsync();
-      const nextToken = tokenResponse.data?.trim() ?? '';
-
-      if (!nextToken) {
-        setIsEnabled(false);
-        setToken('');
-        return '';
-      }
-
-      setToken(nextToken);
+      hasShownDeniedAlertRef.current = false;
+      setToken(result.token);
       setIsEnabled(true);
-      await registerDeviceToken(schoolId, nextToken);
 
-      return nextToken;
-    } catch (error) {
-      console.log('Push registration error:', error);
+      return result.token;
+    } catch {
       setIsEnabled(false);
       setToken('');
       return '';
     } finally {
       isRegisteringRef.current = false;
     }
-  }, [schoolId]);
+  }, [schoolSlug, showDeniedAlert]);
 
   useEffect(() => {
     const receivedSubscription = Notifications.addNotificationReceivedListener(
@@ -97,14 +119,40 @@ export function usePushNotifications(schoolId: SchoolId) {
   }, []);
 
   useEffect(() => {
-    if (!schoolId) {
+    if (!schoolSlug) {
       setToken('');
       setIsEnabled(false);
+      autoRegisterAttemptedRef.current = false;
+      hasShownDeniedAlertRef.current = false;
       return;
     }
 
+    if (autoRegisterAttemptedRef.current) {
+      return;
+    }
+
+    autoRegisterAttemptedRef.current = true;
     enable();
-  }, [enable, schoolId]);
+  }, [enable, schoolSlug]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextState) => {
+      if (nextState !== 'active' || !schoolSlug) {
+        return;
+      }
+
+      const permissionStatus = await getPushPermissionStatus();
+      if (permissionStatus === 'granted') {
+        await enable();
+      } else if (permissionStatus === 'denied') {
+        setIsEnabled(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [enable, schoolSlug]);
 
   return {
     token,

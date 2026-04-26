@@ -76,7 +76,10 @@ import {
 import { getSchoolIdFromSlug } from './lib/getSchool';
 import { subscribeToTeam, unsubscribeFromTeam } from './lib/pushos';
 import { ThemeProvider } from './lib/theme/ThemeProvider';
-import { usePushNotifications } from './hooks/usePushNotifications';
+import {
+  PUSH_PERMISSION_DENIED,
+  usePushNotifications,
+} from './hooks/usePushNotifications';
 
 const BRAND = {
   primary: '#1F3B7A',
@@ -1078,12 +1081,14 @@ const SPORTS: SportType[] = [
   },
 ];
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async () =>
+    ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }) as Notifications.NotificationBehavior,
 });
 
 function decodeHtml(value = '') {
@@ -9516,6 +9521,7 @@ function BottomNav({
 }
 
 export default function App() {
+  const splashOpacity = useRef(new Animated.Value(1)).current;
   const schoolSlug = useMemo(() => getConfiguredSchoolSlug(), []);
   const defaultSchoolConfig = useMemo(
     () => getDefaultSchoolConfig(schoolSlug),
@@ -9647,7 +9653,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     token: expoPushToken,
     isEnabled: pushNotificationsEnabled,
     enable: enablePushNotifications,
-  } = usePushNotifications(resolvedSchoolId);
+  } = usePushNotifications(schoolSlug);
 
   const isPlaying = Boolean((playerStatus as any)?.playing);
   const isLoading = Boolean((playerStatus as any)?.loading);
@@ -9676,9 +9682,15 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowLaunchSplash(false), 3000);
+    const timer = setTimeout(() => {
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => setShowLaunchSplash(false));
+    }, 2000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [splashOpacity]);
 
   useEffect(() => {
     console.log('[AthleticOS Theme] configuredSchoolSlug:', schoolSlug);
@@ -10344,7 +10356,11 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
 const handleEnableNotifications = async () => {
   try {
-    const token = await enablePushNotifications();
+    const token = await enablePushNotifications({ interactive: true });
+
+    if (token === PUSH_PERMISSION_DENIED) {
+      return;
+    }
 
     if (!token) {
       Alert.alert(
@@ -10776,12 +10792,14 @@ if (!themeConfigLoaded) {
 
 if (showLaunchSplash) {
   return (
-    <LaunchSplash
-      splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
-      splashLogoUrl={schoolConfig.splashLogoUrl}
-      schoolDisplayName={schoolConfig.displayName}
-      theme={resolvedTheme}
-    />
+    <Animated.View style={{ flex: 1, opacity: splashOpacity }}>
+      <LaunchSplash
+        splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
+        splashLogoUrl={schoolConfig.splashLogoUrl || schoolConfig.logoUrl}
+        schoolDisplayName={schoolConfig.displayName}
+        theme={resolvedTheme}
+      />
+    </Animated.View>
   );
 }
 

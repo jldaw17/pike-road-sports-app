@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.radioalabama.pikeroad",
+      "bundleIdentifier": "com.athleticos.pikeroad",
       "buildNumber": "1.0.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -53,8 +53,9 @@
       "youtubeApiKey": "AIzaSyAbZ_d503d_Lu4RCUqaBHxk-Qq30uOyJZY",
       "router": {},
       "eas": {
-        "projectId": "REPLACE-WITH-NEW-EAS-PROJECT-ID"
+        "projectId": "70b794e3-e8d7-4919-ac83-0b034b118ea2"
       }
-    }
+    },
+    "owner": "jlaw171"
   }
 }
