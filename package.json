@@ -3,7 +3,11 @@
   "main": "node_modules/expo/AppEntry.js",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "npx expo start --clear",
+    "start:pike-road": "EXPO_PUBLIC_SCHOOL_SLUG=pike-road npx expo start --clear",
+    "start:athleticos": "EXPO_PUBLIC_SCHOOL_SLUG=athleticos npx expo start --clear",
+    "start:recruitos": "EXPO_PUBLIC_SCHOOL_SLUG=recruitos npx expo start --clear",
+    "start:pellcity": "EXPO_PUBLIC_SCHOOL_SLUG=pellcity npx expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
