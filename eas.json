@@ -13,6 +13,30 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "pike-road": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SCHOOL_SLUG": "pike-road"
+      }
+    },
+    "pellcity": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SCHOOL_SLUG": "pellcity"
+      }
+    },
+    "athleticos": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SCHOOL_SLUG": "athleticos"
+      }
+    },
+    "recruitos": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SCHOOL_SLUG": "recruitos"
+      }
     }
   },
   "submit": {

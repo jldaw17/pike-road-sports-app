@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "AthleticOS App",
-    "slug": "athleticos-app",
+    "name": "Pell City Athletics",
+    "slug": "pell-city-athletics",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "athleticosapp",
+    "scheme": "pellcityathletics",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.athleticos.app",
+      "bundleIdentifier": "com.athleticos.pellcity",
       "buildNumber": "1.0.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -20,7 +20,7 @@
       }
     },
     "android": {
-      "package": "com.athleticos.app",
+      "package": "com.athleticos.pellcity",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
@@ -34,8 +34,9 @@
       [
         "expo-splash-screen",
         {
+          "image": "./assets/images/splash-logo.png",
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#1F3B7A"
         }
       ],
       [
@@ -48,11 +49,11 @@
       "expo-video"
     ],
     "extra": {
-      "schoolSlug": "recruitos",
+      "schoolSlug": "pellcity",
       "youtubeApiKey": "AIzaSyAbZ_d503d_Lu4RCUqaBHxk-Qq30uOyJZY",
       "router": {},
       "eas": {
-        "projectId": "97e4ec8a-c33c-4f54-942e-a33feace9e4f"
+        "projectId": "70b794e3-e8d7-4919-ac83-0b034b118ea2"
       }
     },
     "owner": "jlaw171"
