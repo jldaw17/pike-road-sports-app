@@ -9,6 +9,7 @@ const VARIANT_CONFIGS = {
     scheme: 'pikeroadathletics',
     iosBundleIdentifier: 'com.athleticos.pikeroad',
     icon: './assets/images/icon.png',
+    easProjectId: '70b794e3-e8d7-4919-ac83-0b034b118ea2',
   },
   pellcity: {
     schoolSlug: 'pellcity',
@@ -17,6 +18,7 @@ const VARIANT_CONFIGS = {
     scheme: 'pellcityathletics',
     iosBundleIdentifier: 'com.athleticos.pellcity',
     icon: './assets/icons/pellcity-app-icon.png',
+    easProjectId: '1fb0bea0-6786-49cb-8844-50e8e75b5dc5',
   },
   athleticos: {
     schoolSlug: 'athleticos',
@@ -92,6 +94,8 @@ module.exports = () => {
   const baseExpoConfig = appJson.expo || {};
   const variantConfig = resolveVariantConfig();
   const splashBackgroundColor = '#000000';
+  const baseExtra = baseExpoConfig.extra || {};
+  const { eas: _ignoredBaseEas, ...safeBaseExtraWithoutEas } = baseExtra;
   const plugins = (baseExpoConfig.plugins || []).map((plugin) => {
     if (Array.isArray(plugin) && plugin[0] === 'expo-splash-screen') {
       return [
@@ -105,6 +109,18 @@ module.exports = () => {
 
     return plugin;
   });
+
+  const nextExtra = {
+    ...safeBaseExtraWithoutEas,
+    schoolSlug: variantConfig.schoolSlug,
+    appVariant: variantConfig.appVariant,
+  };
+
+  if (variantConfig.easProjectId) {
+    nextExtra.eas = {
+      projectId: variantConfig.easProjectId,
+    };
+  }
 
   return {
     ...baseExpoConfig,
@@ -125,10 +141,6 @@ module.exports = () => {
       },
     },
     plugins,
-    extra: {
-      ...(baseExpoConfig.extra || {}),
-      schoolSlug: variantConfig.schoolSlug,
-      appVariant: variantConfig.appVariant,
-    },
+    extra: nextExtra,
   };
 };
