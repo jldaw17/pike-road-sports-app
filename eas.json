@@ -13,6 +13,34 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "pike-road": {
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "pike-road",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "pike-road"
+      }
+    },
+    "pellcity": {
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "pellcity",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "pellcity"
+      }
+    },
+    "athleticos": {
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "athleticos",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "athleticos"
+      }
+    },
+    "recruitos": {
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "recruitos",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "recruitos"
+      }
     }
   },
   "submit": {

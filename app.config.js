@@ -1,0 +1,134 @@
+const appJson = require('./app.json');
+const fs = require('fs');
+
+const VARIANT_CONFIGS = {
+  'pike-road': {
+    schoolSlug: 'pike-road',
+    name: 'Pike Road Athletics',
+    slug: 'pike-road-athletics',
+    scheme: 'pikeroadathletics',
+    iosBundleIdentifier: 'com.athleticos.pikeroad',
+    icon: './assets/images/icon.png',
+  },
+  pellcity: {
+    schoolSlug: 'pellcity',
+    name: 'Pell City Athletics',
+    slug: 'pell-city-athletics',
+    scheme: 'pellcityathletics',
+    iosBundleIdentifier: 'com.athleticos.pellcity',
+    icon: './assets/icons/pellcity-app-icon.png',
+  },
+  athleticos: {
+    schoolSlug: 'athleticos',
+    name: 'AthleticOS App',
+    slug: 'athleticos-app',
+    scheme: 'athleticosapp',
+    iosBundleIdentifier: 'com.athleticos.athleticos',
+    icon: './assets/icons/athleticos-app-icon.png',
+  },
+  recruitos: {
+    schoolSlug: 'recruitos',
+    name: 'RecruitOS',
+    slug: 'recruitos-app',
+    scheme: 'recruitosapp',
+    iosBundleIdentifier: 'com.athleticos.recruitos',
+    icon: './assets/icons/recruitos-app-icon.png',
+  },
+};
+
+function isLocalDevelopment() {
+  return process.env.EAS_BUILD !== 'true' && process.env.CI !== 'true';
+}
+
+function resolveVariantKey() {
+  const configuredVariant = String(process.env.APP_VARIANT || '').trim().toLowerCase();
+
+  if (configuredVariant) {
+    return configuredVariant;
+  }
+
+  if (isLocalDevelopment()) {
+    return 'pike-road';
+  }
+
+  throw new Error(
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos.'
+  );
+}
+
+function resolveVariantConfig() {
+  const variantKey = resolveVariantKey();
+  const variantConfig = VARIANT_CONFIGS[variantKey];
+
+  if (!variantConfig) {
+    throw new Error(
+      `Unsupported APP_VARIANT "${variantKey}". Expected one of: ${Object.keys(VARIANT_CONFIGS).join(', ')}.`
+    );
+  }
+
+  const configuredSchoolSlug = String(process.env.EXPO_PUBLIC_SCHOOL_SLUG || '').trim().toLowerCase();
+  if (configuredSchoolSlug && configuredSchoolSlug !== variantConfig.schoolSlug) {
+    throw new Error(
+      `APP_VARIANT "${variantKey}" requires EXPO_PUBLIC_SCHOOL_SLUG="${variantConfig.schoolSlug}", but received "${configuredSchoolSlug}".`
+    );
+  }
+
+  return {
+    appVariant: variantKey,
+    schoolSlug: configuredSchoolSlug || variantConfig.schoolSlug,
+    ...variantConfig,
+  };
+}
+
+function resolveIconPath(iconPath, fallbackPath) {
+  if (iconPath && fs.existsSync(iconPath)) {
+    return iconPath;
+  }
+
+  return fallbackPath;
+}
+
+module.exports = () => {
+  const baseExpoConfig = appJson.expo || {};
+  const variantConfig = resolveVariantConfig();
+  const splashBackgroundColor = '#000000';
+  const plugins = (baseExpoConfig.plugins || []).map((plugin) => {
+    if (Array.isArray(plugin) && plugin[0] === 'expo-splash-screen') {
+      return [
+        plugin[0],
+        {
+          resizeMode: 'contain',
+          backgroundColor: splashBackgroundColor,
+        },
+      ];
+    }
+
+    return plugin;
+  });
+
+  return {
+    ...baseExpoConfig,
+    name: variantConfig.name,
+    slug: variantConfig.slug,
+    scheme: variantConfig.scheme,
+    icon: resolveIconPath(variantConfig.icon, baseExpoConfig.icon),
+    splash: {
+      backgroundColor: splashBackgroundColor,
+      resizeMode: 'contain',
+    },
+    ios: {
+      ...(baseExpoConfig.ios || {}),
+      bundleIdentifier: variantConfig.iosBundleIdentifier,
+      infoPlist: {
+        ...(baseExpoConfig.ios?.infoPlist || {}),
+        CFBundleDisplayName: variantConfig.name,
+      },
+    },
+    plugins,
+    extra: {
+      ...(baseExpoConfig.extra || {}),
+      schoolSlug: variantConfig.schoolSlug,
+      appVariant: variantConfig.appVariant,
+    },
+  };
+};
