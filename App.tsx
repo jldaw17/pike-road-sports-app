@@ -441,16 +441,16 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
   if (isModernTheme(theme)) {
     return {
       backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '18'),
-      borderTopWidth: 2,
-      borderTopColor: withAlpha(theme.colors.primary, '32'),
-      borderRadius: 14,
-      shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 2,
+      borderWidth: 1.5,
+      borderColor: withAlpha(theme.colors.primary, '58'),
+      borderTopWidth: 3,
+      borderTopColor: withAlpha(theme.colors.primary, '78'),
+      borderRadius: 16,
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.075,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
     };
   }
 
@@ -474,13 +474,13 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 
   if (isModernTheme(theme)) {
     return {
-      borderRadius: 14,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '18'),
-      shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.045,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 3 },
+      borderColor: withAlpha(theme.colors.primary, '16'),
+      shadowColor: withAlpha(theme.colors.primary, '0F'),
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
       elevation: 2,
     };
   }
@@ -508,12 +508,12 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
       borderColor: withAlpha(theme.colors.primary, '16'),
       borderWidth: 1,
       borderTopWidth: 2,
-      borderTopColor: withAlpha(theme.colors.primary, '28'),
-      borderRadius: 14,
+      borderTopColor: withAlpha(theme.colors.primary, '30'),
+      borderRadius: 16,
       shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.045,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
       elevation: 2,
     };
   }
@@ -542,12 +542,12 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
       borderColor: withAlpha(theme.colors.primary, '14'),
       borderWidth: 1,
       borderTopWidth: 2,
-      borderTopColor: withAlpha(theme.colors.primary, '24'),
-      borderRadius: 14,
+      borderTopColor: withAlpha(theme.colors.primary, '2A'),
+      borderRadius: 16,
       shadowColor: withAlpha(theme.colors.primary, '0E'),
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.045,
+      shadowRadius: 9,
+      shadowOffset: { width: 0, height: 4 },
       elevation: 1,
     };
   }
@@ -2002,12 +2002,18 @@ function TopIcon({
             ? {
                 backgroundColor: theme.colors.card,
                 borderWidth: 1,
-                borderColor: withAlpha(theme.colors.primary, '16'),
+                borderColor: withAlpha(theme.colors.primary, '1E'),
                 borderTopWidth: 2,
-                borderTopColor: withAlpha(theme.colors.primary, '28'),
-                borderRadius: 14,
+                borderTopColor: withAlpha(theme.colors.primary, '42'),
+                borderRadius: 16,
                 paddingVertical: isDense ? 7 : isCompact ? 8 : 10,
                 paddingHorizontal: isDense ? 3 : isCompact ? 4 : 6,
+                minHeight: isDense ? 70 : isCompact ? 76 : 84,
+                shadowColor: withAlpha(theme.colors.primary, '12'),
+                shadowOpacity: 0.05,
+                shadowRadius: 9,
+                shadowOffset: { width: 0, height: 3 },
+                elevation: 1,
               }
             : null,
         ]}
@@ -2018,12 +2024,12 @@ function TopIcon({
             styles.topIconCircle,
             {
               backgroundColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '0D')
+                ? withAlpha(theme.colors.primary, '12')
                 : theme.colors.card,
               borderColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '20')
+                ? withAlpha(theme.colors.primary, '2E')
                 : theme.colors.border,
-              borderRadius: isModernTheme(theme) ? 12 : 6,
+              borderRadius: isModernTheme(theme) ? 13 : 6,
               marginBottom: 4,
               width: isModernTheme(theme)
                 ? isDense
@@ -2040,11 +2046,11 @@ function TopIcon({
                   : 44
                 : 40,
               shadowColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '10')
+                ? withAlpha(theme.colors.primary, '16')
                 : withAlpha(theme.colors.text, '12'),
-              shadowOpacity: isModernTheme(theme) ? 0.05 : 0.03,
-              shadowRadius: isModernTheme(theme) ? 6 : 3,
-              shadowOffset: { width: 0, height: isModernTheme(theme) ? 2 : 1 },
+              shadowOpacity: isModernTheme(theme) ? 0.06 : 0.03,
+              shadowRadius: isModernTheme(theme) ? 8 : 3,
+              shadowOffset: { width: 0, height: isModernTheme(theme) ? 3 : 1 },
               elevation: isModernTheme(theme) ? 2 : 1,
             },
           ]}
@@ -2150,10 +2156,10 @@ function SectionHeader({
           {
             marginTop: 24,
             marginBottom: 12,
-            paddingBottom: isModernTheme(theme) ? 6 : 8,
+            paddingBottom: isModernTheme(theme) ? 7 : 8,
             borderBottomWidth: 1,
             borderBottomColor: isModernTheme(theme)
-              ? withAlpha(theme.colors.primary, '12')
+              ? withAlpha(theme.colors.primary, '16')
               : withAlpha(theme.colors.text, '10'),
           },
           containerStyle,
@@ -2162,11 +2168,12 @@ function SectionHeader({
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View
             style={{
-              width: isModernTheme(theme) ? 24 : 22,
+              width: isModernTheme(theme) ? 28 : 22,
               height: isModernTheme(theme) ? 3 : 2,
               borderRadius: 999,
               backgroundColor: theme.colors.primary,
               marginRight: 10,
+              opacity: isModernTheme(theme) ? 0.9 : 1,
             }}
           />
           <Text
@@ -2174,9 +2181,9 @@ function SectionHeader({
               styles.sectionTitle,
               {
                 color: theme.colors.text,
-                fontSize: isModernTheme(theme) ? 14 : 13,
+                fontSize: isModernTheme(theme) ? 15 : 13,
                 fontWeight: '800',
-                letterSpacing: isModernTheme(theme) ? 0.55 : 1,
+                letterSpacing: isModernTheme(theme) ? 0.45 : 1,
                 textTransform: 'uppercase',
               },
             ]}
@@ -2195,6 +2202,16 @@ function SectionHeader({
                   fontWeight: '800',
                   letterSpacing: isModernTheme(theme) ? 0.45 : 0.7,
                   textTransform: 'uppercase',
+                  backgroundColor: isModernTheme(theme)
+                    ? withAlpha(theme.colors.primary, '0A')
+                    : 'transparent',
+                  borderWidth: isModernTheme(theme) ? 1 : 0,
+                  borderColor: isModernTheme(theme)
+                    ? withAlpha(theme.colors.primary, '18')
+                    : 'transparent',
+                  paddingHorizontal: isModernTheme(theme) ? 9 : 0,
+                  paddingVertical: isModernTheme(theme) ? 5 : 0,
+                  borderRadius: isModernTheme(theme) ? 999 : 0,
                 },
               ]}
             >
@@ -5919,12 +5936,12 @@ function HomeScreen({
           getThemeHeroShellStyle(theme),
           isModernTheme(theme)
             ? {
-                paddingTop: 12,
+                paddingTop: 14,
                 paddingHorizontal: 18,
-                paddingBottom: 12,
-                borderRadius: 16,
+                paddingBottom: 14,
+                borderRadius: 18,
                 borderBottomWidth: 1,
-                borderBottomColor: withAlpha(theme.colors.primary, '20'),
+                borderBottomColor: withAlpha(theme.colors.primary, '2C'),
               }
             : null,
           isTrueCleanSlateHome
@@ -5960,17 +5977,15 @@ function HomeScreen({
                   styles.teamLogoBox,
                   isModernTheme(theme)
                     ? {
-                        width: 58,
-                        height: 58,
-                        borderRadius: 16,
-                        marginRight: 11,
-                        backgroundColor: theme.colors.card,
-                        borderColor: withAlpha(theme.colors.primary, '16'),
-                        shadowColor: withAlpha(theme.colors.primary, '10'),
-                        shadowOpacity: 0.06,
-                        shadowRadius: 8,
-                        shadowOffset: { width: 0, height: 3 },
-                        elevation: 2,
+                        width: 88,
+                        height: 88,
+                        borderRadius: 24,
+                        marginRight: 16,
+                        backgroundColor: 'transparent',
+                        borderWidth: 0,
+                        shadowOpacity: 0,
+                        shadowRadius: 0,
+                        elevation: 0,
                       }
                     : null,
                   isTrueCleanSlateHome
@@ -5989,6 +6004,7 @@ function HomeScreen({
                   uri={schoolConfig.logoUrl}
                   style={[
                     styles.headerTeamLogo,
+                    isModernTheme(theme) ? { width: 68, height: 68 } : null,
                     isTrueCleanSlateHome ? { width: 36, height: 36 } : null,
                   ]}
                   contentFit="contain"
@@ -6006,7 +6022,7 @@ function HomeScreen({
                   {
               color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
               ...(isModernTheme(theme)
-                      ? { fontSize: 24, letterSpacing: 0.1, fontWeight: '900' as const }
+                      ? { fontSize: 25, letterSpacing: 0.05, fontWeight: '900' as const }
                       : isCleanSlateTheme(theme)
                       ? { fontSize: 20, letterSpacing: 0, fontWeight: '800' as const }
                       : null),
@@ -6022,7 +6038,13 @@ function HomeScreen({
                   styles.appSubtitle,
                   { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.78)' },
                   isModernTheme(theme)
-                    ? { fontSize: 11, marginTop: 2, fontWeight: '700' as const, letterSpacing: 0.15 }
+                    ? {
+                        fontSize: 11,
+                        marginTop: 3,
+                        fontWeight: '700' as const,
+                        letterSpacing: 0.2,
+                        color: withAlpha(theme.colors.primary, 'C8'),
+                      }
                       : isTrueCleanSlateHome
                     ? { fontSize: 10, marginTop: 1, fontWeight: '600' as const }
                     : null,
@@ -6037,7 +6059,12 @@ function HomeScreen({
                   styles.heroSponsorInlineText,
                   { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(255,255,255,0.72)' },
                   isModernTheme(theme)
-                    ? { fontSize: 9, marginTop: 3, letterSpacing: 0.3, color: theme.colors.primary }
+                    ? {
+                        fontSize: 9,
+                        marginTop: 5,
+                        letterSpacing: 0.35,
+                        color: theme.colors.primary,
+                      }
                     : isTrueCleanSlateHome
                       ? { fontSize: 9, marginTop: 2, letterSpacing: 0.25 }
                       : null,
@@ -6144,11 +6171,12 @@ function HomeScreen({
             shouldScrollHeroActions ? styles.heroButtonRowScrollable : null,
             isModernTheme(theme)
               ? {
-                  marginTop: 8,
-                  paddingTop: 10,
+                  marginTop: 10,
+                  paddingTop: 12,
                   borderTopWidth: 1,
-                  borderTopColor: withAlpha(theme.colors.primary, '12'),
-                  gap: 8,
+                  borderTopColor: withAlpha(theme.colors.primary, '16'),
+                  gap: 9,
+                  alignItems: 'stretch',
                 }
               : null,
             isTrueCleanSlateHome
@@ -10130,21 +10158,23 @@ function BottomNav({
         isLightMode ? styles.bottomNavLight : null,
         isModern
           ? {
-              backgroundColor: withAlpha(theme.colors.primary, '0D'),
+              backgroundColor: withAlpha(theme.colors.primary, '0E'),
               borderTopWidth: 2,
-              borderTopColor: withAlpha(theme.colors.primary, 'A8'),
+              borderTopColor: withAlpha(theme.colors.primary, 'CC'),
               borderLeftWidth: 1,
               borderRightWidth: 1,
-              borderLeftColor: withAlpha(theme.colors.primary, '10'),
-              borderRightColor: withAlpha(theme.colors.primary, '10'),
-              paddingTop: 4,
-              paddingBottom: 7,
-              minHeight: 58,
-              shadowColor: withAlpha(theme.colors.primary, '10'),
-              shadowOpacity: 0.06,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: -2 },
-              elevation: 6,
+              borderLeftColor: withAlpha(theme.colors.primary, '14'),
+              borderRightColor: withAlpha(theme.colors.primary, '14'),
+              borderTopLeftRadius: 18,
+              borderTopRightRadius: 18,
+              paddingTop: 5,
+              paddingBottom: 8,
+              minHeight: 60,
+              shadowColor: withAlpha(theme.colors.primary, '16'),
+              shadowOpacity: 0.085,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: -3 },
+              elevation: 7,
             }
           : null,
         isCleanSlate
@@ -10211,17 +10241,17 @@ function BottomNav({
                         active ? styles.asnTabGlowWrapActive : null,
                         isModern
                           ? {
-                              width: 46,
-                              height: 46,
-                              borderRadius: 14,
-                              backgroundColor: withAlpha(theme.colors.primary, active ? '12' : '08'),
-                              borderWidth: 1,
-                              borderColor: withAlpha(theme.colors.primary, active ? '40' : '1E'),
-                              shadowColor: withAlpha(theme.colors.primary, '14'),
-                              shadowOpacity: active ? 0.08 : 0.025,
-                              shadowRadius: active ? 6 : 4,
-                              shadowOffset: { width: 0, height: 2 },
-                              elevation: active ? 2 : 0,
+                              width: 58,
+                              height: 58,
+                              borderRadius: 18,
+                              backgroundColor: withAlpha(theme.colors.primary, active ? '18' : '0A'),
+                              borderWidth: active ? 2 : 1,
+                              borderColor: withAlpha(theme.colors.primary, active ? '62' : '24'),
+                              shadowColor: withAlpha(theme.colors.primary, '1A'),
+                              shadowOpacity: active ? 0.12 : 0.035,
+                              shadowRadius: active ? 10 : 5,
+                              shadowOffset: { width: 0, height: 3 },
+                              elevation: active ? 4 : 1,
                             }
                           : null,
                         isCleanSlate
@@ -10253,7 +10283,7 @@ function BottomNav({
                           style={[
                             styles.centerNavLogo,
                             isModern
-                              ? { width: 58, height: 58 }
+                              ? { width: 82, height: 82 }
                               : isCleanSlate
                               ? { width: 69, height: 69 }
                               : null,
@@ -10276,7 +10306,10 @@ function BottomNav({
                 <Text
                   style={[
                     styles.asnTabLabel,
-                    { color: active ? theme.colors.primary : theme.colors.mutedText },
+                    {
+                      color: active ? theme.colors.primary : theme.colors.mutedText,
+                      fontWeight: active && isModern ? '800' : '700',
+                    },
                   ]}
                 >
                   {item.label}
