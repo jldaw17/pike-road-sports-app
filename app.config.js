@@ -1,6 +1,11 @@
 const appJson = require('./app.json');
 const fs = require('fs');
 
+const NATIVE_SPLASH_CONFIG = {
+  backgroundColor: '#FFFFFF',
+  resizeMode: 'contain',
+};
+
 const VARIANT_CONFIGS = {
   'pike-road': {
     schoolSlug: 'pike-road',
@@ -9,11 +14,6 @@ const VARIANT_CONFIGS = {
     scheme: 'pikeroadathletics',
     iosBundleIdentifier: 'com.athleticos.pikeroad',
     icon: './assets/images/icon.png',
-    splash: {
-      image: './assets/images/splash-logo.png',
-      backgroundColor: '#1F3B7A',
-      resizeMode: 'contain',
-    },
     easProjectId: '70b794e3-e8d7-4919-ac83-0b034b118ea2',
   },
   pellcity: {
@@ -23,11 +23,6 @@ const VARIANT_CONFIGS = {
     scheme: 'pellcityathletics',
     iosBundleIdentifier: 'com.athleticos.pellcity',
     icon: './assets/icons/pellcity-app-icon.png',
-    splash: {
-      image: './assets/icons/pellcity-app-icon.png',
-      backgroundColor: '#FFFFFF',
-      resizeMode: 'contain',
-    },
     easProjectId: '1fb0bea0-6786-49cb-8844-50e8e75b5dc5',
   },
   athleticos: {
@@ -37,11 +32,6 @@ const VARIANT_CONFIGS = {
     scheme: 'athleticosapp',
     iosBundleIdentifier: 'com.athleticos.athleticos',
     icon: './assets/icons/athleticos-app-icon.png',
-    splash: {
-      image: './assets/icons/athleticos-app-icon.png',
-      backgroundColor: '#FFFFFF',
-      resizeMode: 'contain',
-    },
   },
   recruitos: {
     schoolSlug: 'recruitos',
@@ -50,11 +40,6 @@ const VARIANT_CONFIGS = {
     scheme: 'recruitosapp',
     iosBundleIdentifier: 'com.athleticos.recruitos',
     icon: './assets/icons/recruitos-app-icon.png',
-    splash: {
-      image: './assets/icons/recruitos-app-icon.png',
-      backgroundColor: '#FFFFFF',
-      resizeMode: 'contain',
-    },
   },
 };
 
@@ -110,36 +95,17 @@ function resolveIconPath(iconPath, fallbackPath) {
   return fallbackPath;
 }
 
-function resolveSplashConfig(variantConfig, fallbackIconPath) {
-  const baseSplash = variantConfig.splash || {};
-  const resolvedImage = resolveIconPath(
-    baseSplash.image,
-    resolveIconPath(variantConfig.icon, fallbackIconPath)
-  );
-
-  return {
-    image: resolvedImage,
-    backgroundColor: baseSplash.backgroundColor || '#000000',
-    resizeMode: baseSplash.resizeMode || 'contain',
-  };
-}
-
 module.exports = () => {
   const baseExpoConfig = appJson.expo || {};
   const variantConfig = resolveVariantConfig();
   const resolvedIcon = resolveIconPath(variantConfig.icon, baseExpoConfig.icon);
-  const resolvedSplash = resolveSplashConfig(variantConfig, resolvedIcon);
   const baseExtra = baseExpoConfig.extra || {};
   const { eas: _ignoredBaseEas, ...safeBaseExtraWithoutEas } = baseExtra;
   const plugins = (baseExpoConfig.plugins || []).map((plugin) => {
     if (Array.isArray(plugin) && plugin[0] === 'expo-splash-screen') {
       return [
         plugin[0],
-        {
-          image: resolvedSplash.image,
-          resizeMode: resolvedSplash.resizeMode,
-          backgroundColor: resolvedSplash.backgroundColor,
-        },
+        NATIVE_SPLASH_CONFIG,
       ];
     }
 
@@ -164,7 +130,7 @@ module.exports = () => {
     slug: variantConfig.slug,
     scheme: variantConfig.scheme,
     icon: resolvedIcon,
-    splash: resolvedSplash,
+    splash: NATIVE_SPLASH_CONFIG,
     ios: {
       ...(baseExpoConfig.ios || {}),
       bundleIdentifier: variantConfig.iosBundleIdentifier,

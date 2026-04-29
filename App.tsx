@@ -2145,6 +2145,7 @@ function LaunchSplash({
   const logoSlide = useRef(new Animated.Value(16)).current;
   const hasSplashBackground = hasResolvedUrl(splashBackgroundUrl);
   const hasSplashLogo = hasResolvedUrl(splashLogoUrl);
+  const shouldRenderSplashLogo = hasSplashLogo && !hasSplashBackground;
   const showDefaultSplash = !hasSplashBackground && !hasSplashLogo;
 
   useEffect(() => {
@@ -2205,13 +2206,13 @@ function LaunchSplash({
           ) : null}
 
           <View style={styles.flashCenterArea}>
-            {hasSplashLogo && showDefaultSplash ? <View style={styles.flashShadowLong} /> : null}
+            {shouldRenderSplashLogo && showDefaultSplash ? <View style={styles.flashShadowLong} /> : null}
             <Animated.View
               style={{
                 transform: [{ translateY: logoSlide }],
               }}
             >
-              {hasSplashLogo ? (
+              {shouldRenderSplashLogo ? (
                 <View
                   style={[
                     styles.flashLogoPlate,
@@ -2242,7 +2243,7 @@ function LaunchSplash({
               },
             ]}
           >
-            {schoolDisplayName ? (
+            {!hasSplashBackground && schoolDisplayName ? (
               <Text
                 style={[
                   styles.flashBottomSub,
@@ -9688,7 +9689,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         duration: 400,
         useNativeDriver: true,
       }).start(() => setShowLaunchSplash(false));
-    }, 2000);
+    }, 3000);
     return () => clearTimeout(timer);
   }, [splashOpacity]);
 
@@ -10795,7 +10796,7 @@ if (showLaunchSplash) {
     <Animated.View style={{ flex: 1, opacity: splashOpacity }}>
       <LaunchSplash
         splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
-        splashLogoUrl={schoolConfig.splashLogoUrl || schoolConfig.logoUrl}
+        splashLogoUrl={schoolConfig.splashLogoUrl}
         schoolDisplayName={schoolConfig.displayName}
         theme={resolvedTheme}
       />
