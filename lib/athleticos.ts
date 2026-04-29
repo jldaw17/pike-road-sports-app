@@ -97,6 +97,34 @@ export type AthleticOSBottomNavItem = {
   openInWebview: boolean;
 };
 
+export type AthleticOSAppHeroQuickAction = {
+  id?: string | number;
+  school_id?: string | number;
+  enabled?: boolean;
+  is_enabled?: boolean;
+  label?: string;
+  icon_key?: string;
+  action_type?: string;
+  target_value?: string;
+  sport_id?: string | number | null;
+  display_order?: number;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+};
+
+export type AthleticOSHeroQuickAction = {
+  id: string;
+  enabled: boolean;
+  label: string;
+  iconKey: string;
+  actionType: string;
+  targetValue: string;
+  sportId: string;
+  displayOrder: number;
+};
+
 export type AthleticOSAppTeamNavItem = {
   id?: string | number;
   school_id?: string | number;
@@ -1079,6 +1107,62 @@ export async function getAppBottomNavItemsBySchoolId(schoolId: string | number) 
         } satisfies AthleticOSBottomNavItem;
       })
       .filter(Boolean) as AthleticOSBottomNavItem[];
+  } catch (error) {
+    if (isMissingAppOSRelationError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export async function getAppHeroQuickActionsBySchoolId(
+  schoolId: string | number
+) {
+  try {
+    await requireSchoolById(schoolId);
+
+    const { data, error } = await supabase
+      .from('app_hero_quick_actions')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('display_order', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as AthleticOSAppHeroQuickAction[])
+      .map((item) => {
+        const id =
+          item.id === undefined || item.id === null ? '' : String(item.id).trim();
+        const label = pickFirstString(item, ['label']) ?? '';
+        const enabled =
+          pickFirstBoolean(item, ['enabled', 'is_enabled', 'is_active', 'active']) ?? true;
+
+        if (!id || !label.trim() || !enabled) {
+          return null;
+        }
+
+        return {
+          id,
+          enabled,
+          label: label.trim(),
+          iconKey: pickFirstString(item, ['icon_key']) ?? '',
+          actionType: pickFirstString(item, ['action_type']) ?? '',
+          targetValue: pickFirstString(item, ['target_value']) ?? '',
+          sportId:
+            item.sport_id === undefined || item.sport_id === null
+              ? ''
+              : String(item.sport_id).trim(),
+          displayOrder:
+            pickFirstNumber(item, ['display_order', 'sort_order']) ?? 0,
+        } satisfies AthleticOSHeroQuickAction;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.displayOrder - b.displayOrder) as AthleticOSHeroQuickAction[];
   } catch (error) {
     if (isMissingAppOSRelationError(error)) {
       return [];

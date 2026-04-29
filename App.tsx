@@ -24,6 +24,7 @@ import {
   SafeAreaView,
   ScrollView,
   Share,
+  type StyleProp,
   StatusBar,
   StyleSheet,
   type ViewStyle,
@@ -33,6 +34,7 @@ import {
 import { WebView } from 'react-native-webview';
 import {
   type AthleticOSAppHomeModule,
+  type AthleticOSHeroQuickAction,
   type AthleticOSAppThemeConfig,
   type AthleticOSBottomNavItem,
   type AthleticOSRosterAthlete,
@@ -48,6 +50,7 @@ import {
   type AthleticOSSportAppConfig,
   getAthleteOfTheWeekBySchoolId,
   getAppBottomNavItemsBySchoolId,
+  getAppHeroQuickActionsBySchoolId,
   getAppPrerollConfigBySchoolId,
   getAppThemeConfigBySchoolId,
   getTeamNavBySportId,
@@ -333,6 +336,43 @@ function getModernHeroActionEmoji(
   }
 
   return '';
+}
+
+function normalizeHeroQuickActionKey(value?: string) {
+  return (value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+}
+
+function resolveHeroQuickActionIcon(
+  iconKey?: string
+): keyof typeof Ionicons.glyphMap {
+  switch (normalizeHeroQuickActionKey(iconKey)) {
+    case 'broadcast':
+      return 'radio-outline';
+    case 'teams':
+      return 'people-outline';
+    case 'tickets':
+      return 'ticket-outline';
+    case 'schedule':
+      return 'calendar-outline';
+    case 'news':
+      return 'newspaper-outline';
+    case 'standings':
+      return 'stats-chart-outline';
+    case 'shop':
+      return 'bag-handle-outline';
+    case 'watch':
+    case 'livestream':
+      return 'play-circle-outline';
+    case 'media':
+      return 'videocam-outline';
+    case 'website':
+    case 'external_url':
+      return 'globe-outline';
+    case 'listen':
+      return 'headset-outline';
+    default:
+      return 'flash-outline';
+  }
 }
 
 function getThemeHeroAccentColor(theme: AthleticOSResolvedTheme) {
@@ -998,6 +1038,18 @@ type BottomNavRenderItem = {
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   active: boolean;
+};
+
+type HeroQuickActionRenderItem = {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+};
+
+type HeroQuickActionSportRecord = {
+  sportId: string;
+  sport: SportType;
 };
 
 type RosterSortKey = 'number' | 'name' | 'position';
@@ -1813,18 +1865,20 @@ function TopIcon({
   label,
   icon,
   onPress,
+  containerStyle,
   theme = DEFAULT_APP_THEME,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
+  containerStyle?: StyleProp<ViewStyle>;
   theme?: AthleticOSResolvedTheme;
 }) {
   if (isCleanSlateTheme(theme)) {
     const resolvedLabel = label;
     const modernEmoji = isModernTheme(theme) ? getModernHeroActionEmoji(icon, label) : '';
     return (
-      <Pressable style={styles.topIconWrap} onPress={onPress}>
+      <Pressable style={[styles.topIconWrap, containerStyle]} onPress={onPress}>
         <View
           style={[
             styles.topIconCircle,
@@ -1854,6 +1908,7 @@ function TopIcon({
           )}
         </View>
         <Text
+          numberOfLines={2}
           style={[
             styles.topIconLabel,
             {
@@ -1872,7 +1927,7 @@ function TopIcon({
   }
 
   return (
-    <Pressable style={styles.topIconWrap} onPress={onPress}>
+    <Pressable style={[styles.topIconWrap, containerStyle]} onPress={onPress}>
       <LinearGradient
         colors={getThemeTopIconGradient(theme)}
         style={[
@@ -1894,6 +1949,7 @@ function TopIcon({
         />
       </LinearGradient>
       <Text
+        numberOfLines={2}
         style={[
           styles.topIconLabel,
           { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
@@ -4256,6 +4312,8 @@ function HomeScreen({
   videoItems,
   galleryItems,
   homeSports,
+  heroQuickActions,
+  hasConfiguredHeroQuickActions,
   scheduleAvailable,
   theme = DEFAULT_APP_THEME,
 }: {
@@ -4303,9 +4361,12 @@ function HomeScreen({
   videoItems: VideoItem[];
   galleryItems: GalleryItem[];
   homeSports: SportType[];
+  heroQuickActions: HeroQuickActionRenderItem[];
+  hasConfiguredHeroQuickActions: boolean;
   scheduleAvailable: boolean;
   theme?: AthleticOSResolvedTheme;
 }) {
+  const isModernHome = isModernTheme(theme);
   const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
   const hasScheduleUrl = scheduleAvailable;
@@ -4418,12 +4479,69 @@ function HomeScreen({
   );
   const firstUpcomingEvent = visibleUpcomingEvents[0];
   const hasPromotionCtaUrl = hasResolvedUrl(promotionCard?.cta_url);
-  const heroActionCount = [
-    hasWatchUrl,
-    hasListenUrl,
-    hasScheduleUrl,
-    hasMainSiteUrl,
-  ].filter(Boolean).length;
+  const fallbackHeroActions = useMemo(
+    () =>
+      [
+        hasWatchUrl
+          ? ({
+              key: 'watch',
+              label: 'Watch',
+              icon: 'videocam',
+              onPress: () => onOpenExternal(schoolConfig.watchUrl),
+            } satisfies HeroQuickActionRenderItem)
+          : null,
+        hasListenUrl
+          ? ({
+              key: 'listen',
+              label: 'Listen',
+              icon: 'headset',
+              onPress: onToggleAudio,
+            } satisfies HeroQuickActionRenderItem)
+          : null,
+        hasScheduleUrl
+          ? ({
+              key: 'schedule',
+              label: 'Schedule',
+              icon: 'calendar',
+              onPress: onOpenSchedule,
+            } satisfies HeroQuickActionRenderItem)
+          : null,
+        hasMainSiteUrl
+          ? ({
+              key: 'website',
+              label: 'Website',
+              icon: 'globe-outline',
+              onPress: () => onOpenEmbedded('Website', schoolConfig.mainSiteUrl),
+            } satisfies HeroQuickActionRenderItem)
+          : null,
+      ].filter(Boolean) as HeroQuickActionRenderItem[],
+    [
+      hasListenUrl,
+      hasMainSiteUrl,
+      hasScheduleUrl,
+      hasWatchUrl,
+      onOpenEmbedded,
+      onOpenExternal,
+      onOpenSchedule,
+      onToggleAudio,
+      schoolConfig.mainSiteUrl,
+      schoolConfig.watchUrl,
+    ]
+  );
+  const resolvedHeroQuickActions =
+    (hasConfiguredHeroQuickActions ? heroQuickActions : fallbackHeroActions).slice(0, 5);
+  const heroActionCount = resolvedHeroQuickActions.length;
+  const shouldScrollHeroActions = isModernHome
+    ? heroActionCount >= 3
+    : heroActionCount >= 4;
+  const heroActionItemStyle =
+    heroActionCount <= 1
+      ? styles.topIconWrapFeatured
+      : heroActionCount === 2
+      ? styles.topIconWrapPair
+      : heroActionCount === 3 && !shouldScrollHeroActions
+      ? styles.topIconWrapTriple
+      : styles.topIconWrapScrollable;
   const heroBrandTitle = getHeroBrandTitle(schoolConfig);
   const heroBrandSubtitle = getHeroBrandSubtitle(schoolConfig);
   const hasLiveCoverageModule = useMemo(
@@ -5481,7 +5599,9 @@ function HomeScreen({
         <View
           style={[
             styles.heroButtonRow,
-            heroActionCount >= 4 ? styles.heroButtonRowCompact : null,
+            heroActionCount >= 3 ? styles.heroButtonRowCompact : null,
+            heroActionCount === 1 ? styles.heroButtonRowSingle : null,
+            shouldScrollHeroActions ? styles.heroButtonRowScrollable : null,
             isCleanSlateTheme(theme)
               ? {
                   marginTop: 1,
@@ -5490,33 +5610,36 @@ function HomeScreen({
               : null,
           ]}
         >
-          {hasWatchUrl ? (
-            <TopIcon
-              label="Watch"
-              icon="videocam"
-              theme={theme}
-              onPress={() => onOpenExternal(schoolConfig.watchUrl)}
-            />
-          ) : null}
-          {hasListenUrl ? (
-            <TopIcon label="Listen" icon="headset" onPress={onToggleAudio} theme={theme} />
-          ) : null}
-          {hasScheduleUrl ? (
-            <TopIcon
-              label="Schedule"
-              icon="calendar"
-              theme={theme}
-              onPress={onOpenSchedule}
-            />
-          ) : null}
-          {hasMainSiteUrl ? (
-            <TopIcon
-              label="Website"
-              icon="globe-outline"
-              theme={theme}
-              onPress={() => onOpenEmbedded('Website', schoolConfig.mainSiteUrl)}
-            />
-          ) : null}
+          {shouldScrollHeroActions ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.heroButtonScrollView}
+              contentContainerStyle={styles.heroButtonScrollContent}
+            >
+              {resolvedHeroQuickActions.map((action) => (
+                <TopIcon
+                  key={action.key}
+                  label={action.label}
+                  icon={action.icon}
+                  theme={theme}
+                  onPress={action.onPress}
+                  containerStyle={heroActionItemStyle}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            resolvedHeroQuickActions.map((action) => (
+              <TopIcon
+                key={action.key}
+                label={action.label}
+                icon={action.icon}
+                theme={theme}
+                onPress={action.onPress}
+                containerStyle={heroActionItemStyle}
+              />
+            ))
+          )}
         </View>
       </LinearGradient>
 
@@ -9569,6 +9692,10 @@ const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([]);
 const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [homeModules, setHomeModules] = useState<AthleticOSAppHomeModule[]>([]);
   const [bottomNavItems, setBottomNavItems] = useState<AthleticOSBottomNavItem[]>([]);
+  const [heroQuickActions, setHeroQuickActions] = useState<AthleticOSHeroQuickAction[]>([]);
+  const [heroQuickActionSports, setHeroQuickActionSports] = useState<
+    HeroQuickActionSportRecord[]
+  >([]);
   const [appThemeConfig, setAppThemeConfig] = useState<AthleticOSAppThemeConfig | null>(
     null
   );
@@ -9817,6 +9944,8 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       setSchoolConfig(defaultSchoolConfig);
       setHomeModules([]);
       setBottomNavItems([]);
+      setHeroQuickActions([]);
+      setHeroQuickActionSports([]);
       setAppThemeConfig(null);
       setLiveCoverageConfig(null);
       setPromotionCard(null);
@@ -9841,6 +9970,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       schoolAppConfig,
       moduleConfig,
       nextBottomNavItems,
+      nextHeroQuickActions,
       nextThemeConfig,
       nextPromotionCard,
       nextLiveCoverageConfig,
@@ -9857,6 +9987,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       getSchoolAppConfigById(resolvedSchoolId),
       getAppHomeModulesBySchoolId(resolvedSchoolId),
       getAppBottomNavItemsBySchoolId(resolvedSchoolId),
+      getAppHeroQuickActionsBySchoolId(resolvedSchoolId),
       getAppThemeConfigBySchoolId(resolvedSchoolId),
       getPromotionCardBySchoolId(resolvedSchoolId),
       getAppLiveCoverageConfigBySchoolId(resolvedSchoolId),
@@ -10110,6 +10241,15 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       })
       .map((item) => item.sport);
 
+    const nextHeroQuickActionSports = resolvedSports
+      .map(({ sport, record }) => {
+        const sportId =
+          record?.id === undefined || record.id === null ? '' : String(record.id).trim();
+
+        return sportId ? ({ sportId, sport } satisfies HeroQuickActionSportRecord) : null;
+      })
+      .filter(Boolean) as HeroQuickActionSportRecord[];
+
     const nextFollowableSports = sportsData
       .map((sport) => {
         const id =
@@ -10135,6 +10275,8 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     setSchoolAccentColor(nextSchoolAccentColor);
     setHomeModules(moduleConfig);
     setBottomNavItems(nextBottomNavItems);
+    setHeroQuickActions(nextHeroQuickActions);
+    setHeroQuickActionSports(nextHeroQuickActionSports);
     setAppThemeConfig(mergedThemeConfig);
     setLiveCoverageConfig(nextLiveCoverageConfig);
     setPromotionCard(nextPromotionCard);
@@ -10147,6 +10289,8 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     console.log('Home feed load error:', error);
     setHomeModules([]);
     setBottomNavItems([]);
+    setHeroQuickActions([]);
+    setHeroQuickActionSports([]);
     setAppThemeConfig(null);
     setLiveCoverageConfig(null);
     setPromotionCard(null);
@@ -10549,6 +10693,187 @@ const handleEnableNotifications = async () => {
 
     openExternalUrl(resolvedUrl);
   };
+
+  const resolveSchoolScopedUrl = useCallback(
+    (value?: string) => {
+      const trimmedValue = (value ?? '').trim();
+      if (!trimmedValue) {
+        return '';
+      }
+
+      if (hasResolvedUrl(trimmedValue)) {
+        return trimmedValue;
+      }
+
+      if (trimmedValue.startsWith('//')) {
+        return `https:${trimmedValue}`;
+      }
+
+      if (/^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$/i.test(trimmedValue)) {
+        return `https://${trimmedValue}`;
+      }
+
+      if (trimmedValue.startsWith('/') && hasResolvedUrl(schoolConfig.mainSiteUrl)) {
+        return `${schoolConfig.mainSiteUrl.replace(/\/+$/, '')}${trimmedValue}`;
+      }
+
+      return '';
+    },
+    [schoolConfig.mainSiteUrl]
+  );
+
+  const openHeroQuickActionSchedule = useCallback(
+    async (action: AthleticOSHeroQuickAction) => {
+      if (!action.sportId || !resolvedSchoolId) {
+        openScheduleScreen({
+          headerTitle: 'Schedule',
+          headerSubtitle: appDisplayName,
+          schoolLogoUrl: schoolConfig.logoUrl,
+        });
+        return;
+      }
+
+      const matchedSport = heroQuickActionSports.find(
+        (item) => item.sportId === action.sportId
+      );
+
+      if (!matchedSport) {
+        openScheduleScreen({
+          headerTitle: 'Schedule',
+          headerSubtitle: appDisplayName,
+          schoolLogoUrl: schoolConfig.logoUrl,
+        });
+        return;
+      }
+
+      try {
+        const teamEvents = await getSportScheduleEventsBySchoolId(
+          resolvedSchoolId,
+          matchedSport.sport.key
+        );
+
+        openScheduleScreen({
+          events: teamEvents,
+          headerTitle: `${matchedSport.sport.shortLabel || matchedSport.sport.label} Schedule`,
+          headerSubtitle: appDisplayName,
+          schoolLogoUrl: schoolConfig.logoUrl,
+          variant: 'team',
+          accentColor: schoolAccentColor,
+        });
+      } catch (error) {
+        console.log('Hero quick action schedule load error:', error);
+        openScheduleScreen({
+          headerTitle: 'Schedule',
+          headerSubtitle: appDisplayName,
+          schoolLogoUrl: schoolConfig.logoUrl,
+        });
+      }
+    },
+    [
+      appDisplayName,
+      heroQuickActionSports,
+      openScheduleScreen,
+      resolvedSchoolId,
+      schoolAccentColor,
+      schoolConfig.logoUrl,
+    ]
+  );
+
+  const heroQuickActionRenderItems = useMemo(() => {
+    if (heroQuickActions.length === 0) {
+      return [] as HeroQuickActionRenderItem[];
+    }
+
+    return heroQuickActions
+      .map((action) => {
+        if (action.enabled === false) {
+          return null;
+        }
+
+        const label = action.label.trim();
+        const actionType = normalizeHeroQuickActionKey(action.actionType);
+        const fallbackUrl =
+          actionType === 'website' || actionType === 'external_url'
+            ? schoolConfig.mainSiteUrl
+            : actionType === 'watch' || actionType === 'livestream' || actionType === 'media'
+            ? schoolConfig.watchUrl
+            : actionType === 'listen'
+            ? schoolConfig.listenUrl
+            : '';
+        const targetUrl = resolveSchoolScopedUrl(action.targetValue || fallbackUrl);
+
+        if (!label) {
+          return null;
+        }
+
+        let onPress: (() => void) | null = null;
+
+        switch (actionType) {
+          case 'schedule':
+            onPress = () => {
+              void openHeroQuickActionSchedule(action);
+            };
+            break;
+          case 'listen':
+            if (hasListenUrl) {
+              onPress = toggleAudio;
+            } else if (targetUrl) {
+              onPress = () => openEmbedded(label, targetUrl);
+            }
+            break;
+          case 'watch':
+          case 'website':
+          case 'external_url':
+          case 'embed_url':
+          case 'url':
+          case 'livestream':
+          case 'media':
+            if (targetUrl) {
+              onPress = () => openEmbedded(label, targetUrl);
+            }
+            break;
+          default:
+            if (targetUrl) {
+              onPress = () => openEmbedded(label, targetUrl);
+            }
+            break;
+        }
+
+        if (!onPress) {
+          return null;
+        }
+
+        return {
+          key: action.id,
+          label,
+          icon: resolveHeroQuickActionIcon(action.iconKey || actionType),
+          onPress,
+        } satisfies HeroQuickActionRenderItem;
+      })
+      .filter(Boolean)
+      .slice(0, 5) as HeroQuickActionRenderItem[];
+  }, [
+    appDisplayName,
+    hasListenUrl,
+    heroQuickActions,
+    openEmbedded,
+    openHeroQuickActionSchedule,
+    resolveSchoolScopedUrl,
+    schoolConfig.listenUrl,
+    schoolConfig.mainSiteUrl,
+    schoolConfig.watchUrl,
+    toggleAudio,
+  ]);
+
+  useEffect(() => {
+    console.log('[Hero Quick Actions]', {
+      schoolSlug,
+      configuredCount: heroQuickActions.length,
+      configuredLabels: heroQuickActions.map((action) => action.label),
+      renderedCount: heroQuickActionRenderItems.length,
+      renderedLabels: heroQuickActionRenderItems.map((action) => action.label),
+    });
+  }, [heroQuickActionRenderItems, heroQuickActions, schoolSlug]);
 
   const normalizeInternalBottomNavTarget = (value?: string) =>
     (value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -11007,6 +11332,8 @@ if (showPreroll && prerollConfig) {
             videoItems={videoItems}
             galleryItems={galleryItems}
             homeSports={homeSports}
+            heroQuickActions={heroQuickActionRenderItems}
+            hasConfiguredHeroQuickActions={heroQuickActions.length > 0}
             scheduleAvailable={eventsLoading || allEvents.length > 0}
             theme={resolvedTheme}
           />
@@ -11414,13 +11741,53 @@ splashSponsorLogo: {
     marginTop: 0,
   },
 
+  heroButtonRowSingle: {
+    justifyContent: 'center',
+  },
+
   heroButtonRowCompact: {
     gap: 8,
+  },
+
+  heroButtonRowScrollable: {
+    justifyContent: 'flex-start',
+  },
+
+  heroButtonScrollView: {
+    width: '100%',
+    flexGrow: 0,
+  },
+
+  heroButtonScrollContent: {
+    gap: 8,
+    paddingRight: 4,
   },
 
   topIconWrap: {
     flex: 1,
     alignItems: 'center',
+  },
+
+  topIconWrapFeatured: {
+    flex: 0,
+    width: '100%',
+    maxWidth: 220,
+    alignSelf: 'center',
+  },
+
+  topIconWrapPair: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  topIconWrapTriple: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  topIconWrapScrollable: {
+    flex: 0,
+    width: 78,
   },
 
   topIconCircle: {
@@ -11445,6 +11812,7 @@ splashSponsorLogo: {
     fontWeight: '700',
     textAlign: 'center',
     marginTop: 1,
+    lineHeight: 12,
   },
 
   promotionCard: {
