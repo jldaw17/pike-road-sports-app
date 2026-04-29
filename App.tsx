@@ -388,9 +388,9 @@ function withAlpha(color: string, alphaHex: string) {
 function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
   if (isModernTheme(theme)) {
     return [
-      withAlpha(theme.colors.primary, '14'),
-      withAlpha(theme.colors.secondary, '0D'),
       theme.colors.surface,
+      withAlpha(theme.colors.primary, '08'),
+      withAlpha(theme.colors.secondary, '05'),
     ];
   }
 
@@ -442,15 +442,15 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
     return {
       backgroundColor: theme.colors.surface,
       borderWidth: 1.5,
-      borderColor: withAlpha(theme.colors.primary, '58'),
-      borderTopWidth: 3,
-      borderTopColor: withAlpha(theme.colors.primary, '78'),
-      borderRadius: 16,
-      shadowColor: withAlpha(theme.colors.primary, '14'),
-      shadowOpacity: 0.075,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 3,
+      borderColor: withAlpha(theme.colors.primary, '68'),
+      borderTopWidth: 4,
+      borderTopColor: withAlpha(theme.colors.primary, '88'),
+      borderRadius: 18,
+      shadowColor: withAlpha(theme.colors.primary, '1A'),
+      shadowOpacity: 0.09,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 7 },
+      elevation: 4,
     };
   }
 
@@ -467,6 +467,36 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
   };
 }
 
+function getThemeCompactInnerHeroStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isModernTheme(theme)) {
+    return null;
+  }
+
+  return {
+    marginTop: 4,
+    marginBottom: 10,
+    borderRadius: 16,
+    paddingTop: 10,
+    paddingBottom: 11,
+    paddingHorizontal: 14,
+    shadowRadius: 10,
+    shadowOpacity: 0.055,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  };
+}
+
+function getModernInnerHeaderLogoStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (!isModernTheme(theme)) {
+    return null;
+  }
+
+  return {
+    width: 108,
+    height: 72,
+  };
+}
+
 function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
   if (!isLightAppTheme(theme)) {
     return null;
@@ -476,12 +506,14 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
     return {
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '16'),
-      shadowColor: withAlpha(theme.colors.primary, '0F'),
-      shadowOpacity: 0.05,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 2,
+      borderColor: withAlpha(theme.colors.primary, '1C'),
+      borderTopWidth: 2,
+      borderTopColor: withAlpha(theme.colors.primary, '34'),
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.065,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 3,
     };
   }
 
@@ -504,17 +536,17 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
 
   if (isModernTheme(theme)) {
     return {
-      backgroundColor: theme.colors.card,
-      borderColor: withAlpha(theme.colors.primary, '16'),
+      backgroundColor: withAlpha(theme.colors.primary, '03'),
+      borderColor: withAlpha(theme.colors.primary, '1C'),
       borderWidth: 1,
-      borderTopWidth: 2,
-      borderTopColor: withAlpha(theme.colors.primary, '30'),
+      borderTopWidth: 3,
+      borderTopColor: withAlpha(theme.colors.primary, '42'),
       borderRadius: 16,
-      shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.05,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 2,
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.06,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 3,
     };
   }
 
@@ -538,17 +570,17 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
 
   if (isModernTheme(theme)) {
     return {
-      backgroundColor: theme.colors.cardAlt,
-      borderColor: withAlpha(theme.colors.primary, '14'),
+      backgroundColor: withAlpha(theme.colors.primary, '04'),
+      borderColor: withAlpha(theme.colors.primary, '18'),
       borderWidth: 1,
-      borderTopWidth: 2,
-      borderTopColor: withAlpha(theme.colors.primary, '2A'),
+      borderTopWidth: 3,
+      borderTopColor: withAlpha(theme.colors.primary, '38'),
       borderRadius: 16,
-      shadowColor: withAlpha(theme.colors.primary, '0E'),
-      shadowOpacity: 0.045,
-      shadowRadius: 9,
+      shadowColor: withAlpha(theme.colors.primary, '12'),
+      shadowOpacity: 0.055,
+      shadowRadius: 10,
       shadowOffset: { width: 0, height: 4 },
-      elevation: 1,
+      elevation: 2,
     };
   }
 
@@ -2000,20 +2032,20 @@ function TopIcon({
           containerStyle,
           isModernTheme(theme)
             ? {
-                backgroundColor: theme.colors.card,
+                backgroundColor: withAlpha(theme.colors.primary, '04'),
                 borderWidth: 1,
-                borderColor: withAlpha(theme.colors.primary, '1E'),
-                borderTopWidth: 2,
-                borderTopColor: withAlpha(theme.colors.primary, '42'),
+                borderColor: withAlpha(theme.colors.primary, '2C'),
+                borderTopWidth: 3,
+                borderTopColor: withAlpha(theme.colors.primary, '58'),
                 borderRadius: 16,
-                paddingVertical: isDense ? 7 : isCompact ? 8 : 10,
-                paddingHorizontal: isDense ? 3 : isCompact ? 4 : 6,
-                minHeight: isDense ? 70 : isCompact ? 76 : 84,
-                shadowColor: withAlpha(theme.colors.primary, '12'),
-                shadowOpacity: 0.05,
-                shadowRadius: 9,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 1,
+                paddingVertical: isDense ? 8 : isCompact ? 9 : 11,
+                paddingHorizontal: isDense ? 4 : isCompact ? 5 : 7,
+                minHeight: isDense ? 72 : isCompact ? 80 : 88,
+                shadowColor: withAlpha(theme.colors.primary, '16'),
+                shadowOpacity: 0.065,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: 2,
               }
             : null,
         ]}
@@ -2024,32 +2056,32 @@ function TopIcon({
             styles.topIconCircle,
             {
               backgroundColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '12')
+                ? withAlpha(theme.colors.primary, '16')
                 : theme.colors.card,
               borderColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '2E')
+                ? withAlpha(theme.colors.primary, '3C')
                 : theme.colors.border,
               borderRadius: isModernTheme(theme) ? 13 : 6,
-              marginBottom: 4,
+              marginBottom: 6,
               width: isModernTheme(theme)
                 ? isDense
-                  ? 34
+                  ? 36
                   : isCompact
-                  ? 38
-                  : 44
+                  ? 40
+                  : 48
                 : 40,
               height: isModernTheme(theme)
                 ? isDense
-                  ? 34
+                  ? 36
                   : isCompact
-                  ? 38
-                  : 44
+                  ? 40
+                  : 48
                 : 40,
               shadowColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '16')
+                ? withAlpha(theme.colors.primary, '1A')
                 : withAlpha(theme.colors.text, '12'),
-              shadowOpacity: isModernTheme(theme) ? 0.06 : 0.03,
-              shadowRadius: isModernTheme(theme) ? 8 : 3,
+              shadowOpacity: isModernTheme(theme) ? 0.08 : 0.03,
+              shadowRadius: isModernTheme(theme) ? 9 : 3,
               shadowOffset: { width: 0, height: isModernTheme(theme) ? 3 : 1 },
               elevation: isModernTheme(theme) ? 2 : 1,
             },
@@ -2069,24 +2101,24 @@ function TopIcon({
               color: theme.colors.text,
               fontSize: isModernTheme(theme)
                 ? isDense
-                  ? 7
-                  : isCompact
                   ? 8
+                  : isCompact
+                  ? 9
                   : 10
                 : 9,
               fontWeight: '800',
               letterSpacing: isModernTheme(theme)
                 ? isDense
-                  ? 0.05
+                  ? 0.12
                   : isCompact
-                  ? 0.1
-                  : 0.2
+                  ? 0.16
+                  : 0.24
                 : 0.45,
               lineHeight: isModernTheme(theme)
                 ? isDense
-                  ? 9
-                  : isCompact
                   ? 10
+                  : isCompact
+                  ? 11
                   : 12
                 : 12,
               textTransform: 'uppercase',
@@ -2156,10 +2188,10 @@ function SectionHeader({
           {
             marginTop: 24,
             marginBottom: 12,
-            paddingBottom: isModernTheme(theme) ? 7 : 8,
+            paddingBottom: isModernTheme(theme) ? 8 : 8,
             borderBottomWidth: 1,
             borderBottomColor: isModernTheme(theme)
-              ? withAlpha(theme.colors.primary, '16')
+              ? withAlpha(theme.colors.primary, '22')
               : withAlpha(theme.colors.text, '10'),
           },
           containerStyle,
@@ -2168,8 +2200,8 @@ function SectionHeader({
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View
             style={{
-              width: isModernTheme(theme) ? 28 : 22,
-              height: isModernTheme(theme) ? 3 : 2,
+              width: isModernTheme(theme) ? 32 : 22,
+              height: isModernTheme(theme) ? 4 : 2,
               borderRadius: 999,
               backgroundColor: theme.colors.primary,
               marginRight: 10,
@@ -2181,9 +2213,9 @@ function SectionHeader({
               styles.sectionTitle,
               {
                 color: theme.colors.text,
-                fontSize: isModernTheme(theme) ? 15 : 13,
+                fontSize: isModernTheme(theme) ? 16 : 13,
                 fontWeight: '800',
-                letterSpacing: isModernTheme(theme) ? 0.45 : 1,
+                letterSpacing: isModernTheme(theme) ? 0.35 : 1,
                 textTransform: 'uppercase',
               },
             ]}
@@ -2203,14 +2235,14 @@ function SectionHeader({
                   letterSpacing: isModernTheme(theme) ? 0.45 : 0.7,
                   textTransform: 'uppercase',
                   backgroundColor: isModernTheme(theme)
-                    ? withAlpha(theme.colors.primary, '0A')
+                    ? withAlpha(theme.colors.primary, '10')
                     : 'transparent',
                   borderWidth: isModernTheme(theme) ? 1 : 0,
                   borderColor: isModernTheme(theme)
-                    ? withAlpha(theme.colors.primary, '18')
+                    ? withAlpha(theme.colors.primary, '26')
                     : 'transparent',
-                  paddingHorizontal: isModernTheme(theme) ? 9 : 0,
-                  paddingVertical: isModernTheme(theme) ? 5 : 0,
+                  paddingHorizontal: isModernTheme(theme) ? 10 : 0,
+                  paddingVertical: isModernTheme(theme) ? 6 : 0,
                   borderRadius: isModernTheme(theme) ? 999 : 0,
                 },
               ]}
@@ -5190,16 +5222,17 @@ function HomeScreen({
           isModernTheme(theme)
             ? {
                 borderRadius: 16,
-                borderColor: withAlpha(theme.colors.primary, statusPillIsLive ? '28' : '18'),
-                borderTopWidth: 2,
-                borderTopColor: withAlpha(theme.colors.primary, statusPillIsLive ? '60' : '32'),
+                backgroundColor: withAlpha(theme.colors.primary, '03'),
+                borderColor: withAlpha(theme.colors.primary, statusPillIsLive ? '32' : '22'),
+                borderTopWidth: 3,
+                borderTopColor: withAlpha(theme.colors.primary, statusPillIsLive ? '72' : '3E'),
                 paddingHorizontal: 16,
                 paddingVertical: 14,
-                shadowColor: withAlpha(theme.colors.primary, '10'),
-                shadowOpacity: 0.06,
-                shadowRadius: 10,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 2,
+                shadowColor: withAlpha(theme.colors.primary, '14'),
+                shadowOpacity: 0.075,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: 3,
               }
             : null,
           isTrueCleanSlateHome
@@ -5229,7 +5262,7 @@ function HomeScreen({
                 ? {
                     color: theme.colors.primary,
                     fontSize: 10,
-                    letterSpacing: 0.8,
+                    letterSpacing: 0.95,
                     marginBottom: 5,
                   }
                 : null,
@@ -5253,8 +5286,8 @@ function HomeScreen({
               isModernTheme(theme)
                 ? {
                     color: theme.colors.text,
-                    fontSize: 19,
-                    lineHeight: 23,
+                    fontSize: 20,
+                    lineHeight: 24,
                     marginBottom: 5,
                   }
                 : null,
@@ -5278,7 +5311,7 @@ function HomeScreen({
                   ? {
                       color: theme.colors.mutedText,
                       fontSize: 12,
-                      lineHeight: 17,
+                      lineHeight: 18,
                     }
                   : null,
                 isTrueCleanSlateHome
@@ -5300,12 +5333,12 @@ function HomeScreen({
               isModernTheme(theme)
                 ? {
                     alignSelf: 'flex-start',
-                    backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                    backgroundColor: withAlpha(theme.colors.primary, '12'),
                     borderWidth: 1,
-                    borderColor: withAlpha(theme.colors.primary, '18'),
+                    borderColor: withAlpha(theme.colors.primary, '2C'),
                     borderRadius: 999,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
                     marginTop: 12,
                   }
                 : null,
@@ -5936,12 +5969,12 @@ function HomeScreen({
           getThemeHeroShellStyle(theme),
           isModernTheme(theme)
             ? {
-                paddingTop: 14,
-                paddingHorizontal: 18,
-                paddingBottom: 14,
+                paddingTop: 11,
+                paddingHorizontal: 16,
+                paddingBottom: 11,
                 borderRadius: 18,
                 borderBottomWidth: 1,
-                borderBottomColor: withAlpha(theme.colors.primary, '2C'),
+                borderBottomColor: withAlpha(theme.colors.primary, '38'),
               }
             : null,
           isTrueCleanSlateHome
@@ -5969,18 +6002,56 @@ function HomeScreen({
             }}
           />
         ) : null}
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerLeft}>
+        {isModernTheme(theme) ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 16,
+              right: 16,
+              top: 0,
+              height: 3,
+              borderBottomLeftRadius: 999,
+              borderBottomRightRadius: 999,
+              backgroundColor: withAlpha(theme.colors.primary, '72'),
+            }}
+          />
+        ) : null}
+        {isModernTheme(theme) ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 16,
+              bottom: 14,
+              width: 3,
+              borderTopRightRadius: 999,
+              borderBottomRightRadius: 999,
+              backgroundColor: withAlpha(theme.colors.primary, '40'),
+            }}
+          />
+        ) : null}
+        <View
+          style={[
+            styles.headerTopRow,
+            isModernTheme(theme) ? { marginBottom: 4 } : null,
+          ]}
+        >
+          <View
+            style={[
+              styles.headerLeft,
+              isModernTheme(theme) ? { paddingRight: 8 } : null,
+            ]}
+          >
             {hasSchoolLogo ? (
               <View
                 style={[
                   styles.teamLogoBox,
                   isModernTheme(theme)
                     ? {
-                        width: 88,
-                        height: 88,
-                        borderRadius: 24,
-                        marginRight: 16,
+                        width: 92,
+                        height: 92,
+                        borderRadius: 22,
+                        marginRight: 14,
                         backgroundColor: 'transparent',
                         borderWidth: 0,
                         shadowOpacity: 0,
@@ -6004,7 +6075,7 @@ function HomeScreen({
                   uri={schoolConfig.logoUrl}
                   style={[
                     styles.headerTeamLogo,
-                    isModernTheme(theme) ? { width: 68, height: 68 } : null,
+                    isModernTheme(theme) ? { width: 76, height: 76 } : null,
                     isTrueCleanSlateHome ? { width: 36, height: 36 } : null,
                   ]}
                   contentFit="contain"
@@ -6022,7 +6093,7 @@ function HomeScreen({
                   {
               color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
               ...(isModernTheme(theme)
-                      ? { fontSize: 25, letterSpacing: 0.05, fontWeight: '900' as const }
+                      ? { fontSize: 24, letterSpacing: 0.02, fontWeight: '900' as const }
                       : isCleanSlateTheme(theme)
                       ? { fontSize: 20, letterSpacing: 0, fontWeight: '800' as const }
                       : null),
@@ -6040,9 +6111,9 @@ function HomeScreen({
                   isModernTheme(theme)
                     ? {
                         fontSize: 11,
-                        marginTop: 3,
+                        marginTop: 2,
                         fontWeight: '700' as const,
-                        letterSpacing: 0.2,
+                        letterSpacing: 0.22,
                         color: withAlpha(theme.colors.primary, 'C8'),
                       }
                       : isTrueCleanSlateHome
@@ -6061,7 +6132,7 @@ function HomeScreen({
                   isModernTheme(theme)
                     ? {
                         fontSize: 9,
-                        marginTop: 5,
+                        marginTop: 4,
                         letterSpacing: 0.35,
                         color: theme.colors.primary,
                       }
@@ -6171,11 +6242,11 @@ function HomeScreen({
             shouldScrollHeroActions ? styles.heroButtonRowScrollable : null,
             isModernTheme(theme)
               ? {
-                  marginTop: 10,
-                  paddingTop: 12,
+                  marginTop: 8,
+                  paddingTop: 9,
                   borderTopWidth: 1,
-                  borderTopColor: withAlpha(theme.colors.primary, '16'),
-                  gap: 9,
+                  borderTopColor: withAlpha(theme.colors.primary, '22'),
+                  gap: 8,
                   alignItems: 'stretch',
                 }
               : null,
@@ -6369,7 +6440,7 @@ function TeamsScreen({
         {hasResolvedUrl(schoolLogoUrl) ? (
           <RemoteImage
             uri={schoolLogoUrl}
-            style={styles.teamsHubLogo}
+            style={[styles.teamsHubLogo, getModernInnerHeaderLogoStyle(theme)]}
             contentFit="contain"
             mode="logo"
             label={heroSchoolName}
@@ -6572,7 +6643,19 @@ function MediaScreen({
 
       <LinearGradient
         colors={getThemeHeroGradient(theme)}
-        style={[styles.teamsHubHero, styles.newsHubHero, getThemeHeroShellStyle(theme)]}
+        style={[
+          styles.teamsHubHero,
+          styles.newsHubHero,
+          getThemeHeroShellStyle(theme),
+          getThemeCompactInnerHeroStyle(theme),
+          isModernTheme(theme)
+            ? {
+                paddingTop: 12,
+                paddingBottom: 12,
+                paddingHorizontal: 14,
+              }
+            : null,
+        ]}
       >
         <View
           style={[
@@ -6584,7 +6667,11 @@ function MediaScreen({
         {hasResolvedUrl(schoolLogoUrl) ? (
           <RemoteImage
             uri={schoolLogoUrl}
-            style={styles.teamsHubLogo}
+            style={[
+              styles.teamsHubLogo,
+              isModernTheme(theme) ? { top: 12, right: 14 } : null,
+              getModernInnerHeaderLogoStyle(theme),
+            ]}
             contentFit="contain"
             mode="logo"
             label={heroSchoolName}
@@ -6592,15 +6679,44 @@ function MediaScreen({
           />
         ) : null}
 
-        <View style={styles.teamsHubContent}>
+        <View
+          style={[
+            styles.teamsHubContent,
+            isModernTheme(theme) ? { maxWidth: '78%' } : null,
+          ]}
+        >
           <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>
             Watch + Listen
           </Text>
-          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
+          <Text
+            style={[
+              styles.teamsHubTitle,
+              { color: theme.colors.text },
+              isModernTheme(theme)
+                ? { fontSize: 24, lineHeight: 28, marginBottom: 1 }
+                : null,
+            ]}
+          >
+            {heroSchoolName}
+          </Text>
           {heroMascot ? (
-            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
+            <Text
+              style={[
+                styles.teamsHubMascot,
+                { color: theme.colors.text },
+                isModernTheme(theme) ? { marginTop: 1 } : null,
+              ]}
+            >
+              {heroMascot}
+            </Text>
           ) : null}
-          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>
+          <Text
+            style={[
+              styles.teamsHubText,
+              { color: theme.colors.mutedText },
+              isModernTheme(theme) ? { marginTop: 6, lineHeight: 18 } : null,
+            ]}
+          >
             Open live coverage, schedules, and school links when available.
           </Text>
         </View>
@@ -6775,6 +6891,7 @@ function ScheduleScreen({
         style={[
           styles.scheduleHero,
           getThemeHeroShellStyle(theme),
+          getThemeCompactInnerHeroStyle(theme),
           isCleanSlateTheme(theme)
             ? {
                 marginTop: 0,
@@ -6789,6 +6906,16 @@ function ScheduleScreen({
         <Pressable
           style={[
             styles.backButton,
+            isModernTheme(theme)
+              ? {
+                  marginBottom: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: theme.colors.cardAlt,
+                  borderWidth: 1,
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? {
                   backgroundColor: theme.colors.cardAlt,
@@ -6801,12 +6928,21 @@ function ScheduleScreen({
           <Ionicons
             name="arrow-back"
             size={20}
-            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            color={
+              isCleanSlateTheme(theme) || isModernTheme(theme)
+                ? theme.colors.text
+                : BRAND.white
+            }
           />
           <Text
             style={[
               styles.backButtonText,
-              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+              {
+                color:
+                  isCleanSlateTheme(theme) || isModernTheme(theme)
+                    ? theme.colors.text
+                    : BRAND.white,
+              },
             ]}
           >
             Back
@@ -6814,10 +6950,18 @@ function ScheduleScreen({
         </Pressable>
 
         {hasResolvedUrl(schoolLogoUrl) ? (
-          <View style={styles.scheduleHeroLogoWrap}>
+          <View
+            style={[
+              styles.scheduleHeroLogoWrap,
+              isModernTheme(theme) ? { marginBottom: 5 } : null,
+            ]}
+          >
             <RemoteImage
               uri={schoolLogoUrl}
-              style={styles.scheduleHeroLogo}
+              style={[
+                styles.scheduleHeroLogo,
+                getModernInnerHeaderLogoStyle(theme),
+              ]}
               contentFit="contain"
               mode="logo"
               label={headerTitle}
@@ -6829,7 +6973,15 @@ function ScheduleScreen({
         <Text
           style={[
             styles.scheduleHeroTitle,
-            { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            {
+              color:
+                isCleanSlateTheme(theme) || isModernTheme(theme)
+                  ? theme.colors.text
+                  : BRAND.white,
+            },
+            isModernTheme(theme)
+              ? { fontSize: 22, lineHeight: 26, fontWeight: '800' as const }
+              : null,
           ]}
         >
           {headerTitle || 'Schedule'}
@@ -6838,7 +6990,19 @@ function ScheduleScreen({
           <Text
             style={[
               styles.scheduleHeroSub,
-              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+              {
+                color:
+                  isCleanSlateTheme(theme) || isModernTheme(theme)
+                    ? theme.colors.mutedText
+                    : BRAND.lightGray,
+              },
+              isModernTheme(theme)
+                ? {
+                    fontSize: 11,
+                    marginTop: 2,
+                    fontWeight: '600' as const,
+                  }
+                : null,
             ]}
           >
             {headerSubtitle}
@@ -7241,11 +7405,25 @@ function RosterScreen({
     >
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={[styles.scheduleHero, getThemeHeroShellStyle(theme)]}
+        style={[
+          styles.scheduleHero,
+          getThemeHeroShellStyle(theme),
+          getThemeCompactInnerHeroStyle(theme),
+        ]}
       >
         <Pressable
           style={[
             styles.backButton,
+            isModernTheme(theme)
+              ? {
+                  marginBottom: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: theme.colors.cardAlt,
+                  borderWidth: 1,
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? {
                   backgroundColor: theme.colors.cardAlt,
@@ -7258,12 +7436,21 @@ function RosterScreen({
           <Ionicons
             name="arrow-back"
             size={20}
-            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            color={
+              isCleanSlateTheme(theme) || isModernTheme(theme)
+                ? theme.colors.text
+                : BRAND.white
+            }
           />
           <Text
             style={[
               styles.backButtonText,
-              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+              {
+                color:
+                  isCleanSlateTheme(theme) || isModernTheme(theme)
+                    ? theme.colors.text
+                    : BRAND.white,
+              },
             ]}
           >
             Back
@@ -7271,10 +7458,18 @@ function RosterScreen({
         </Pressable>
 
         {hasResolvedUrl(schoolLogoUrl) ? (
-          <View style={styles.scheduleHeroLogoWrap}>
+          <View
+            style={[
+              styles.scheduleHeroLogoWrap,
+              isModernTheme(theme) ? { marginBottom: 5 } : null,
+            ]}
+          >
             <RemoteImage
               uri={schoolLogoUrl}
-              style={styles.scheduleHeroLogo}
+              style={[
+                styles.scheduleHeroLogo,
+                getModernInnerHeaderLogoStyle(theme),
+              ]}
               contentFit="contain"
               mode="logo"
               label={headerTitle}
@@ -7286,7 +7481,15 @@ function RosterScreen({
         <Text
           style={[
             styles.scheduleHeroTitle,
-            { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+            {
+              color:
+                isCleanSlateTheme(theme) || isModernTheme(theme)
+                  ? theme.colors.text
+                  : BRAND.white,
+            },
+            isModernTheme(theme)
+              ? { fontSize: 22, lineHeight: 26, fontWeight: '800' as const }
+              : null,
           ]}
         >
           {headerTitle}
@@ -7295,7 +7498,19 @@ function RosterScreen({
           <Text
             style={[
               styles.scheduleHeroSub,
-              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+              {
+                color:
+                  isCleanSlateTheme(theme) || isModernTheme(theme)
+                    ? theme.colors.mutedText
+                    : BRAND.lightGray,
+              },
+              isModernTheme(theme)
+                ? {
+                    fontSize: 11,
+                    marginTop: 2,
+                    fontWeight: '600' as const,
+                  }
+                : null,
             ]}
           >
             {headerSubtitle}
@@ -8806,11 +9021,26 @@ function SportDetailScreen({
     >
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={[styles.sportHeader, getThemeHeroShellStyle(theme)]}
+        style={[
+          styles.sportHeader,
+          getThemeHeroShellStyle(theme),
+          getThemeCompactInnerHeroStyle(theme),
+          isModernTheme(theme) ? { paddingBottom: 12 } : null,
+        ]}
       >
         <Pressable
           style={[
             styles.backButton,
+            isModernTheme(theme)
+              ? {
+                  marginBottom: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: theme.colors.cardAlt,
+                  borderWidth: 1,
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? {
                   backgroundColor: theme.colors.cardAlt,
@@ -8823,23 +9053,45 @@ function SportDetailScreen({
           <Ionicons
             name="arrow-back"
             size={20}
-            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            color={
+              isCleanSlateTheme(theme) || isModernTheme(theme)
+                ? theme.colors.text
+                : BRAND.white
+            }
           />
           <Text
             style={[
               styles.backButtonText,
-              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+              {
+                color:
+                  isCleanSlateTheme(theme) || isModernTheme(theme)
+                    ? theme.colors.text
+                    : BRAND.white,
+              },
             ]}
           >
             Back
           </Text>
         </Pressable>
 
-        <View style={styles.teamPageHeader}>
+        <View
+          style={[
+            styles.teamPageHeader,
+            isModernTheme(theme) ? { paddingRight: 72, marginTop: 0 } : null,
+          ]}
+        >
           <Text
             style={[
               styles.sportHeaderTitle,
-              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+              {
+                color:
+                  isCleanSlateTheme(theme) || isModernTheme(theme)
+                    ? theme.colors.text
+                    : BRAND.white,
+              },
+              isModernTheme(theme)
+                ? { fontSize: 24, lineHeight: 28, paddingRight: 0 }
+                : null,
             ]}
           >
             {sport.shortLabel || sport.label}
@@ -8848,7 +9100,13 @@ function SportDetailScreen({
           {hasResolvedUrl(schoolConfig.logoUrl) ? (
             <RemoteImage
               uri={schoolConfig.logoUrl}
-              style={styles.teamPageSponsorLogo}
+              style={[
+                styles.teamPageSponsorLogo,
+                isModernTheme(theme)
+                  ? { top: -8, right: -6 }
+                  : null,
+                getModernInnerHeaderLogoStyle(theme),
+              ]}
               contentFit="contain"
               mode="logo"
               label={sport.shortLabel || sport.label}
@@ -8861,7 +9119,15 @@ function SportDetailScreen({
           <Text
             style={[
               styles.sportHeaderSub,
-              { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray },
+              {
+                color:
+                  isCleanSlateTheme(theme) || isModernTheme(theme)
+                    ? theme.colors.mutedText
+                    : BRAND.lightGray,
+              },
+              isModernTheme(theme)
+                ? { fontSize: 11, marginTop: 3 }
+                : null,
             ]}
           >
             {schoolConfig.displayName}
@@ -9220,7 +9486,18 @@ function NewsListScreen({
 
       <LinearGradient
         colors={getThemeHeroGradient(theme)}
-        style={[styles.teamsHubHero, getThemeHeroShellStyle(theme)]}
+        style={[
+          styles.teamsHubHero,
+          getThemeHeroShellStyle(theme),
+          getThemeCompactInnerHeroStyle(theme),
+          isModernTheme(theme)
+            ? {
+                paddingTop: 12,
+                paddingBottom: 12,
+                paddingHorizontal: 14,
+              }
+            : null,
+        ]}
       >
         <View
           style={[
@@ -9232,7 +9509,11 @@ function NewsListScreen({
         {hasResolvedUrl(schoolLogoUrl) ? (
           <RemoteImage
             uri={schoolLogoUrl}
-            style={styles.teamsHubLogo}
+            style={[
+              styles.teamsHubLogo,
+              isModernTheme(theme) ? { top: 12, right: 14 } : null,
+              getModernInnerHeaderLogoStyle(theme),
+            ]}
             contentFit="contain"
             mode="logo"
             label={heroSchoolName}
@@ -9713,7 +9994,18 @@ function MoreScreen({
 
       <LinearGradient
         colors={getThemeHeroGradient(theme)}
-        style={[styles.teamsHubHero, getThemeHeroShellStyle(theme)]}
+        style={[
+          styles.teamsHubHero,
+          getThemeHeroShellStyle(theme),
+          getThemeCompactInnerHeroStyle(theme),
+          isModernTheme(theme)
+            ? {
+                paddingTop: 12,
+                paddingBottom: 12,
+                paddingHorizontal: 14,
+              }
+            : null,
+        ]}
       >
         <View
           style={[
@@ -9725,7 +10017,11 @@ function MoreScreen({
         {hasResolvedUrl(schoolLogoUrl) ? (
           <RemoteImage
             uri={schoolLogoUrl}
-            style={styles.teamsHubLogo}
+            style={[
+              styles.teamsHubLogo,
+              isModernTheme(theme) ? { top: 12, right: 14 } : null,
+              getModernInnerHeaderLogoStyle(theme),
+            ]}
             contentFit="contain"
             mode="logo"
             label={heroSchoolName}
@@ -9733,13 +10029,42 @@ function MoreScreen({
           />
         ) : null}
 
-        <View style={styles.teamsHubContent}>
+        <View
+          style={[
+            styles.teamsHubContent,
+            isModernTheme(theme) ? { maxWidth: '78%' } : null,
+          ]}
+        >
           <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>More</Text>
-          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
+          <Text
+            style={[
+              styles.teamsHubTitle,
+              { color: theme.colors.text },
+              isModernTheme(theme)
+                ? { fontSize: 24, lineHeight: 28, marginBottom: 1 }
+                : null,
+            ]}
+          >
+            {heroSchoolName}
+          </Text>
           {heroMascot ? (
-            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
+            <Text
+              style={[
+                styles.teamsHubMascot,
+                { color: theme.colors.text },
+                isModernTheme(theme) ? { marginTop: 1 } : null,
+              ]}
+            >
+              {heroMascot}
+            </Text>
           ) : null}
-          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>
+          <Text
+            style={[
+              styles.teamsHubText,
+              { color: theme.colors.mutedText },
+              isModernTheme(theme) ? { marginTop: 6, lineHeight: 18 } : null,
+            ]}
+          >
             Manage your teams and app settings in one place.
           </Text>
         </View>
@@ -10241,17 +10566,17 @@ function BottomNav({
                         active ? styles.asnTabGlowWrapActive : null,
                         isModern
                           ? {
-                              width: 58,
-                              height: 58,
-                              borderRadius: 18,
-                              backgroundColor: withAlpha(theme.colors.primary, active ? '18' : '0A'),
+                              width: 62,
+                              height: 62,
+                              borderRadius: 20,
+                              backgroundColor: withAlpha(theme.colors.primary, active ? '1A' : '0C'),
                               borderWidth: active ? 2 : 1,
-                              borderColor: withAlpha(theme.colors.primary, active ? '62' : '24'),
-                              shadowColor: withAlpha(theme.colors.primary, '1A'),
-                              shadowOpacity: active ? 0.12 : 0.035,
-                              shadowRadius: active ? 10 : 5,
-                              shadowOffset: { width: 0, height: 3 },
-                              elevation: active ? 4 : 1,
+                              borderColor: withAlpha(theme.colors.primary, active ? '72' : '2A'),
+                              shadowColor: withAlpha(theme.colors.primary, '20'),
+                              shadowOpacity: active ? 0.14 : 0.045,
+                              shadowRadius: active ? 12 : 6,
+                              shadowOffset: { width: 0, height: 4 },
+                              elevation: active ? 5 : 2,
                             }
                           : null,
                         isCleanSlate
@@ -10283,7 +10608,7 @@ function BottomNav({
                           style={[
                             styles.centerNavLogo,
                             isModern
-                              ? { width: 82, height: 82 }
+                              ? { width: 88, height: 88 }
                               : isCleanSlate
                               ? { width: 69, height: 69 }
                               : null,
@@ -10318,7 +10643,11 @@ function BottomNav({
                   <View
                     style={[
                       styles.modernNavActiveIndicator,
-                      { backgroundColor: theme.colors.primary },
+                      {
+                        backgroundColor: theme.colors.primary,
+                        width: 18,
+                        opacity: 1,
+                      },
                     ]}
                   />
                 ) : null}
@@ -10363,7 +10692,11 @@ function BottomNav({
                   <View
                     style={[
                       styles.modernNavActiveIndicator,
-                      { backgroundColor: theme.colors.primary },
+                      {
+                        backgroundColor: theme.colors.primary,
+                        width: 18,
+                        opacity: 1,
+                      },
                     ]}
                   />
                 ) : null}
