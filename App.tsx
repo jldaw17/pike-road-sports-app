@@ -7,6 +7,7 @@ import {
 } from 'expo-audio';
 import { Video, type AVPlaybackStatus } from 'expo-av';
 import Constants from 'expo-constants';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -48,18 +49,10 @@ import {
   type AthleticOSAppSponsorPlacement,
   type AthleticOSSport,
   type AthleticOSSportAppConfig,
-  getAthleteOfTheWeekBySchoolId,
-  getAppBottomNavItemsBySchoolId,
-  getAppHeroQuickActionsBySchoolId,
+  getAppHomeDataBySchoolId,
   getAppPrerollConfigBySchoolId,
-  getAppThemeConfigBySchoolId,
   getTeamNavBySportId,
-  getAppLiveCoverageConfigBySchoolId,
-  getAppVideosConfigBySchoolId,
   getDefaultSchoolConfig,
-  getAppHomeModulesBySchoolId,
-  getAppSponsorPlacementsBySchoolId,
-  getPromotionCardBySchoolId,
   getSchoolConfigById,
   getScheduleEventsBySchoolId,
   getRosterBySchoolIdAndSportId,
@@ -393,48 +386,48 @@ function withAlpha(color: string, alphaHex: string) {
 }
 
 function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
-  if (isCleanSlateTheme(theme)) {
-    return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
-  }
-
   if (isModernTheme(theme)) {
     return [
-      withAlpha(theme.colors.primary, '1A'),
-      withAlpha(theme.colors.secondary, '12'),
+      withAlpha(theme.colors.primary, '14'),
+      withAlpha(theme.colors.secondary, '0D'),
       theme.colors.surface,
     ];
+  }
+
+  if (isCleanSlateTheme(theme)) {
+    return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
   }
 
   return [theme.colors.heroStart, theme.colors.heroEnd, theme.colors.cardAlt];
 }
 
 function getThemeDarkHeroGradient(theme: AthleticOSResolvedTheme) {
-  if (isCleanSlateTheme(theme)) {
-    return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
-  }
-
   if (isModernTheme(theme)) {
     return [
-      withAlpha(theme.colors.primary, '1A'),
-      withAlpha(theme.colors.secondary, '12'),
+      withAlpha(theme.colors.primary, '14'),
+      withAlpha(theme.colors.secondary, '0D'),
       theme.colors.surface,
     ];
+  }
+
+  if (isCleanSlateTheme(theme)) {
+    return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
   }
 
   return [BRAND.black, theme.colors.heroEnd, theme.colors.cardAlt];
 }
 
 function getThemeBackdropGradient(theme: AthleticOSResolvedTheme) {
-  if (isCleanSlateTheme(theme)) {
-    return [theme.colors.background, theme.colors.background, theme.colors.background];
-  }
-
   if (isModernTheme(theme)) {
     return [
-      withAlpha(theme.colors.primary, '10'),
-      withAlpha(theme.colors.secondary, '0A'),
+      withAlpha(theme.colors.primary, '0E'),
+      withAlpha(theme.colors.secondary, '08'),
       theme.colors.background,
     ];
+  }
+
+  if (isCleanSlateTheme(theme)) {
+    return [theme.colors.background, theme.colors.background, theme.colors.background];
   }
 
   return [`${theme.colors.secondary}22`, `${theme.colors.primary}12`, theme.colors.background];
@@ -449,12 +442,14 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
     return {
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '16'),
-      borderRadius: 10,
+      borderColor: withAlpha(theme.colors.primary, '18'),
+      borderTopWidth: 2,
+      borderTopColor: withAlpha(theme.colors.primary, '32'),
+      borderRadius: 14,
       shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.055,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
       elevation: 2,
     };
   }
@@ -479,13 +474,13 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 
   if (isModernTheme(theme)) {
     return {
-      borderRadius: 10,
+      borderRadius: 14,
       borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '12'),
+      borderColor: withAlpha(theme.colors.primary, '18'),
       shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.045,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
       elevation: 2,
     };
   }
@@ -510,13 +505,15 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
   if (isModernTheme(theme)) {
     return {
       backgroundColor: theme.colors.card,
-      borderColor: withAlpha(theme.colors.primary, '10'),
+      borderColor: withAlpha(theme.colors.primary, '16'),
       borderWidth: 1,
-      borderRadius: 12,
+      borderTopWidth: 2,
+      borderTopColor: withAlpha(theme.colors.primary, '28'),
+      borderRadius: 14,
       shadowColor: withAlpha(theme.colors.primary, '10'),
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.045,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
       elevation: 2,
     };
   }
@@ -542,13 +539,15 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
   if (isModernTheme(theme)) {
     return {
       backgroundColor: theme.colors.cardAlt,
-      borderColor: withAlpha(theme.colors.primary, '10'),
+      borderColor: withAlpha(theme.colors.primary, '14'),
       borderWidth: 1,
-      borderRadius: 12,
+      borderTopWidth: 2,
+      borderTopColor: withAlpha(theme.colors.primary, '24'),
+      borderRadius: 14,
       shadowColor: withAlpha(theme.colors.primary, '0E'),
-      shadowOpacity: 0.045,
-      shadowRadius: 7,
-      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
       elevation: 1,
     };
   }
@@ -1327,6 +1326,119 @@ function hasResolvedUrl(url?: string) {
   return /^https?:\/\//i.test((url ?? '').trim());
 }
 
+function getInitials(value?: string) {
+  const words = (value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  return words.map((word) => word.charAt(0).toUpperCase()).join('');
+}
+
+type RemoteImageMode =
+  | 'logo'
+  | 'story'
+  | 'sponsor'
+  | 'athlete'
+  | 'gallery'
+  | 'content'
+  | 'opponent';
+
+function RemoteImage({
+  uri,
+  style,
+  label,
+  contentFit = 'cover',
+  mode = 'content',
+  theme = DEFAULT_APP_THEME,
+}: {
+  uri?: string | null;
+  style: StyleProp<ViewStyle>;
+  label?: string;
+  contentFit?: 'cover' | 'contain';
+  mode?: RemoteImageMode;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const [didFail, setDidFail] = useState(false);
+  const resolvedUri = hasResolvedUrl(uri) ? normalizeUrl(uri as string) : '';
+  const initials = getInitials(label);
+  const isLogoMode =
+    mode === 'logo' || mode === 'sponsor' || mode === 'opponent';
+  const fallbackBackground = isLightAppTheme(theme)
+    ? theme.colors.cardAlt
+    : BRAND.surfaceAlt;
+  const fallbackBorder = isLightAppTheme(theme)
+    ? theme.colors.border
+    : BRAND.border;
+  const fallbackColor = isLightAppTheme(theme)
+    ? theme.colors.primary
+    : BRAND.white;
+  const showFallback = !resolvedUri || didFail;
+
+  useEffect(() => {
+    setDidFail(false);
+  }, [resolvedUri]);
+
+  const fallbackIconName: keyof typeof Ionicons.glyphMap =
+    mode === 'athlete'
+      ? 'person-outline'
+      : mode === 'story'
+      ? 'newspaper-outline'
+      : mode === 'gallery'
+      ? 'images-outline'
+      : 'image-outline';
+
+  return (
+    <View
+      style={[
+        style,
+        {
+          overflow: 'hidden',
+          backgroundColor:
+            isLogoMode && !showFallback ? 'transparent' : fallbackBackground,
+        },
+      ]}
+    >
+      {!showFallback ? (
+        <ExpoImage
+          source={{ uri: resolvedUri }}
+          style={StyleSheet.absoluteFillObject}
+          contentFit={contentFit}
+          cachePolicy="memory-disk"
+          transition={120}
+          onError={() => setDidFail(true)}
+        />
+      ) : (
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            styles.remoteImageFallback,
+            {
+              backgroundColor: fallbackBackground,
+              borderColor: isLogoMode ? fallbackBorder : 'transparent',
+              borderWidth: isLogoMode ? 1 : 0,
+            },
+          ]}
+        >
+          {isLogoMode && initials ? (
+            <Text
+              style={[
+                styles.remoteImageFallbackInitials,
+                { color: fallbackColor },
+              ]}
+            >
+              {initials}
+            </Text>
+          ) : (
+            <Ionicons name={fallbackIconName} size={24} color={fallbackColor} />
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function safeDate(raw?: string) {
   if (!raw) return null;
 
@@ -1866,31 +1978,67 @@ function TopIcon({
   icon,
   onPress,
   containerStyle,
+  sizeVariant = 'regular',
   theme = DEFAULT_APP_THEME,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   containerStyle?: StyleProp<ViewStyle>;
+  sizeVariant?: 'regular' | 'compact' | 'dense';
   theme?: AthleticOSResolvedTheme;
 }) {
   if (isCleanSlateTheme(theme)) {
     const resolvedLabel = label;
     const modernEmoji = isModernTheme(theme) ? getModernHeroActionEmoji(icon, label) : '';
+    const isCompact = sizeVariant === 'compact';
+    const isDense = sizeVariant === 'dense';
     return (
-      <Pressable style={[styles.topIconWrap, containerStyle]} onPress={onPress}>
+      <Pressable
+        style={[
+          styles.topIconWrap,
+          containerStyle,
+          isModernTheme(theme)
+            ? {
+                backgroundColor: theme.colors.card,
+                borderWidth: 1,
+                borderColor: withAlpha(theme.colors.primary, '16'),
+                borderTopWidth: 2,
+                borderTopColor: withAlpha(theme.colors.primary, '28'),
+                borderRadius: 14,
+                paddingVertical: isDense ? 7 : isCompact ? 8 : 10,
+                paddingHorizontal: isDense ? 3 : isCompact ? 4 : 6,
+              }
+            : null,
+        ]}
+        onPress={onPress}
+      >
         <View
           style={[
             styles.topIconCircle,
             {
-              backgroundColor: theme.colors.card,
+              backgroundColor: isModernTheme(theme)
+                ? withAlpha(theme.colors.primary, '0D')
+                : theme.colors.card,
               borderColor: isModernTheme(theme)
-                ? withAlpha(theme.colors.primary, '14')
+                ? withAlpha(theme.colors.primary, '20')
                 : theme.colors.border,
-              borderRadius: isModernTheme(theme) ? 10 : 6,
+              borderRadius: isModernTheme(theme) ? 12 : 6,
               marginBottom: 4,
-              width: isModernTheme(theme) ? 42 : 40,
-              height: isModernTheme(theme) ? 42 : 40,
+              width: isModernTheme(theme)
+                ? isDense
+                  ? 34
+                  : isCompact
+                  ? 38
+                  : 44
+                : 40,
+              height: isModernTheme(theme)
+                ? isDense
+                  ? 34
+                  : isCompact
+                  ? 38
+                  : 44
+                : 40,
               shadowColor: isModernTheme(theme)
                 ? withAlpha(theme.colors.primary, '10')
                 : withAlpha(theme.colors.text, '12'),
@@ -1913,9 +2061,28 @@ function TopIcon({
             styles.topIconLabel,
             {
               color: theme.colors.text,
-              fontSize: isModernTheme(theme) ? 10 : 9,
+              fontSize: isModernTheme(theme)
+                ? isDense
+                  ? 7
+                  : isCompact
+                  ? 8
+                  : 10
+                : 9,
               fontWeight: '800',
-              letterSpacing: isModernTheme(theme) ? 0.3 : 0.45,
+              letterSpacing: isModernTheme(theme)
+                ? isDense
+                  ? 0.05
+                  : isCompact
+                  ? 0.1
+                  : 0.2
+                : 0.45,
+              lineHeight: isModernTheme(theme)
+                ? isDense
+                  ? 9
+                  : isCompact
+                  ? 10
+                  : 12
+                : 12,
               textTransform: 'uppercase',
             },
           ]}
@@ -1983,10 +2150,10 @@ function SectionHeader({
           {
             marginTop: 24,
             marginBottom: 12,
-            paddingBottom: isModernTheme(theme) ? 7 : 8,
+            paddingBottom: isModernTheme(theme) ? 6 : 8,
             borderBottomWidth: 1,
             borderBottomColor: isModernTheme(theme)
-              ? withAlpha(theme.colors.primary, '14')
+              ? withAlpha(theme.colors.primary, '12')
               : withAlpha(theme.colors.text, '10'),
           },
           containerStyle,
@@ -1995,8 +2162,8 @@ function SectionHeader({
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View
             style={{
-              width: 22,
-              height: 2,
+              width: isModernTheme(theme) ? 24 : 22,
+              height: isModernTheme(theme) ? 3 : 2,
               borderRadius: 999,
               backgroundColor: theme.colors.primary,
               marginRight: 10,
@@ -2009,7 +2176,7 @@ function SectionHeader({
                 color: theme.colors.text,
                 fontSize: isModernTheme(theme) ? 14 : 13,
                 fontWeight: '800',
-                letterSpacing: isModernTheme(theme) ? 0.8 : 1,
+                letterSpacing: isModernTheme(theme) ? 0.55 : 1,
                 textTransform: 'uppercase',
               },
             ]}
@@ -2024,9 +2191,9 @@ function SectionHeader({
                 styles.sectionAction,
                 {
                   color: theme.colors.primary,
-                  fontSize: 10,
+                  fontSize: isModernTheme(theme) ? 11 : 10,
                   fontWeight: '800',
-                  letterSpacing: 0.7,
+                  letterSpacing: isModernTheme(theme) ? 0.45 : 0.7,
                   textTransform: 'uppercase',
                 },
               ]}
@@ -2478,8 +2645,8 @@ function NewsCard({
             }}
           >
             {item.image ? (
-              <Image
-                source={{ uri: item.image }}
+              <RemoteImage
+                uri={item.image}
                 style={[
                   styles.featuredStoryImage,
                   {
@@ -2489,7 +2656,10 @@ function NewsCard({
                     borderRadius: 4,
                   },
                 ]}
-                resizeMode="cover"
+                contentFit="cover"
+                mode="story"
+                label={item.title}
+                theme={theme}
               />
             ) : (
               <View
@@ -2557,7 +2727,14 @@ function NewsCard({
         onPress={onPress}
       >
         {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.featuredStoryImage} />
+          <RemoteImage
+            uri={item.image}
+            style={styles.featuredStoryImage}
+            contentFit="cover"
+            mode="story"
+            label={item.title}
+            theme={theme}
+          />
         ) : (
           <LinearGradient
             colors={isCleanSlateTheme(theme)
@@ -2618,10 +2795,13 @@ function NewsCard({
           }}
         >
           {item.image ? (
-            <Image
-              source={{ uri: item.image }}
+            <RemoteImage
+              uri={item.image}
               style={[styles.newsThumbWide, { borderRadius: 4, width: 120, aspectRatio: MEDIA_FEATURE_ASPECT_RATIO, marginRight: 0 }]}
-              resizeMode="cover"
+              contentFit="cover"
+              mode="story"
+              label={item.title}
+              theme={theme}
             />
           ) : (
             <View
@@ -2695,10 +2875,13 @@ function NewsCard({
   return (
     <Pressable style={[styles.newsCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
-        <Image
-          source={{ uri: item.image }}
+        <RemoteImage
+          uri={item.image}
           style={styles.newsThumbWide}
-          resizeMode="cover"
+          contentFit="cover"
+          mode="story"
+          label={item.title}
+          theme={theme}
         />
       ) : (
         <View
@@ -2826,10 +3009,13 @@ function StoryDetailScreen({
       </LinearGradient>
 
       {item.image ? (
-        <Image
-          source={{ uri: item.image }}
+        <RemoteImage
+          uri={item.image}
           style={styles.storyDetailImage}
-          resizeMode="cover"
+          contentFit="cover"
+          mode="story"
+          label={item.title}
+          theme={theme}
         />
       ) : null}
 
@@ -2858,6 +3044,7 @@ function StoryCarouselCard({
 }) {
   const sportLabel = item.sportLabel?.trim() || 'Athletics';
   const isCleanSlate = isCleanSlateTheme(theme);
+  const isModern = isModernTheme(theme);
 
   if (isCleanSlate) {
     return (
@@ -2866,27 +3053,37 @@ function StoryCarouselCard({
           styles.storyCarouselCard,
           getThemeSurfaceCardStyle(theme),
           {
-            height: 270,
-            height: 246,
-            borderRadius: 5,
+            height: isModern ? 238 : 246,
+            borderRadius: isModern ? 14 : 5,
           },
         ]}
         onPress={onPress}
       >
+        {isModern ? (
+          <View
+            style={[
+              styles.modernCardAccentBar,
+              { backgroundColor: withAlpha(theme.colors.primary, 'CC') },
+            ]}
+          />
+        ) : null}
         {item.image ? (
-          <Image
-            source={{ uri: item.image }}
+          <RemoteImage
+            uri={item.image}
             style={[
               styles.storyCarouselImage,
               {
                 position: 'relative',
                 width: '100%',
-                height: 136,
-                borderTopLeftRadius: 5,
-                borderTopRightRadius: 5,
+                height: isModern ? 144 : 136,
+                borderTopLeftRadius: isModern ? 14 : 5,
+                borderTopRightRadius: isModern ? 14 : 5,
               },
             ]}
-            resizeMode="cover"
+            contentFit="cover"
+            mode="story"
+            label={item.title}
+            theme={theme}
           />
         ) : (
           <View
@@ -2895,16 +3092,16 @@ function StoryCarouselCard({
               {
                 position: 'relative',
                 width: '100%',
-                height: 136,
-                borderTopLeftRadius: 5,
-                borderTopRightRadius: 5,
+                height: isModern ? 144 : 136,
+                borderTopLeftRadius: isModern ? 14 : 5,
+                borderTopRightRadius: isModern ? 14 : 5,
                 backgroundColor: theme.colors.cardAlt,
               },
             ]}
           />
         )}
 
-        <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 11 }}>
+        <View style={{ paddingHorizontal: 12, paddingTop: isModern ? 11 : 10, paddingBottom: 11 }}>
           <View style={[styles.storyCarouselMetaRow, { marginBottom: 7 }]}>
             <View
               style={[
@@ -2916,7 +3113,13 @@ function StoryCarouselCard({
               <Text
                 style={[
                   styles.featuredPillText,
-                  { color: BRAND.white, fontSize: 10, fontWeight: '900', opacity: 1 },
+                  {
+                    color: BRAND.white,
+                    fontSize: isModern ? 9 : 10,
+                    fontWeight: '900',
+                    opacity: 1,
+                    letterSpacing: isModern ? 0.35 : 0,
+                  },
                 ]}
               >
                 {sportLabel}
@@ -2929,7 +3132,7 @@ function StoryCarouselCard({
           <Text
             style={[
               styles.storyCarouselTitle,
-              { color: theme.colors.text, fontSize: 20, lineHeight: 25 },
+              { color: theme.colors.text, fontSize: isModern ? 19 : 20, lineHeight: isModern ? 24 : 25 },
             ]}
             numberOfLines={3}
           >
@@ -2943,7 +3146,14 @@ function StoryCarouselCard({
   return (
     <Pressable style={[styles.storyCarouselCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.storyCarouselImage} />
+        <RemoteImage
+          uri={item.image}
+          style={styles.storyCarouselImage}
+          contentFit="cover"
+          mode="story"
+          label={item.title}
+          theme={theme}
+        />
       ) : (
         <LinearGradient
           colors={isCleanSlateTheme(theme)
@@ -2991,6 +3201,7 @@ function VideoCarouselCard({
   onPress: () => void;
   theme?: AthleticOSResolvedTheme;
 }) {
+  const isModern = isModernTheme(theme);
   if (isCleanSlateTheme(theme)) {
     return (
       <Pressable
@@ -2998,24 +3209,35 @@ function VideoCarouselCard({
           styles.videoCarouselCard,
           getThemeSurfaceCardStyle(theme),
           {
-            height: 210,
-            borderRadius: 5,
+            height: isModern ? 206 : 210,
+            borderRadius: isModern ? 14 : 5,
           },
         ]}
         onPress={onPress}
       >
+        {isModern ? (
+          <View
+            style={[
+              styles.modernCardAccentBar,
+              { backgroundColor: withAlpha(theme.colors.primary, 'CC') },
+            ]}
+          />
+        ) : null}
         {item.image ? (
-          <Image
-            source={{ uri: item.image }}
+          <RemoteImage
+            uri={item.image}
             style={[
               styles.videoCarouselImage,
               {
                 position: 'relative',
                 width: '100%',
-                height: 118,
+                height: isModern ? 122 : 118,
               },
             ]}
-            resizeMode="cover"
+            contentFit="cover"
+            mode="content"
+            label={item.title}
+            theme={theme}
           />
         ) : (
           <View
@@ -3024,7 +3246,7 @@ function VideoCarouselCard({
               {
                 position: 'relative',
                 width: '100%',
-                height: 118,
+                height: isModern ? 122 : 118,
                 backgroundColor: theme.colors.cardAlt,
               },
             ]}
@@ -3066,7 +3288,14 @@ function VideoCarouselCard({
   return (
     <Pressable style={[styles.videoCarouselCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.videoCarouselImage} />
+        <RemoteImage
+          uri={item.image}
+          style={styles.videoCarouselImage}
+          contentFit="cover"
+          mode="content"
+          label={item.title}
+          theme={theme}
+        />
       ) : (
         <LinearGradient
           colors={isCleanSlateTheme(theme)
@@ -3124,6 +3353,7 @@ function GalleryCarouselCard({
   onPress: () => void;
   theme?: AthleticOSResolvedTheme;
 }) {
+  const isModern = isModernTheme(theme);
   if (isCleanSlateTheme(theme)) {
     return (
       <Pressable
@@ -3131,24 +3361,35 @@ function GalleryCarouselCard({
           styles.galleryCarouselCard,
           getThemeSurfaceCardStyle(theme),
           {
-            height: 230,
-            borderRadius: 5,
+            height: isModern ? 224 : 230,
+            borderRadius: isModern ? 14 : 5,
           },
         ]}
         onPress={onPress}
       >
+        {isModern ? (
+          <View
+            style={[
+              styles.modernCardAccentBar,
+              { backgroundColor: withAlpha(theme.colors.primary, 'CC') },
+            ]}
+          />
+        ) : null}
         {item.image ? (
-          <Image
-            source={{ uri: item.image }}
+          <RemoteImage
+            uri={item.image}
             style={[
               styles.galleryCarouselImage,
               {
                 position: 'relative',
                 width: '100%',
-                height: 134,
+                height: isModern ? 138 : 134,
               },
             ]}
-            resizeMode="cover"
+            contentFit="cover"
+            mode="gallery"
+            label={item.title}
+            theme={theme}
           />
         ) : (
           <View
@@ -3157,7 +3398,7 @@ function GalleryCarouselCard({
               {
                 position: 'relative',
                 width: '100%',
-                height: 134,
+                height: isModern ? 138 : 134,
                 backgroundColor: theme.colors.cardAlt,
               },
             ]}
@@ -3190,7 +3431,14 @@ function GalleryCarouselCard({
   return (
     <Pressable style={[styles.galleryCarouselCard, getThemeSurfaceCardStyle(theme)]} onPress={onPress}>
       {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.galleryCarouselImage} />
+        <RemoteImage
+          uri={item.image}
+          style={styles.galleryCarouselImage}
+          contentFit="cover"
+          mode="gallery"
+          label={item.title}
+          theme={theme}
+        />
       ) : (
         <LinearGradient
           colors={isCleanSlateTheme(theme)
@@ -3277,7 +3525,14 @@ function PromotionCard({
           </Text>
         ) : null}
       </View>
-      <Image source={{ uri: sponsorLogo }} style={styles.promotionSponsorLogo} resizeMode="contain" />
+      <RemoteImage
+        uri={sponsorLogo}
+        style={styles.promotionSponsorLogo}
+        contentFit="contain"
+        mode="sponsor"
+        label={sponsorName}
+        theme={theme}
+      />
     </Pressable>
   ) : null;
 
@@ -3285,13 +3540,16 @@ function PromotionCard({
     const cleanBody = (
       <>
         {promotion.image_url ? (
-          <Image
-            source={{ uri: promotion.image_url }}
+          <RemoteImage
+            uri={promotion.image_url}
             style={{
               width: '100%',
               aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
             }}
-            resizeMode="cover"
+            contentFit="cover"
+            mode="content"
+            label={promotion.title?.trim() || 'Promotion'}
+            theme={theme}
           />
         ) : (
           <View
@@ -3387,10 +3645,13 @@ function PromotionCard({
   const cardBody = (
     <>
       {promotion.image_url ? (
-        <Image
-          source={{ uri: promotion.image_url }}
+        <RemoteImage
+          uri={promotion.image_url}
           style={styles.promotionCardImage}
-          resizeMode="cover"
+          contentFit="cover"
+          mode="content"
+          label={promotion.title?.trim() || 'Promotion'}
+          theme={theme}
         />
       ) : (
         <LinearGradient
@@ -3559,10 +3820,13 @@ function AppPrerollScreen({
               <Text style={styles.prerollSponsorEyebrow}>Presented by</Text>
             ) : null}
             {config.sponsor_logo_url ? (
-              <Image
-                source={{ uri: config.sponsor_logo_url }}
+              <RemoteImage
+                uri={config.sponsor_logo_url}
                 style={styles.prerollSponsorLogo}
-                resizeMode="contain"
+                contentFit="contain"
+                mode="sponsor"
+                label={config.sponsor_name}
+                theme={DEFAULT_APP_THEME}
               />
             ) : config.sponsor_name ? (
               <Text style={styles.prerollSponsorName}>{config.sponsor_name}</Text>
@@ -3644,7 +3908,14 @@ function AthleteOfWeekCard({
           <Text style={[styles.aotwSponsorLabel, { color: theme.colors.mutedText }]}>
             Presented by
           </Text>
-          <Image source={{ uri: sponsorLogo }} style={styles.aotwSponsorLogo} resizeMode="contain" />
+          <RemoteImage
+            uri={sponsorLogo}
+            style={styles.aotwSponsorLogo}
+            contentFit="contain"
+            mode="sponsor"
+            label={sponsorName}
+            theme={theme}
+          />
           {sponsorName ? (
             <Text
               style={[styles.aotwSponsorName, { color: theme.colors.text }]}
@@ -3660,12 +3931,15 @@ function AthleteOfWeekCard({
       <>
         <View style={[styles.aotwHeroMediaWrap, { backgroundColor: theme.colors.cardAlt }]}>
           {imageUrl ? (
-            <ImageBackground
-              source={{ uri: imageUrl }}
-              style={styles.aotwHeroMedia}
-              imageStyle={styles.aotwHeroMediaImage}
-              resizeMode={usingHeadshotFallback ? 'contain' : 'cover'}
-            >
+            <View style={styles.aotwHeroMedia}>
+              <RemoteImage
+                uri={imageUrl}
+                style={styles.aotwHeroMedia}
+                contentFit={usingHeadshotFallback ? 'contain' : 'cover'}
+                mode="athlete"
+                label={item.athleteName}
+                theme={theme}
+              />
               <LinearGradient
                 colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.64)']}
                 style={styles.aotwHeroOverlay}
@@ -3701,7 +3975,7 @@ function AthleteOfWeekCard({
                   </Text>
                 ) : null}
               </View>
-            </ImageBackground>
+            </View>
           ) : (
             <View style={[styles.aotwHeroMedia, { backgroundColor: theme.colors.cardAlt }]}>
               <View style={styles.aotwHeroTopRow}>
@@ -3798,10 +4072,13 @@ function AthleteOfWeekCard({
   const cardBody = (
     <>
       {imageUrl ? (
-        <Image
-          source={{ uri: imageUrl }}
+        <RemoteImage
+          uri={imageUrl}
           style={styles.athleteOfWeekImage}
-          resizeMode="cover"
+          contentFit="cover"
+          mode="athlete"
+          label={item.athleteName}
+          theme={theme}
         />
       ) : (
         <LinearGradient
@@ -3840,16 +4117,23 @@ function AthleteOfWeekCard({
               Athlete of the Week
             </Text>
           </View>
-          {sponsorLogo ? (
-            <Pressable
-              disabled={!sponsorHasLink || !onSponsorPress}
-              onPress={onSponsorPress}
-              style={styles.aotwInlineSponsorWrap}
-            >
-              <Text style={styles.athleteOfWeekSponsorText}>Presented by</Text>
-              <Image source={{ uri: sponsorLogo }} style={styles.aotwInlineSponsorLogo} resizeMode="contain" />
-            </Pressable>
-          ) : null}
+            {sponsorLogo ? (
+              <Pressable
+                disabled={!sponsorHasLink || !onSponsorPress}
+                onPress={onSponsorPress}
+                style={styles.aotwInlineSponsorWrap}
+              >
+                <Text style={styles.athleteOfWeekSponsorText}>Presented by</Text>
+              <RemoteImage
+                uri={sponsorLogo}
+                style={styles.aotwInlineSponsorLogo}
+                contentFit="contain"
+                mode="sponsor"
+                label={sponsorName}
+                theme={theme}
+              />
+              </Pressable>
+            ) : null}
         </View>
 
         {item.athleteName ? (
@@ -3959,10 +4243,13 @@ function AthleteOfWeekDetailScreen({
 
       <View style={styles.aotwDetailWrap}>
         {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
+          <RemoteImage
+            uri={imageUrl}
             style={styles.aotwDetailImage}
-            resizeMode="cover"
+            contentFit="cover"
+            mode="athlete"
+            label={item.athleteName}
+            theme={theme}
           />
         ) : null}
 
@@ -4037,6 +4324,7 @@ function EventCard({
   theme?: AthleticOSResolvedTheme;
 }) {
   const normalized = normalizeScheduleItem(item);
+  const isModern = isModernTheme(theme);
 
   const resultLabel =
     normalized.result === 'W' || normalized.result === 'L'
@@ -4057,16 +4345,41 @@ function EventCard({
           borderColor: theme.colors.border,
         },
         getThemeCardShellStyle(theme),
+        isModern
+          ? {
+              borderColor: withAlpha(theme.colors.primary, '16'),
+              borderRadius: 14,
+              paddingTop: 18,
+            }
+          : null,
       ]}
       onPress={onPress}
     >
+      {isModern ? (
+        <View
+          style={[
+            styles.modernCardAccentBar,
+            { backgroundColor: withAlpha(theme.colors.primary, 'CC') },
+          ]}
+        />
+      ) : null}
       {!normalized.hasScore ? (
         <>
           <View style={styles.eventTopRow}>
             <Text
               style={[
                 styles.eventSportLine,
-                { color: isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.pillBackground },
+                {
+                  color: isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.pillBackground,
+                  ...(isModern
+                    ? {
+                        fontSize: 11,
+                        letterSpacing: 0.75,
+                        textTransform: 'uppercase' as const,
+                        marginBottom: 2,
+                      }
+                    : null),
+                },
               ]}
             >
               {normalized.sport}
@@ -4084,7 +4397,17 @@ function EventCard({
                 {normalized.opponent}
               </Text>
 
-              <Text style={[styles.eventMeta, { color: theme.colors.text }]}>{normalized.displayDate}</Text>
+              <Text
+                style={[
+                  styles.eventMeta,
+                  {
+                    color: isModern ? theme.colors.primary : theme.colors.text,
+                    fontWeight: isModern ? '800' : '700',
+                  },
+                ]}
+              >
+                {normalized.displayDate}
+              </Text>
               {showTime && normalized.timeLabel ? (
                 <Text style={[styles.eventMetaSecondary, { color: theme.colors.mutedText }]}>
                   {normalized.timeLabel}
@@ -4101,11 +4424,26 @@ function EventCard({
             </View>
 
             {normalized.opponentLogoUrl ? (
-              <View style={styles.eventLogoPlate}>
-                <Image
-                  source={{ uri: normalized.opponentLogoUrl }}
+              <View
+                style={[
+                  styles.eventLogoPlate,
+                  isModern
+                    ? {
+                        backgroundColor: withAlpha(theme.colors.primary, '08'),
+                        borderWidth: 1,
+                        borderColor: withAlpha(theme.colors.primary, '14'),
+                        borderRadius: 12,
+                      }
+                    : null,
+                ]}
+              >
+                <RemoteImage
+                  uri={normalized.opponentLogoUrl}
                   style={styles.eventLogo}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  mode="opponent"
+                  label={normalized.opponent}
+                  theme={theme}
                 />
               </View>
             ) : null}
@@ -4114,7 +4452,21 @@ function EventCard({
       ) : (
         <>
           <View style={styles.resultHeaderRow}>
-            <Text style={[styles.eventSportLine, { color: theme.colors.pillBackground }]}>
+            <Text
+              style={[
+                styles.eventSportLine,
+                {
+                  color: theme.colors.pillBackground,
+                  ...(isModern
+                    ? {
+                        fontSize: 11,
+                        letterSpacing: 0.75,
+                        textTransform: 'uppercase' as const,
+                      }
+                    : null),
+                },
+              ]}
+            >
               {normalized.sport}
             </Text>
 
@@ -4139,10 +4491,13 @@ function EventCard({
                       : null,
                   ]}
                 >
-                  <Image
-                    source={{ uri: normalized.opponentLogoUrl }}
+                  <RemoteImage
+                    uri={normalized.opponentLogoUrl}
                     style={styles.resultLogo}
-                    resizeMode="contain"
+                    contentFit="contain"
+                    mode="opponent"
+                    label={normalized.opponent}
+                    theme={theme}
                   />
                 </View>
               ) : null}
@@ -4155,14 +4510,24 @@ function EventCard({
             </Text>
           </View>
 
-          <Text style={[styles.eventMeta, { color: theme.colors.text }]}>{normalized.displayDate}</Text>
+          <Text
+            style={[
+              styles.eventMeta,
+              {
+                color: isModern ? theme.colors.primary : theme.colors.text,
+                fontWeight: isModern ? '800' : '700',
+              },
+            ]}
+          >
+            {normalized.displayDate}
+          </Text>
         </>
       )}
     </Pressable>
   );
 }
 
-function PulseDot() {
+function PulseDot({ color = '#ef4444' }: { color?: string }) {
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
@@ -4208,6 +4573,7 @@ function PulseDot() {
       style={[
         styles.pulseDot,
         {
+          backgroundColor: color,
           opacity,
           transform: [{ scale }],
         },
@@ -4263,7 +4629,12 @@ function TeamTile({
         <View
           style={[
             styles.teamTileArrowWrap,
-            isCleanSlateTheme(theme)
+            isModernTheme(theme)
+              ? {
+                  backgroundColor: withAlpha(theme.colors.primary, '0C'),
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                }
+              : isCleanSlateTheme(theme)
               ? {
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.border,
@@ -4274,7 +4645,13 @@ function TeamTile({
           <Ionicons
             name="chevron-forward"
             size={18}
-            color={isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.red}
+            color={
+              isModernTheme(theme)
+                ? theme.colors.primary
+                : isCleanSlateTheme(theme)
+                ? theme.colors.accent
+                : BRAND.red
+            }
           />
         </View>
       </LinearGradient>
@@ -4367,6 +4744,7 @@ function HomeScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isModernHome = isModernTheme(theme);
+  const isTrueCleanSlateHome = isCleanSlateTheme(theme) && !isModernHome;
   const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
   const hasScheduleUrl = scheduleAvailable;
@@ -4528,20 +4906,38 @@ function HomeScreen({
       schoolConfig.watchUrl,
     ]
   );
-  const resolvedHeroQuickActions =
-    (hasConfiguredHeroQuickActions ? heroQuickActions : fallbackHeroActions).slice(0, 5);
+  const resolvedHeroQuickActions = hasConfiguredHeroQuickActions
+    ? heroQuickActions.slice(0, 5)
+    : fallbackHeroActions.slice(0, 5);
   const heroActionCount = resolvedHeroQuickActions.length;
   const shouldScrollHeroActions = isModernHome
-    ? heroActionCount >= 3
+    ? false
     : heroActionCount >= 4;
   const heroActionItemStyle =
-    heroActionCount <= 1
+    isModernHome
+      ? heroActionCount <= 1
+        ? styles.topIconWrapFeatured
+        : heroActionCount === 2
+        ? styles.topIconWrapPair
+        : heroActionCount === 3
+        ? styles.topIconWrapTriple
+        : heroActionCount === 4
+        ? styles.topIconWrapQuad
+        : styles.topIconWrapFive
+      : heroActionCount <= 1
       ? styles.topIconWrapFeatured
       : heroActionCount === 2
       ? styles.topIconWrapPair
       : heroActionCount === 3 && !shouldScrollHeroActions
       ? styles.topIconWrapTriple
       : styles.topIconWrapScrollable;
+  const heroActionSizeVariant: 'regular' | 'compact' | 'dense' = isModernHome
+    ? heroActionCount >= 5
+      ? 'dense'
+      : heroActionCount >= 4
+      ? 'compact'
+      : 'regular'
+    : 'regular';
   const heroBrandTitle = getHeroBrandTitle(schoolConfig);
   const heroBrandSubtitle = getHeroBrandSubtitle(schoolConfig);
   const hasLiveCoverageModule = useMemo(
@@ -4731,6 +5127,34 @@ function HomeScreen({
         : resolvedStatusPillMode === 'live_audio'
         ? 'Live Audio'
         : 'Not Currently Live';
+    const statusAccentColor = theme.colors.primary || theme.colors.accent;
+    const statusPillPalette = isLightAppTheme(theme)
+      ? {
+          backgroundColor: withAlpha(
+            statusAccentColor,
+            statusPillIsLive ? '12' : '0A'
+          ),
+          borderColor: withAlpha(
+            statusAccentColor,
+            statusPillIsLive ? '26' : '18'
+          ),
+          textColor: statusAccentColor,
+          iconColor: statusAccentColor,
+          pulseColor: statusAccentColor,
+        }
+      : {
+          backgroundColor: withAlpha(
+            statusAccentColor,
+            statusPillIsLive ? '22' : '18'
+          ),
+          borderColor: withAlpha(
+            statusAccentColor,
+            statusPillIsLive ? '55' : '3C'
+          ),
+          textColor: BRAND.white,
+          iconColor: BRAND.white,
+          pulseColor: statusAccentColor,
+        };
 
     return (
       <Pressable
@@ -4740,12 +5164,28 @@ function HomeScreen({
           isAnythingLive ? styles.liveNowCardLive : null,
           {
             backgroundColor: theme.colors.card,
-            borderColor: isAnythingLive && !isCleanSlateTheme(theme)
-              ? 'rgba(239,68,68,0.45)'
-              : theme.colors.border,
+            borderColor:
+              isAnythingLive && !isCleanSlateTheme(theme)
+                ? withAlpha(theme.colors.primary, '45')
+                : theme.colors.border,
           },
           getThemeCardShellStyle(theme),
-          isCleanSlateTheme(theme)
+          isModernTheme(theme)
+            ? {
+                borderRadius: 16,
+                borderColor: withAlpha(theme.colors.primary, statusPillIsLive ? '28' : '18'),
+                borderTopWidth: 2,
+                borderTopColor: withAlpha(theme.colors.primary, statusPillIsLive ? '60' : '32'),
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                shadowColor: withAlpha(theme.colors.primary, '10'),
+                shadowOpacity: 0.06,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 3 },
+                elevation: 2,
+              }
+            : null,
+          isTrueCleanSlateHome
             ? {
                 paddingHorizontal: 16,
                 paddingVertical: 14,
@@ -4768,13 +5208,23 @@ function HomeScreen({
           <Text
             style={[
               styles.liveNowEyebrow,
-              isCleanSlateTheme(theme)
+              isModernTheme(theme)
+                ? {
+                    color: theme.colors.primary,
+                    fontSize: 10,
+                    letterSpacing: 0.8,
+                    marginBottom: 5,
+                  }
+                : null,
+              isTrueCleanSlateHome
                   ? {
                     color: theme.colors.primary,
                     fontSize: 10,
                     letterSpacing: 0.9,
                     marginBottom: 4,
                   }
+                : isModernTheme(theme)
+                ? { color: theme.colors.primary }
                 : { color: BRAND.red },
             ]}
           >
@@ -4783,7 +5233,15 @@ function HomeScreen({
           <Text
             style={[
               styles.liveNowTitle,
-              isCleanSlateTheme(theme)
+              isModernTheme(theme)
+                ? {
+                    color: theme.colors.text,
+                    fontSize: 19,
+                    lineHeight: 23,
+                    marginBottom: 5,
+                  }
+                : null,
+              isTrueCleanSlateHome
                   ? {
                     color: theme.colors.text,
                     fontSize: 18,
@@ -4799,7 +5257,14 @@ function HomeScreen({
             <Text
               style={[
                 styles.liveNowText,
-                isCleanSlateTheme(theme)
+                isModernTheme(theme)
+                  ? {
+                      color: theme.colors.mutedText,
+                      fontSize: 12,
+                      lineHeight: 17,
+                    }
+                  : null,
+                isTrueCleanSlateHome
                   ? {
                       color: theme.colors.mutedText,
                       fontSize: 12,
@@ -4812,17 +5277,43 @@ function HomeScreen({
             </Text>
           ) : null}
 
-          <View style={styles.liveNowCTA}>
+          <View
+            style={[
+              styles.liveNowCTA,
+              isModernTheme(theme)
+                ? {
+                    alignSelf: 'flex-start',
+                    backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                    borderWidth: 1,
+                    borderColor: withAlpha(theme.colors.primary, '18'),
+                    borderRadius: 999,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    marginTop: 12,
+                  }
+                : null,
+            ]}
+          >
             <Text
               style={[
                 styles.liveNowCTAText,
-                isCleanSlateTheme(theme)
+                isModernTheme(theme)
+                  ? {
+                      color: theme.colors.primary,
+                      fontSize: 11,
+                      letterSpacing: 0.45,
+                      textTransform: 'uppercase',
+                    }
+                  : null,
+                isTrueCleanSlateHome
                   ? {
                       color: theme.colors.primary,
                       fontSize: 10,
                       letterSpacing: 0.8,
                       textTransform: 'uppercase',
                     }
+                  : isModernTheme(theme)
+                  ? { color: theme.colors.primary }
                   : { color: BRAND.red },
               ]}
             >
@@ -4831,7 +5322,13 @@ function HomeScreen({
             <Ionicons
               name="chevron-forward"
               size={16}
-              color={isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.white}
+              color={
+                isModernTheme(theme)
+                  ? theme.colors.primary
+                  : isCleanSlateTheme(theme)
+                  ? theme.colors.primary
+                  : BRAND.white
+              }
             />
           </View>
         </View>
@@ -4841,36 +5338,30 @@ function HomeScreen({
             <View
               style={[
                 styles.heroStatusPill,
-                statusPillIsLive
-                  ? isCleanSlateTheme(theme)
-                    ? {
-                        backgroundColor: theme.colors.surface,
-                        borderWidth: 1,
-                        borderColor: withAlpha(theme.colors.primary, '32'),
-                      }
-                    : styles.heroStatusPillLive
-                  : isCleanSlateTheme(theme)
-                  ? {
-                      backgroundColor: theme.colors.surface,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                    }
-                  : styles.heroStatusPillOff,
+                {
+                  backgroundColor: statusPillPalette.backgroundColor,
+                  borderWidth: 1,
+                  borderColor: statusPillPalette.borderColor,
+                  borderRadius: 999,
+                  minWidth: isModernTheme(theme) ? 126 : undefined,
+                },
               ]}
             >
-              {statusPillIsLive ? <PulseDot /> : null}
+              {statusPillIsLive ? (
+                <PulseDot color={statusPillPalette.pulseColor} />
+              ) : null}
 
               <Ionicons
                 name={statusPillIcon}
                 size={16}
-                color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+                color={statusPillPalette.iconColor}
                 style={styles.heroStatusIcon}
               />
 
               <Text
                 style={[
                   styles.heroStatusText,
-                  { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+                  { color: statusPillPalette.textColor },
                 ]}
               >
                 {statusPillLabel}
@@ -5139,10 +5630,13 @@ function HomeScreen({
         </View>
 
         {sponsorPlacement?.sponsor_logo_url ? (
-          <Image
-            source={{ uri: sponsorPlacement.sponsor_logo_url }}
+          <RemoteImage
+            uri={sponsorPlacement.sponsor_logo_url}
             style={styles.sponsorLogo}
-            resizeMode="contain"
+            contentFit="contain"
+            mode="sponsor"
+            label={sponsorCardTitle}
+            theme={theme}
           />
         ) : null}
       </>
@@ -5193,10 +5687,13 @@ function HomeScreen({
         </View>
 
         {presentingSponsorCardPlacement.sponsor_logo_url ? (
-          <Image
-            source={{ uri: presentingSponsorCardPlacement.sponsor_logo_url }}
+          <RemoteImage
+            uri={presentingSponsorCardPlacement.sponsor_logo_url}
             style={styles.sponsorLogo}
-            resizeMode="contain"
+            contentFit="contain"
+            mode="sponsor"
+            label={presentingTitle}
+            theme={theme}
           />
         ) : null}
       </>
@@ -5268,10 +5765,13 @@ function HomeScreen({
                 <View style={styles.sponsorCarouselCardContent}>
                   {hasSponsorLogo ? (
                     <View style={styles.sponsorCarouselLogoWrap}>
-                      <Image
-                        source={{ uri: sponsorLogo }}
+                      <RemoteImage
+                        uri={sponsorLogo}
                         style={styles.sponsorCarouselLogo}
-                        resizeMode="contain"
+                        contentFit="contain"
+                        mode="sponsor"
+                        label={sponsorName}
+                        theme={theme}
                       />
                     </View>
                   ) : null}
@@ -5417,7 +5917,17 @@ function HomeScreen({
         style={[
           styles.homeHeader,
           getThemeHeroShellStyle(theme),
-          isCleanSlateTheme(theme)
+          isModernTheme(theme)
+            ? {
+                paddingTop: 12,
+                paddingHorizontal: 18,
+                paddingBottom: 12,
+                borderRadius: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: withAlpha(theme.colors.primary, '20'),
+              }
+            : null,
+          isTrueCleanSlateHome
             ? {
                 marginTop: 0,
                 paddingTop: 0,
@@ -5428,7 +5938,7 @@ function HomeScreen({
             : null,
         ]}
       >
-        {isCleanSlateTheme(theme) ? (
+        {isTrueCleanSlateHome ? (
           <View
             style={{
               position: 'absolute',
@@ -5448,7 +5958,22 @@ function HomeScreen({
               <View
                 style={[
                   styles.teamLogoBox,
-                  isCleanSlateTheme(theme)
+                  isModernTheme(theme)
+                    ? {
+                        width: 58,
+                        height: 58,
+                        borderRadius: 16,
+                        marginRight: 11,
+                        backgroundColor: theme.colors.card,
+                        borderColor: withAlpha(theme.colors.primary, '16'),
+                        shadowColor: withAlpha(theme.colors.primary, '10'),
+                        shadowOpacity: 0.06,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 3 },
+                        elevation: 2,
+                      }
+                    : null,
+                  isTrueCleanSlateHome
                     ? {
                         width: 52,
                         height: 52,
@@ -5460,13 +5985,16 @@ function HomeScreen({
                     : null,
                 ]}
               >
-                <Image
-                  source={{ uri: schoolConfig.logoUrl }}
+                <RemoteImage
+                  uri={schoolConfig.logoUrl}
                   style={[
                     styles.headerTeamLogo,
-                    isCleanSlateTheme(theme) ? { width: 36, height: 36 } : null,
+                    isTrueCleanSlateHome ? { width: 36, height: 36 } : null,
                   ]}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  mode="logo"
+                  label={schoolConfig.displayName}
+                  theme={theme}
                 />
               </View>
             ) : null}
@@ -5477,7 +6005,9 @@ function HomeScreen({
                   styles.appTitle,
                   {
               color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
-              ...(isCleanSlateTheme(theme)
+              ...(isModernTheme(theme)
+                      ? { fontSize: 24, letterSpacing: 0.1, fontWeight: '900' as const }
+                      : isCleanSlateTheme(theme)
                       ? { fontSize: 20, letterSpacing: 0, fontWeight: '800' as const }
                       : null),
                   },
@@ -5491,7 +6021,9 @@ function HomeScreen({
                 style={[
                   styles.appSubtitle,
                   { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.78)' },
-                  isCleanSlateTheme(theme)
+                  isModernTheme(theme)
+                    ? { fontSize: 11, marginTop: 2, fontWeight: '700' as const, letterSpacing: 0.15 }
+                      : isTrueCleanSlateHome
                     ? { fontSize: 10, marginTop: 1, fontWeight: '600' as const }
                     : null,
                 ]}
@@ -5502,12 +6034,14 @@ function HomeScreen({
               {showHeroSponsor && heroSponsorName ? (
                 <Text
                   style={[
-                    styles.heroSponsorInlineText,
-                    { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(255,255,255,0.72)' },
-                    isCleanSlateTheme(theme)
+                  styles.heroSponsorInlineText,
+                  { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(255,255,255,0.72)' },
+                  isModernTheme(theme)
+                    ? { fontSize: 9, marginTop: 3, letterSpacing: 0.3, color: theme.colors.primary }
+                    : isTrueCleanSlateHome
                       ? { fontSize: 9, marginTop: 2, letterSpacing: 0.25 }
                       : null,
-                  ]}
+                ]}
                   numberOfLines={1}
                 >
                   Presented by {heroSponsorName}
@@ -5521,7 +6055,7 @@ function HomeScreen({
               <Pressable
                 style={[
                   styles.heroSponsorLogoWrap,
-                  isCleanSlateTheme(theme)
+                  isTrueCleanSlateHome
                     ? {
                         backgroundColor: theme.colors.card,
                         borderWidth: 1,
@@ -5535,17 +6069,20 @@ function HomeScreen({
                   onOpenEmbedded(heroSponsorName || 'Sponsor', heroSponsorLink)
                 }
               >
-                <Image
-                  source={{ uri: heroSponsorLogo }}
+                <RemoteImage
+                  uri={heroSponsorLogo}
                   style={styles.heroSponsorLogo}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  mode="sponsor"
+                  label={heroSponsorName}
+                  theme={theme}
                 />
               </Pressable>
             ) : (
               <View
                 style={[
                   styles.heroSponsorLogoWrap,
-                  isCleanSlateTheme(theme)
+                  isTrueCleanSlateHome
                     ? {
                         backgroundColor: theme.colors.card,
                         borderWidth: 1,
@@ -5556,10 +6093,13 @@ function HomeScreen({
                     : null,
                 ]}
               >
-                <Image
-                  source={{ uri: heroSponsorLogo }}
+                <RemoteImage
+                  uri={heroSponsorLogo}
                   style={styles.heroSponsorLogo}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  mode="sponsor"
+                  label={heroSponsorName}
+                  theme={theme}
                 />
               </View>
             )
@@ -5567,7 +6107,7 @@ function HomeScreen({
             <View
               style={[
                 styles.heroSponsorLogoWrap,
-                isCleanSlateTheme(theme)
+                isTrueCleanSlateHome
                   ? {
                       backgroundColor: theme.colors.card,
                       borderWidth: 1,
@@ -5602,7 +6142,16 @@ function HomeScreen({
             heroActionCount >= 3 ? styles.heroButtonRowCompact : null,
             heroActionCount === 1 ? styles.heroButtonRowSingle : null,
             shouldScrollHeroActions ? styles.heroButtonRowScrollable : null,
-            isCleanSlateTheme(theme)
+            isModernTheme(theme)
+              ? {
+                  marginTop: 8,
+                  paddingTop: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: withAlpha(theme.colors.primary, '12'),
+                  gap: 8,
+                }
+              : null,
+            isTrueCleanSlateHome
               ? {
                   marginTop: 1,
                   gap: 6,
@@ -5625,6 +6174,7 @@ function HomeScreen({
                   theme={theme}
                   onPress={action.onPress}
                   containerStyle={heroActionItemStyle}
+                  sizeVariant={heroActionSizeVariant}
                 />
               ))}
             </ScrollView>
@@ -5637,6 +6187,7 @@ function HomeScreen({
                 theme={theme}
                 onPress={action.onPress}
                 containerStyle={heroActionItemStyle}
+                sizeVariant={heroActionSizeVariant}
               />
             ))
           )}
@@ -5788,10 +6339,13 @@ function TeamsScreen({
         />
 
         {hasResolvedUrl(schoolLogoUrl) ? (
-          <Image
-            source={{ uri: schoolLogoUrl }}
+          <RemoteImage
+            uri={schoolLogoUrl}
             style={styles.teamsHubLogo}
-            resizeMode="contain"
+            contentFit="contain"
+            mode="logo"
+            label={heroSchoolName}
+            theme={theme}
           />
         ) : null}
 
@@ -6000,10 +6554,13 @@ function MediaScreen({
         />
 
         {hasResolvedUrl(schoolLogoUrl) ? (
-          <Image
-            source={{ uri: schoolLogoUrl }}
+          <RemoteImage
+            uri={schoolLogoUrl}
             style={styles.teamsHubLogo}
-            resizeMode="contain"
+            contentFit="contain"
+            mode="logo"
+            label={heroSchoolName}
+            theme={theme}
           />
         ) : null}
 
@@ -6230,10 +6787,13 @@ function ScheduleScreen({
 
         {hasResolvedUrl(schoolLogoUrl) ? (
           <View style={styles.scheduleHeroLogoWrap}>
-            <Image
-              source={{ uri: schoolLogoUrl }}
+            <RemoteImage
+              uri={schoolLogoUrl}
               style={styles.scheduleHeroLogo}
-              resizeMode="contain"
+              contentFit="contain"
+              mode="logo"
+              label={headerTitle}
+              theme={theme}
             />
           </View>
         ) : null}
@@ -6307,10 +6867,13 @@ function ScheduleScreen({
                           : null,
                       ]}
                     >
-                      <Image
-                        source={{ uri: item.opponentLogoUrl }}
+                      <RemoteImage
+                        uri={item.opponentLogoUrl}
                         style={styles.teamScheduleLogo}
-                        resizeMode="contain"
+                        contentFit="contain"
+                        mode="opponent"
+                        label={item.opponent}
+                        theme={theme}
                       />
                     </View>
                   ) : null}
@@ -6455,10 +7018,13 @@ function ScheduleScreen({
                             : null,
                         ]}
                       >
-                        <Image
-                          source={{ uri: item.opponentLogoUrl }}
+                        <RemoteImage
+                          uri={item.opponentLogoUrl}
                           style={styles.teamScheduleLogo}
-                          resizeMode="contain"
+                          contentFit="contain"
+                          mode="opponent"
+                          label={item.opponent}
+                          theme={theme}
                         />
                       </View>
                     ) : null}
@@ -6678,10 +7244,13 @@ function RosterScreen({
 
         {hasResolvedUrl(schoolLogoUrl) ? (
           <View style={styles.scheduleHeroLogoWrap}>
-            <Image
-              source={{ uri: schoolLogoUrl }}
+            <RemoteImage
+              uri={schoolLogoUrl}
               style={styles.scheduleHeroLogo}
-              resizeMode="contain"
+              contentFit="contain"
+              mode="logo"
+              label={headerTitle}
+              theme={theme}
             />
           </View>
         ) : null}
@@ -6809,8 +7378,8 @@ function RosterScreen({
                 onPress={() => onOpenAthlete(athlete)}
               >
                 {imageUrl ? (
-                  <Image
-                    source={{ uri: imageUrl }}
+                  <RemoteImage
+                    uri={imageUrl}
                     style={[
                       styles.rosterPhoto,
                       isModern
@@ -6820,7 +7389,10 @@ function RosterScreen({
                           }
                         : null,
                     ]}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    mode="athlete"
+                    label={displayName}
+                    theme={theme}
                   />
                 ) : (
                   <View
@@ -6974,7 +7546,14 @@ function AthleteProfileScreen({
 
       <View style={styles.rosterProfileWrap}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.rosterProfileImage} resizeMode="cover" />
+          <RemoteImage
+            uri={imageUrl}
+            style={styles.rosterProfileImage}
+            contentFit="cover"
+            mode="athlete"
+            label={athlete.fullName}
+            theme={theme}
+          />
         ) : (
           <View
             style={[
@@ -7088,10 +7667,13 @@ function RecruitingScreen({
           </Text>
 
           {hasResolvedUrl(schoolLogoUrl) ? (
-            <Image
-              source={{ uri: schoolLogoUrl }}
+            <RemoteImage
+              uri={schoolLogoUrl}
               style={styles.teamPageSponsorLogo}
-              resizeMode="contain"
+              contentFit="contain"
+              mode="logo"
+              label={title}
+              theme={theme}
             />
           ) : null}
         </View>
@@ -7129,10 +7711,13 @@ function RecruitingScreen({
               <View style={styles.recruitingProfileTopRow}>
                 {typeof (p.default_photo_url ?? p.photo_url) === 'string' &&
                 String(p.default_photo_url ?? p.photo_url).trim() ? (
-                  <Image
-                    source={{ uri: String(p.default_photo_url ?? p.photo_url).trim() }}
+                  <RemoteImage
+                    uri={String(p.default_photo_url ?? p.photo_url).trim()}
                     style={styles.recruitingProfilePhoto}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    mode="athlete"
+                    label={`${String(p.first_name ?? '')} ${String(p.last_name ?? '')}`.trim()}
+                    theme={theme}
                   />
                 ) : (
                   <View
@@ -7338,10 +7923,13 @@ function RecruitingPlayerScreen({
           </Text>
 
           {hasResolvedUrl(schoolLogoUrl) ? (
-            <Image
-              source={{ uri: schoolLogoUrl }}
+            <RemoteImage
+              uri={schoolLogoUrl}
               style={styles.teamPageSponsorLogo}
-              resizeMode="contain"
+              contentFit="contain"
+              mode="logo"
+              label={playerName || title}
+              theme={theme}
             />
           ) : null}
         </View>
@@ -7369,10 +7957,13 @@ function RecruitingPlayerScreen({
         >
           <View style={styles.recruitingPlayerPhotoStage}>
             {headshotUrl ? (
-              <Image
-                source={{ uri: headshotUrl }}
+              <RemoteImage
+                uri={headshotUrl}
                 style={styles.recruitingPlayerPhoto}
-                resizeMode="cover"
+                contentFit="cover"
+                mode="athlete"
+                label={playerName}
+                theme={theme}
               />
             ) : (
               <View
@@ -8227,10 +8818,13 @@ function SportDetailScreen({
           </Text>
 
           {hasResolvedUrl(schoolConfig.logoUrl) ? (
-            <Image
-              source={{ uri: schoolConfig.logoUrl }}
+            <RemoteImage
+              uri={schoolConfig.logoUrl}
               style={styles.teamPageSponsorLogo}
-              resizeMode="contain"
+              contentFit="contain"
+              mode="logo"
+              label={sport.shortLabel || sport.label}
+              theme={theme}
             />
           ) : null}
         </View>
@@ -8516,10 +9110,13 @@ function SportDetailScreen({
                           : null,
                       ]}
                     >
-                      <Image
-                        source={{ uri: normalized.opponentLogoUrl }}
+                      <RemoteImage
+                        uri={normalized.opponentLogoUrl}
                         style={styles.teamGameLogo}
-                        resizeMode="contain"
+                        contentFit="contain"
+                        mode="opponent"
+                        label={normalized.opponent}
+                        theme={theme}
                       />
                     </View>
                   ) : null}
@@ -8605,10 +9202,13 @@ function NewsListScreen({
         />
 
         {hasResolvedUrl(schoolLogoUrl) ? (
-          <Image
-            source={{ uri: schoolLogoUrl }}
+          <RemoteImage
+            uri={schoolLogoUrl}
             style={styles.teamsHubLogo}
-            resizeMode="contain"
+            contentFit="contain"
+            mode="logo"
+            label={heroSchoolName}
+            theme={theme}
           />
         ) : null}
 
@@ -8675,10 +9275,13 @@ function NewsListScreen({
                 />
 
                 {item.image ? (
-                  <Image
-                    source={{ uri: item.image }}
+                  <RemoteImage
+                    uri={item.image}
                     style={styles.newsArchiveThumb}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    mode="story"
+                    label={item.title}
+                    theme={theme}
                   />
                 ) : (
                   <View
@@ -9092,10 +9695,13 @@ function MoreScreen({
         />
 
         {hasResolvedUrl(schoolLogoUrl) ? (
-          <Image
-            source={{ uri: schoolLogoUrl }}
+          <RemoteImage
+            uri={schoolLogoUrl}
             style={styles.teamsHubLogo}
-            resizeMode="contain"
+            contentFit="contain"
+            mode="logo"
+            label={heroSchoolName}
+            theme={theme}
           />
         ) : null}
 
@@ -9356,7 +9962,18 @@ function SettingsScreen({
           onPress={onToggleNotifications}
           theme={theme}
           trailing={
-            <Text style={[styles.settingsValueText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.red }]}>
+            <Text
+              style={[
+                styles.settingsValueText,
+                {
+                  color: isModernTheme(theme)
+                    ? theme.colors.primary
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.primary
+                    : BRAND.red,
+                },
+              ]}
+            >
               {notificationsEnabled ? 'On' : 'Off'}
             </Text>
           }
@@ -9373,7 +9990,18 @@ function SettingsScreen({
           onPress={onToggleAutoPlayVideo}
           theme={theme}
           trailing={
-            <Text style={[styles.settingsValueText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.red }]}>
+            <Text
+              style={[
+                styles.settingsValueText,
+                {
+                  color: isModernTheme(theme)
+                    ? theme.colors.primary
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.primary
+                    : BRAND.red,
+                },
+              ]}
+            >
               {autoPlayVideo ? 'On' : 'Off'}
             </Text>
           }
@@ -9384,7 +10012,18 @@ function SettingsScreen({
           onPress={onToggleUseLocalTimezone}
           theme={theme}
           trailing={
-            <Text style={[styles.settingsValueText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.red }]}>
+            <Text
+              style={[
+                styles.settingsValueText,
+                {
+                  color: isModernTheme(theme)
+                    ? theme.colors.primary
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.primary
+                    : BRAND.red,
+                },
+              ]}
+            >
               {useLocalTimezone ? 'On' : 'Off'}
             </Text>
           }
@@ -9446,8 +10085,8 @@ function BottomNav({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
-  const isCleanSlate = isCleanSlateTheme(theme);
   const isModern = isModernTheme(theme);
+  const isCleanSlate = isCleanSlateTheme(theme) && !isModern;
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const homeItem = items.find((item) => item.key === 'home');
   const homeActive = homeItem?.active ?? false;
@@ -9489,6 +10128,25 @@ function BottomNav({
       style={[
         styles.bottomNav,
         isLightMode ? styles.bottomNavLight : null,
+        isModern
+          ? {
+              backgroundColor: withAlpha(theme.colors.primary, '0D'),
+              borderTopWidth: 2,
+              borderTopColor: withAlpha(theme.colors.primary, 'A8'),
+              borderLeftWidth: 1,
+              borderRightWidth: 1,
+              borderLeftColor: withAlpha(theme.colors.primary, '10'),
+              borderRightColor: withAlpha(theme.colors.primary, '10'),
+              paddingTop: 4,
+              paddingBottom: 7,
+              minHeight: 58,
+              shadowColor: withAlpha(theme.colors.primary, '10'),
+              shadowOpacity: 0.06,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: -2 },
+              elevation: 6,
+            }
+          : null,
         isCleanSlate
           ? {
               backgroundColor: theme.colors.surface,
@@ -9534,7 +10192,7 @@ function BottomNav({
                   <View
                       style={[
                         styles.asnTabWrap,
-                        active ? styles.asnTabWrapActive : null,
+                        active && !isModern ? styles.asnTabWrapActive : null,
                         isCleanSlate
                           ? {
                               width: 54,
@@ -9551,6 +10209,21 @@ function BottomNav({
                       style={[
                         styles.asnTabGlowWrap,
                         active ? styles.asnTabGlowWrapActive : null,
+                        isModern
+                          ? {
+                              width: 46,
+                              height: 46,
+                              borderRadius: 14,
+                              backgroundColor: withAlpha(theme.colors.primary, active ? '12' : '08'),
+                              borderWidth: 1,
+                              borderColor: withAlpha(theme.colors.primary, active ? '40' : '1E'),
+                              shadowColor: withAlpha(theme.colors.primary, '14'),
+                              shadowOpacity: active ? 0.08 : 0.025,
+                              shadowRadius: active ? 6 : 4,
+                              shadowOffset: { width: 0, height: 2 },
+                              elevation: active ? 2 : 0,
+                            }
+                          : null,
                         isCleanSlate
                           ? {
                               width: 46,
@@ -9566,7 +10239,7 @@ function BottomNav({
                               elevation: active ? 1 : 0,
                             }
                           : null,
-                        active && !isCleanSlate
+                        active && !isCleanSlate && !isModern
                           ? {
                               shadowColor: theme.colors.glow,
                               borderColor: theme.colors.glow,
@@ -9575,13 +10248,20 @@ function BottomNav({
                       ]}
                     >
                       {hasCenterLogo ? (
-                        <Image
-                          source={{ uri: centerLogoUrl }}
+                        <RemoteImage
+                          uri={centerLogoUrl}
                           style={[
                             styles.centerNavLogo,
-                            isCleanSlate ? { width: 69, height: 69 } : null,
+                            isModern
+                              ? { width: 58, height: 58 }
+                              : isCleanSlate
+                              ? { width: 69, height: 69 }
+                              : null,
                           ]}
-                          resizeMode="contain"
+                          contentFit="contain"
+                          mode="logo"
+                          label={item.label}
+                          theme={theme}
                         />
                       ) : (
                         <Ionicons
@@ -9601,6 +10281,14 @@ function BottomNav({
                 >
                   {item.label}
                 </Text>
+                {isModern && active ? (
+                  <View
+                    style={[
+                      styles.modernNavActiveIndicator,
+                      { backgroundColor: theme.colors.primary },
+                    ]}
+                  />
+                ) : null}
               </>
             ) : (
               <>
@@ -9628,13 +10316,24 @@ function BottomNav({
                 <Text
                   style={[
                     styles.bottomNavLabel,
-                    { color: active ? theme.colors.primary : theme.colors.mutedText },
+                    {
+                      color: active ? theme.colors.primary : theme.colors.mutedText,
+                      fontWeight: active && isModern ? '800' : '700',
+                    },
                   ]}
                 >
                   {isModern
                     ? getModernNavPlainLabel(item.iconKey || item.key, item.label)
                     : item.label}
                 </Text>
+                {isModern && active ? (
+                  <View
+                    style={[
+                      styles.modernNavActiveIndicator,
+                      { backgroundColor: theme.colors.primary },
+                    ]}
+                  />
+                ) : null}
               </>
             )}
           </Pressable>
@@ -9968,16 +10667,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     const [
       nextSchoolConfig,
       schoolAppConfig,
-      moduleConfig,
-      nextBottomNavItems,
-      nextHeroQuickActions,
-      nextThemeConfig,
-      nextPromotionCard,
-      nextLiveCoverageConfig,
-      nextAthleteOfWeek,
-      videosConfig,
-      sponsorConfig,
-      sportAppConfig,
+      appHomeData,
       sportsData,
       stories,
       scheduleEvents,
@@ -9985,16 +10675,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     ] = await Promise.all([
       getSchoolConfigById(resolvedSchoolId, schoolSlug),
       getSchoolAppConfigById(resolvedSchoolId),
-      getAppHomeModulesBySchoolId(resolvedSchoolId),
-      getAppBottomNavItemsBySchoolId(resolvedSchoolId),
-      getAppHeroQuickActionsBySchoolId(resolvedSchoolId),
-      getAppThemeConfigBySchoolId(resolvedSchoolId),
-      getPromotionCardBySchoolId(resolvedSchoolId),
-      getAppLiveCoverageConfigBySchoolId(resolvedSchoolId),
-      getAthleteOfTheWeekBySchoolId(resolvedSchoolId),
-      getAppVideosConfigBySchoolId(resolvedSchoolId),
-      getAppSponsorPlacementsBySchoolId(resolvedSchoolId),
-      getSportAppConfigBySchoolId(resolvedSchoolId),
+      getAppHomeDataBySchoolId(resolvedSchoolId),
       getSportsBySchoolId(resolvedSchoolId),
       getStoriesBySchoolId(resolvedSchoolId),
       getScheduleEventsBySchoolId(resolvedSchoolId),
@@ -10005,6 +10686,19 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         }))
       ),
     ]);
+
+    const {
+      homeModules: moduleConfig,
+      bottomNavItems: nextBottomNavItems,
+      heroQuickActions: nextHeroQuickActions,
+      themeConfig: nextThemeConfig,
+      promotionCard: nextPromotionCard,
+      liveCoverageConfig: nextLiveCoverageConfig,
+      athleteOfWeek: nextAthleteOfWeek,
+      videosConfig,
+      sponsorPlacements: sponsorConfig,
+      sportAppConfig,
+    } = appHomeData;
 
     console.log('[AOTW DEBUG][home-feed]', nextAthleteOfWeek);
 
@@ -10815,10 +11509,10 @@ const handleEnableNotifications = async () => {
             };
             break;
           case 'listen':
-            if (hasListenUrl) {
-              onPress = toggleAudio;
-            } else if (targetUrl) {
-              onPress = () => openEmbedded(label, targetUrl);
+            if (targetUrl || hasListenUrl) {
+              onPress = () => {
+                void toggleAudio(targetUrl || schoolConfig.listenUrl);
+              };
             }
             break;
           case 'watch':
@@ -10861,19 +11555,23 @@ const handleEnableNotifications = async () => {
     resolveSchoolScopedUrl,
     schoolConfig.listenUrl,
     schoolConfig.mainSiteUrl,
-    schoolConfig.watchUrl,
-    toggleAudio,
+      schoolConfig.watchUrl,
+      toggleAudio,
   ]);
 
+  const hasAppHeroQuickActions = heroQuickActions.length > 0;
+  const heroQuickActionsForRender = hasAppHeroQuickActions
+    ? heroQuickActionRenderItems
+    : [];
+
   useEffect(() => {
-    console.log('[Hero Quick Actions]', {
+    console.log('[Hero Quick Actions][App received]', {
       schoolSlug,
-      configuredCount: heroQuickActions.length,
-      configuredLabels: heroQuickActions.map((action) => action.label),
-      renderedCount: heroQuickActionRenderItems.length,
-      renderedLabels: heroQuickActionRenderItems.map((action) => action.label),
+      count: heroQuickActions.length,
+      labels: heroQuickActions.map((action) => action.label),
+      usingFallback: !hasAppHeroQuickActions,
     });
-  }, [heroQuickActionRenderItems, heroQuickActions, schoolSlug]);
+  }, [hasAppHeroQuickActions, heroQuickActions, schoolSlug]);
 
   const normalizeInternalBottomNavTarget = (value?: string) =>
     (value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -11069,9 +11767,11 @@ const handleEnableNotifications = async () => {
     setScreenMode('roster');
   };
 
-  const toggleAudio = async () => {
+  const toggleAudio = async (streamUrl?: string) => {
   try {
-    if (!hasListenUrl) {
+    const resolvedStreamUrl = resolveSchoolScopedUrl(streamUrl || schoolConfig.listenUrl);
+
+    if (!resolvedStreamUrl) {
       Alert.alert('Audio Unavailable', 'No live audio stream is configured.');
       return;
     }
@@ -11087,6 +11787,7 @@ const handleEnableNotifications = async () => {
     }
 
     setAudioPlayerVisible(true);
+    player.replace(resolvedStreamUrl);
 
     if (Platform.OS === 'android') {
       player.setActiveForLockScreen(true, {
@@ -11332,8 +12033,8 @@ if (showPreroll && prerollConfig) {
             videoItems={videoItems}
             galleryItems={galleryItems}
             homeSports={homeSports}
-            heroQuickActions={heroQuickActionRenderItems}
-            hasConfiguredHeroQuickActions={heroQuickActions.length > 0}
+            heroQuickActions={heroQuickActionsForRender}
+            hasConfiguredHeroQuickActions={hasAppHeroQuickActions}
             scheduleAvailable={eventsLoading || allEvents.length > 0}
             theme={resolvedTheme}
           />
@@ -11763,6 +12464,16 @@ splashSponsorLogo: {
     paddingRight: 4,
   },
 
+  modernCardAccentBar: {
+    position: 'absolute',
+    top: 0,
+    left: 14,
+    right: 14,
+    height: 3,
+    borderBottomLeftRadius: 999,
+    borderBottomRightRadius: 999,
+  },
+
   topIconWrap: {
     flex: 1,
     alignItems: 'center',
@@ -11781,6 +12492,16 @@ splashSponsorLogo: {
   },
 
   topIconWrapTriple: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  topIconWrapQuad: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  topIconWrapFive: {
     flex: 1,
     minWidth: 0,
   },
@@ -12918,6 +13639,19 @@ heroStatusText: {
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
+  },
+
+  remoteImageFallback: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+
+  remoteImageFallbackInitials: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
 
   newsCardBody: {
@@ -14797,6 +15531,13 @@ resultScore: {
     fontSize: 11,
     fontWeight: '700',
     marginTop: -1,
+  },
+
+  modernNavActiveIndicator: {
+    width: 16,
+    height: 3,
+    borderRadius: 999,
+    marginTop: 4,
   },
 
   webSafe: {

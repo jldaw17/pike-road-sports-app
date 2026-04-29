@@ -125,6 +125,19 @@ export type AthleticOSHeroQuickAction = {
   displayOrder: number;
 };
 
+export type AthleticOSAppHomeData = {
+  homeModules: AthleticOSAppHomeModule[];
+  bottomNavItems: AthleticOSBottomNavItem[];
+  heroQuickActions: AthleticOSHeroQuickAction[];
+  themeConfig: AthleticOSAppThemeConfig | null;
+  promotionCard: AthleticOSPromotionCard | null;
+  liveCoverageConfig: AthleticOSAppLiveCoverageConfig | null;
+  athleteOfWeek: AthleticOSAthleteOfTheWeek | null;
+  videosConfig: AthleticOSAppVideosConfig | null;
+  sponsorPlacements: AthleticOSAppSponsorPlacement[];
+  sportAppConfig: AthleticOSSportAppConfig[];
+};
+
 export type AthleticOSAppTeamNavItem = {
   id?: string | number;
   school_id?: string | number;
@@ -1124,25 +1137,37 @@ export async function getAppHeroQuickActionsBySchoolId(
 
     const { data, error } = await supabase
       .from('app_hero_quick_actions')
-      .select('*')
+      .select(
+        'id, school_id, enabled, label, icon_key, action_type, target_value, sport_id, display_order'
+      )
       .eq('school_id', schoolId)
       .order('display_order', { ascending: true })
-      .order('sort_order', { ascending: true })
       .order('id', { ascending: true });
 
     if (error) {
       throw error;
     }
 
-    return ((data ?? []) as AthleticOSAppHeroQuickAction[])
+    const rawRows = (data ?? []) as AthleticOSAppHeroQuickAction[];
+
+    console.log('[Hero Quick Actions][raw rows]', {
+      schoolId: String(schoolId),
+      rawCount: rawRows.length,
+      rawLabels: rawRows.map((item) =>
+        typeof item.label === 'string' ? item.label.trim() : ''
+      ),
+      rawRows,
+    });
+
+    return rawRows
+      .filter((row) => row.enabled !== false)
       .map((item) => {
         const id =
           item.id === undefined || item.id === null ? '' : String(item.id).trim();
         const label = pickFirstString(item, ['label']) ?? '';
-        const enabled =
-          pickFirstBoolean(item, ['enabled', 'is_enabled', 'is_active', 'active']) ?? true;
+        const enabled = item.enabled !== false;
 
-        if (!id || !label.trim() || !enabled) {
+        if (!id || !label.trim()) {
           return null;
         }
 
@@ -1158,11 +1183,12 @@ export async function getAppHeroQuickActionsBySchoolId(
               ? ''
               : String(item.sport_id).trim(),
           displayOrder:
-            pickFirstNumber(item, ['display_order', 'sort_order']) ?? 0,
+            pickFirstNumber(item, ['display_order']) ?? 0,
         } satisfies AthleticOSHeroQuickAction;
       })
       .filter(Boolean)
-      .sort((a, b) => a.displayOrder - b.displayOrder) as AthleticOSHeroQuickAction[];
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .slice(0, 5) as AthleticOSHeroQuickAction[];
   } catch (error) {
     if (isMissingAppOSRelationError(error)) {
       return [];
@@ -1170,6 +1196,53 @@ export async function getAppHeroQuickActionsBySchoolId(
 
     throw error;
   }
+}
+
+export async function getAppHomeDataBySchoolId(
+  schoolId: string | number
+): Promise<AthleticOSAppHomeData> {
+  const [
+    homeModules,
+    bottomNavItems,
+    heroQuickActions,
+    themeConfig,
+    promotionCard,
+    liveCoverageConfig,
+    athleteOfWeek,
+    videosConfig,
+    sponsorPlacements,
+    sportAppConfig,
+  ] = await Promise.all([
+    getAppHomeModulesBySchoolId(schoolId),
+    getAppBottomNavItemsBySchoolId(schoolId),
+    getAppHeroQuickActionsBySchoolId(schoolId),
+    getAppThemeConfigBySchoolId(schoolId),
+    getPromotionCardBySchoolId(schoolId),
+    getAppLiveCoverageConfigBySchoolId(schoolId),
+    getAthleteOfTheWeekBySchoolId(schoolId),
+    getAppVideosConfigBySchoolId(schoolId),
+    getAppSponsorPlacementsBySchoolId(schoolId),
+    getSportAppConfigBySchoolId(schoolId),
+  ]);
+
+  console.log('[Hero Quick Actions][lib return]', {
+    schoolId: String(schoolId),
+    count: heroQuickActions.length,
+    labels: heroQuickActions.map((action) => action.label),
+  });
+
+  return {
+    homeModules,
+    bottomNavItems,
+    heroQuickActions,
+    themeConfig,
+    promotionCard,
+    liveCoverageConfig,
+    athleteOfWeek,
+    videosConfig,
+    sponsorPlacements,
+    sportAppConfig,
+  };
 }
 
 export async function getAppThemeConfigBySchoolId(schoolId: string | number) {
