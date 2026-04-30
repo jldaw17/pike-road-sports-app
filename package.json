@@ -8,6 +8,7 @@
     "start:athleticos": "APP_VARIANT=athleticos EXPO_PUBLIC_SCHOOL_SLUG=athleticos npx expo start --clear",
     "start:recruitos": "APP_VARIANT=recruitos EXPO_PUBLIC_SCHOOL_SLUG=recruitos npx expo start --clear",
     "start:pellcity": "APP_VARIANT=pellcity EXPO_PUBLIC_SCHOOL_SLUG=pellcity npx expo start --clear",
+    "start:gamedayos": "APP_VARIANT=gamedayos EXPO_PUBLIC_SCHOOL_SLUG=gamedayos npx expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

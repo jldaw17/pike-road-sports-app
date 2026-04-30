@@ -41,6 +41,14 @@ const VARIANT_CONFIGS = {
     iosBundleIdentifier: 'com.athleticos.recruitos',
     icon: './assets/icons/recruitos-app-icon.png',
   },
+  gamedayos: {
+    schoolSlug: 'gamedayos',
+    name: 'GamedayOS',
+    slug: 'gamedayos-app',
+    scheme: 'gamedayos',
+    iosBundleIdentifier: 'com.athleticos.gamedayos',
+    icon: './assets/images/icon.png',
+  },
 };
 
 function isLocalDevelopment() {
@@ -59,7 +67,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos.'
   );
 }
 
