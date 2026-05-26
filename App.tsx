@@ -230,6 +230,8 @@ function getModernDisplayLabel(label: string, fallback?: string) {
       return '🔥 Stories';
     case 'videos':
       return '📹 Videos';
+    case 'recent results':
+      return '🏁 Recent Results';
     case 'upcoming games':
       return '📅 Upcoming Games';
     case 'live coverage':
@@ -4470,6 +4472,49 @@ function PromotionCard({
   const sponsorLogo = sponsorPlacement?.sponsor_logo_url?.trim() || '';
   const sponsorName = sponsorPlacement?.sponsor_name?.trim() || '';
   const hasPromotionSponsor = Boolean(sponsorLogo);
+  const cleanPromotionSponsorBug = hasPromotionSponsor && isCleanSlateTheme(theme) ? (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.promotionSponsorBugWrap,
+        isModernTheme(theme)
+          ? {
+              top: 10,
+              right: 10,
+            }
+          : {
+              top: 10,
+              right: 10,
+            },
+      ]}
+    >
+      <View
+        style={[
+          styles.promotionSponsorBugPlate,
+          isModernTheme(theme)
+            ? {
+                backgroundColor: 'rgba(255,255,255,0.94)',
+                borderColor: withAlpha(theme.colors.primary, '18'),
+                borderRadius: 12,
+              }
+            : {
+                backgroundColor: 'rgba(255,255,255,0.96)',
+                borderColor: theme.colors.border,
+                borderRadius: 5,
+              },
+        ]}
+      >
+        <RemoteImage
+          uri={sponsorLogo}
+          style={styles.promotionSponsorBugLogo}
+          contentFit="contain"
+          mode="sponsor"
+          label={sponsorName}
+          theme={theme}
+        />
+      </View>
+    </View>
+  ) : null;
   const promotionSponsorBadge = hasPromotionSponsor ? (
     <Pressable
       disabled={!onSponsorPress}
@@ -4519,27 +4564,30 @@ function PromotionCard({
   if (isCleanSlateTheme(theme)) {
     const cleanBody = (
       <>
-        {promotion.image_url ? (
-          <RemoteImage
-            uri={promotion.image_url}
-            style={{
-              width: '100%',
-              aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
-            }}
-            contentFit="cover"
-            mode="content"
-            label={promotion.title?.trim() || 'Promotion'}
-            theme={theme}
-          />
-        ) : (
-          <View
-            style={{
-              width: '100%',
-              aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
-              backgroundColor: theme.colors.cardAlt,
-            }}
-          />
-        )}
+        <View style={styles.promotionHeroMediaWrap}>
+          {promotion.image_url ? (
+            <RemoteImage
+              uri={promotion.image_url}
+              style={{
+                width: '100%',
+                aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+              }}
+              contentFit="cover"
+              mode="content"
+              label={promotion.title?.trim() || 'Promotion'}
+              theme={theme}
+            />
+          ) : (
+            <View
+              style={{
+                width: '100%',
+                aspectRatio: MEDIA_FEATURE_ASPECT_RATIO,
+                backgroundColor: theme.colors.cardAlt,
+              }}
+            />
+          )}
+          {cleanPromotionSponsorBug}
+        </View>
 
         <View style={{ paddingHorizontal: 16, paddingTop: 11, paddingBottom: 12 }}>
           <View
@@ -4592,9 +4640,6 @@ function PromotionCard({
               </Text>
               <Ionicons name="chevron-forward" size={16} color={theme.colors.buttonText} />
             </View>
-          ) : null}
-          {promotionSponsorBadge ? (
-            <View style={[styles.promotionSponsorWrap, { marginTop: 10 }]}>{promotionSponsorBadge}</View>
           ) : null}
         </View>
       </>
@@ -16893,6 +16938,30 @@ splashSponsorLogo: {
   promotionSponsorLogo: {
     width: 92,
     height: 32,
+  },
+
+  promotionHeroMediaWrap: {
+    position: 'relative',
+    width: '100%',
+  },
+
+  promotionSponsorBugWrap: {
+    position: 'absolute',
+  },
+
+  promotionSponsorBugPlate: {
+    minWidth: 84,
+    minHeight: 32,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  promotionSponsorBugLogo: {
+    width: 82,
+    height: 22,
   },
 
   athleteOfWeekCard: {
