@@ -56,6 +56,7 @@ const VARIANT_CONFIGS = {
     scheme: 'sylacaugaathletics',
     iosBundleIdentifier: 'com.athleticos.sylacauga',
     icon: './assets/images/icon.png',
+    easProjectId: '8673888c-85fd-46b5-adae-d1c603e9acbd',
   },
 };
 

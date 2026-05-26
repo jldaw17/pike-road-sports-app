@@ -21,6 +21,20 @@ export type PushRegistrationResult = {
   status: PushRegistrationStatus;
 };
 
+function maskPushToken(token: string) {
+  const trimmed = token.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.length <= 16) {
+    return `${trimmed.slice(0, 4)}…${trimmed.slice(-4)}`;
+  }
+
+  return `${trimmed.slice(0, 8)}…${trimmed.slice(-8)}`;
+}
+
 function isValidExpoPushToken(token: string) {
   return (
     token.startsWith('ExponentPushToken[') ||
@@ -33,6 +47,7 @@ export async function getPushPermissionStatus() {
     const settings = await Notifications.getPermissionsAsync();
     const status = settings.granted ? 'granted' : settings.status;
     console.log('[PushOS] permission status:', status);
+    console.log('PUSH_PERMISSION_STATUS', status);
     return status;
   } catch (error) {
     console.log('[PushOS] error', error);
@@ -46,6 +61,7 @@ export async function registerForPushNotifications(
   try {
     console.log('[PushOS] START');
     console.log('[PushOS] schoolSlug', schoolSlug || '(missing)');
+    console.log('PUSH_TOKEN_REGISTER_ATTEMPT', true);
 
     if (!schoolSlug?.trim()) {
       return {
@@ -83,6 +99,8 @@ export async function registerForPushNotifications(
 
     console.log('[PushOS] resolved schoolSlug', finalSchoolSlug || '(missing)');
     console.log('[PushOS] projectId', projectId || '(missing)');
+    console.log('PUSH_SCHOOL_SLUG', finalSchoolSlug || '(missing)');
+    console.log('PUSH_PROJECT_ID', projectId || '(missing)');
 
     if (!projectId) {
       console.log('[PushOS] error', 'missing projectId');
@@ -97,7 +115,7 @@ export async function registerForPushNotifications(
     );
     const expoPushToken = tokenResponse.data?.trim() ?? '';
 
-    console.log('[PushOS] token', expoPushToken || '(missing)');
+    console.log('[PushOS] token', maskPushToken(expoPushToken) || '(missing)');
 
     if (!finalSchoolSlug || !expoPushToken || !isValidExpoPushToken(expoPushToken)) {
       return {
@@ -123,6 +141,8 @@ export async function registerForPushNotifications(
 
     if (error) {
       console.log('[PushOS] error', error.message ?? error);
+      console.log('PUSH_TOKEN_SAVE_ERROR', error.message ?? String(error));
+      console.log('PUSH_TOKEN_SAVE_RESULT', 'save_failed');
       return {
         token: expoPushToken,
         status: 'save_failed',
@@ -130,12 +150,18 @@ export async function registerForPushNotifications(
     }
 
     console.log('[PushOS] saved', expoPushToken);
+    console.log('PUSH_TOKEN_SAVE_RESULT', {
+      status: 'saved',
+      schoolSlug: finalSchoolSlug,
+      token: maskPushToken(expoPushToken),
+    });
     return {
       token: expoPushToken,
       status: 'saved',
     };
   } catch (error) {
     console.log('[PushOS] error', error);
+    console.log('PUSH_TOKEN_SAVE_ERROR', String(error));
     return {
       token: '',
       status: 'error',

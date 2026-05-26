@@ -53,6 +53,7 @@ export function usePushNotifications(schoolSlug?: string) {
     }
 
     console.log('[PushOS] START');
+    console.log('PUSH_SCHOOL_SLUG', schoolSlug.trim().toLowerCase());
     isRegisteringRef.current = true;
 
     try {
@@ -64,6 +65,7 @@ export function usePushNotifications(schoolSlug?: string) {
       }
       const result = await registerForPushNotifications(schoolSlug);
       console.log('[PushOS] result:', result.status);
+      console.log('PUSH_TOKEN_SAVE_RESULT', result.status);
 
       if (result.status === 'denied') {
         setIsEnabled(false);

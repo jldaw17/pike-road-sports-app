@@ -46,7 +46,8 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "sylacauga",
-        "EXPO_PUBLIC_SCHOOL_SLUG": "sylacauga"
+        "EXPO_PUBLIC_SCHOOL_SLUG": "sylacauga",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "8673888c-85fd-46b5-adae-d1c603e9acbd"
       }
     }
   },
