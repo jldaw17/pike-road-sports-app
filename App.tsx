@@ -132,12 +132,104 @@ function isGradientEliteTheme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'gradient_elite';
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeStoryCropValue(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return null;
+  }
+
+  return clamp(value, 0, 1);
+}
+
+function hasStoryImageCrop(item?: {
+  cropWidth?: number | null;
+  cropHeight?: number | null;
+} | null) {
+  return Boolean(
+    item &&
+      typeof item.cropWidth === 'number' &&
+      typeof item.cropHeight === 'number' &&
+      item.cropWidth > 0 &&
+      item.cropWidth <= 1 &&
+      item.cropHeight > 0 &&
+      item.cropHeight <= 1
+  );
+}
+
+function getStoryCropBaseRect(item?: {
+  cropWidth?: number | null;
+  cropHeight?: number | null;
+} | null) {
+  const cropWidth = normalizeStoryCropValue(item?.cropWidth);
+  const cropHeight = normalizeStoryCropValue(item?.cropHeight);
+
+  if (!cropWidth || !cropHeight) {
+    return {
+      width: 1,
+      height: 1,
+    };
+  }
+
+  const ratio = cropWidth / cropHeight;
+
+  if (ratio <= 1) {
+    return {
+      width: clamp(ratio, 0, 1),
+      height: 1,
+    };
+  }
+
+  return {
+    width: 1,
+    height: clamp(1 / ratio, 0, 1),
+  };
+}
+
+function getStoryCropPresentation(item?: {
+  cropX?: number | null;
+  cropY?: number | null;
+  cropWidth?: number | null;
+  cropHeight?: number | null;
+} | null) {
+  if (!hasStoryImageCrop(item)) {
+    return null;
+  }
+
+  const cropX = normalizeStoryCropValue(item?.cropX) ?? 0;
+  const cropY = normalizeStoryCropValue(item?.cropY) ?? 0;
+  const cropWidth = normalizeStoryCropValue(item?.cropWidth) ?? 1;
+  const cropHeight = normalizeStoryCropValue(item?.cropHeight) ?? 1;
+  const centerX = clamp(cropX + cropWidth / 2, 0, 1);
+  const centerY = clamp(cropY + cropHeight / 2, 0, 1);
+  const baseRect = getStoryCropBaseRect(item);
+  const scaleFromWidth = baseRect.width / cropWidth;
+  const scaleFromHeight = baseRect.height / cropHeight;
+  const scale = clamp(Math.max(scaleFromWidth, scaleFromHeight), 1, 6);
+
+  return {
+    contentPosition: {
+      left: `${(centerX * 100).toFixed(2)}%`,
+      top: `${(centerY * 100).toFixed(2)}%`,
+    } as const,
+    scale,
+  };
+}
+
 function getModernDisplayLabel(label: string, fallback?: string) {
   const normalized = (label || fallback || '').trim();
 
   switch (normalized.toLowerCase()) {
+    case 'athlete of the week':
+      return '🧑‍🦱🏅 👩‍🦱🏅 Athlete of the Week';
     case 'headlines':
       return '📰 Headlines';
+    case 'stories':
+      return '🔥 Stories';
+    case 'videos':
+      return '📹 Videos';
     case 'upcoming games':
       return '📅 Upcoming Games';
     case 'live coverage':
@@ -261,8 +353,16 @@ function getModernHeroActionEmoji(
   }
 
   if (
-    normalizedLabel.includes('watch') ||
+    normalizedLabel.includes('live') ||
+    normalizedLabel.includes('stream') ||
     icon === 'videocam-outline' ||
+    icon === 'videocam'
+  ) {
+    return '📹';
+  }
+
+  if (
+    normalizedLabel.includes('watch') ||
     icon === 'play-circle-outline' ||
     icon === 'play'
   ) {
@@ -1278,6 +1378,9 @@ type MediaScreenAction = {
   title: string;
   subtitle: string;
   onPress: () => void;
+  sponsorName?: string;
+  sponsorLogoUrl?: string;
+  sponsorLinkUrl?: string;
 };
 
 type SportType = {
@@ -1297,6 +1400,12 @@ type NewsItem = {
   sportLabel?: string | null;
   sportName?: string;
   image?: string;
+  featuredImageUrl?: string;
+  imageUrl?: string;
+  cropX?: number;
+  cropY?: number;
+  cropWidth?: number;
+  cropHeight?: number;
   rawDate?: string;
 };
 
@@ -1821,6 +1930,67 @@ function safeDate(raw?: string) {
   return null;
 }
 
+function parseScheduleDateValue(raw?: string) {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const direct = safeDate(trimmed);
+  if (direct) {
+    return direct;
+  }
+
+  const match = trimmed.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[ T]+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?$/i
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const [, yearText, monthText, dayText, hourText, minuteText, meridiemText] = match;
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const day = Number(dayText);
+
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  let hour = hourText ? Number(hourText) : 0;
+  const minute = minuteText ? Number(minuteText) : 0;
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return null;
+  }
+
+  const meridiem = (meridiemText ?? '').toLowerCase();
+  if (meridiem === 'pm' && hour < 12) {
+    hour += 12;
+  } else if (meridiem === 'am' && hour === 12) {
+    hour = 0;
+  }
+
+  const parsed = new Date(year, monthIndex, day, hour, minute, 0, 0);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getScheduleItemSortDate(item: Pick<EventItem, 'eventDateTime' | 'startDateTime' | 'rawDate' | 'eventDate'>) {
+  return (
+    parseScheduleDateValue(item.eventDateTime) ||
+    parseScheduleDateValue(item.startDateTime) ||
+    parseScheduleDateValue(item.rawDate) ||
+    parseScheduleDateValue(item.eventDate)
+  );
+}
+
+function getScheduleItemSortTimestamp(
+  item: Pick<EventItem, 'eventDateTime' | 'startDateTime' | 'rawDate' | 'eventDate'>
+) {
+  return getScheduleItemSortDate(item)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+}
+
 function hasExplicitTime(raw?: string) {
   if (!raw) return false;
 
@@ -1977,7 +2147,7 @@ function filterRecentResultEvents(events: EventItem[]) {
 
   return events
     .filter((event) => {
-      const eventDate = safeDate(event.rawDate);
+      const eventDate = getScheduleItemSortDate(event);
       if (!eventDate) return false;
 
       if (eventDate < sevenDaysAgo || eventDate > now) return false;
@@ -1995,8 +2165,8 @@ function filterRecentResultEvents(events: EventItem[]) {
       return hasResult;
     })
     .sort((a, b) => {
-      const aTime = safeDate(a.rawDate)?.getTime() ?? 0;
-      const bTime = safeDate(b.rawDate)?.getTime() ?? 0;
+      const aTime = getScheduleItemSortTimestamp(a);
+      const bTime = getScheduleItemSortTimestamp(b);
       return bTime - aTime;
     })
     .slice(0, 10);
@@ -2012,7 +2182,7 @@ function filterUpcomingWeekEvents(events: EventItem[]) {
 
   return events
     .filter((event) => {
-      const eventDate = safeDate(event.rawDate);
+      const eventDate = getScheduleItemSortDate(event);
       if (!eventDate) return false;
       if (eventDate < todayStart || eventDate > tenDaysOut) return false;
       return (
@@ -2022,8 +2192,8 @@ function filterUpcomingWeekEvents(events: EventItem[]) {
       );
     })
     .sort((a, b) => {
-      const aTime = safeDate(a.rawDate)?.getTime() ?? 0;
-      const bTime = safeDate(b.rawDate)?.getTime() ?? 0;
+      const aTime = getScheduleItemSortTimestamp(a);
+      const bTime = getScheduleItemSortTimestamp(b);
       return aTime - bTime;
     });
 }
@@ -2034,7 +2204,7 @@ function filterNextFourGames(events: EventItem[]) {
 
   return events
     .filter((event) => {
-      const eventDate = safeDate(event.rawDate);
+      const eventDate = getScheduleItemSortDate(event);
       if (!eventDate) return false;
 
       const hasResult = /\b(W|L),\s*\d+-\d+/i.test(event.title);
@@ -2043,8 +2213,8 @@ function filterNextFourGames(events: EventItem[]) {
       return eventDate >= todayStart;
     })
     .sort((a, b) => {
-      const aTime = safeDate(a.rawDate)?.getTime() ?? 0;
-      const bTime = safeDate(b.rawDate)?.getTime() ?? 0;
+      const aTime = getScheduleItemSortTimestamp(a);
+      const bTime = getScheduleItemSortTimestamp(b);
       return aTime - bTime;
     })
     .slice(0, 4);
@@ -2228,7 +2398,7 @@ function normalizeScheduleItem(item: EventItem) {
     item.rawDate ||
     item.eventDate?.trim() ||
     '';
-  const parsed = safeDate(eventDateTime || item.eventDate);
+  const parsed = getScheduleItemSortDate(item);
   const explicitTimeText = item.eventTimeText?.trim() || '';
   const derivedHasTime = hasExplicitTime(eventDateTime);
   const hasTime = Boolean(explicitTimeText) || derivedHasTime;
@@ -3545,6 +3715,53 @@ function StoryDetailScreen({
   const articleText = body || summary;
   const sportName = item.sportLabel?.trim() || 'Athletics';
   const isGameday = isGamedayTheme(theme);
+  const isGradientElite = isGradientEliteTheme(theme);
+  const storyCropPresentation = getStoryCropPresentation(item);
+  const shouldUseStoryCrop = Boolean(item.featuredImageUrl?.trim() && storyCropPresentation);
+  const resolvedStoryImageSource = shouldUseStoryCrop
+    ? 'featured_image_url_crop'
+    : item.featuredImageUrl?.trim()
+    ? 'featured_image_url'
+    : item.imageUrl?.trim()
+    ? 'image_url'
+    : item.image?.trim()
+    ? 'mapped_image'
+    : 'none';
+  const resolvedStoryImage =
+    item.featuredImageUrl?.trim() ||
+    item.imageUrl?.trim() ||
+    item.image?.trim() ||
+    '';
+
+  useEffect(() => {
+    console.log('STORY_DETAIL_IS_GRADIENT_ELITE', isGradientElite);
+    console.log('STORY_DETAIL_IMAGE_FIELDS', {
+      hasFeaturedImageUrl: Boolean(item.featuredImageUrl?.trim()),
+      hasImageUrl: Boolean(item.imageUrl?.trim()),
+      hasMappedImage: Boolean(item.image?.trim()),
+      hasCropX: typeof item.cropX === 'number',
+      hasCropY: typeof item.cropY === 'number',
+      hasCropWidth: typeof item.cropWidth === 'number',
+      hasCropHeight: typeof item.cropHeight === 'number',
+      hasCompleteCrop: shouldUseStoryCrop,
+    });
+    console.log('STORY_DETAIL_RESOLVED_IMAGE_SOURCE', {
+      source: resolvedStoryImageSource,
+      hasImage: Boolean(resolvedStoryImage),
+    });
+  }, [
+    isGradientElite,
+    item.featuredImageUrl,
+    item.image,
+    item.imageUrl,
+    item.cropHeight,
+    item.cropWidth,
+    item.cropX,
+    item.cropY,
+    resolvedStoryImage,
+    resolvedStoryImageSource,
+    shouldUseStoryCrop,
+  ]);
 
   return (
     <ScrollView
@@ -3555,6 +3772,8 @@ function StoryDetailScreen({
             ? theme.colors.primary
             : isPower5Theme(theme)
             ? '#000000'
+            : isGradientElite
+            ? getThemeBaseBackgroundColor(theme)
             : theme.colors.background,
         },
       ]}
@@ -3565,6 +3784,8 @@ function StoryDetailScreen({
             ? theme.colors.primary
             : isPower5Theme(theme)
             ? '#000000'
+            : isGradientElite
+            ? getThemeBaseBackgroundColor(theme)
             : theme.colors.background,
         },
       ]}
@@ -3572,11 +3793,24 @@ function StoryDetailScreen({
       {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
-        style={[styles.storyDetailHero, getThemeHeroShellStyle(theme)]}
+        style={[
+          styles.storyDetailHero,
+          getThemeHeroShellStyle(theme),
+          isGradientElite
+            ? {
+                paddingTop: 12,
+                paddingBottom: 18,
+                paddingHorizontal: 18,
+                borderBottomLeftRadius: 20,
+                borderBottomRightRadius: 20,
+              }
+            : null,
+        ]}
       >
         <Pressable
           style={[
             styles.storyDetailBackButton,
+            isGradientElite ? { marginBottom: 16, paddingVertical: 7 } : null,
             isCleanSlateTheme(theme)
               ? {
                   backgroundColor: theme.colors.cardAlt,
@@ -3601,11 +3835,17 @@ function StoryDetailScreen({
           </Text>
         </Pressable>
 
-        <View style={styles.storyDetailHeroContent}>
+        <View
+          style={[
+            styles.storyDetailHeroContent,
+            isGradientElite ? { maxWidth: '92%' } : null,
+          ]}
+        >
           {sportName ? (
             <Text
               style={[
                 styles.storyDetailKicker,
+                isGradientElite ? { marginBottom: 5 } : null,
                 { color: isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.lightGray },
               ]}
             >
@@ -3616,6 +3856,7 @@ function StoryDetailScreen({
             <Text
               style={[
                 styles.storyDetailDate,
+                isGradientElite ? { marginBottom: 2 } : null,
                 { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.8)' },
               ]}
             >
@@ -3625,6 +3866,9 @@ function StoryDetailScreen({
           <Text
             style={[
               styles.storyDetailTitle,
+              isGradientElite
+                ? { fontSize: 29, lineHeight: 34, marginTop: 6 }
+                : null,
               { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
             ]}
           >
@@ -3633,15 +3877,32 @@ function StoryDetailScreen({
         </View>
       </LinearGradient>
 
-      {item.image ? (
-        <RemoteImage
-          uri={item.image}
-          style={styles.storyDetailImage}
-          contentFit="cover"
-          mode="story"
-          label={item.title}
-          theme={theme}
-        />
+      {resolvedStoryImage ? (
+        shouldUseStoryCrop && storyCropPresentation ? (
+          <View style={styles.storyDetailImageCropFrame}>
+            <ExpoImage
+              source={{ uri: resolvedStoryImage }}
+              style={[
+                StyleSheet.absoluteFillObject,
+                { transform: [{ scale: storyCropPresentation.scale }] },
+              ]}
+              contentFit="cover"
+              contentPosition={storyCropPresentation.contentPosition}
+              accessibilityLabel={item.title}
+              cachePolicy="memory-disk"
+              transition={180}
+            />
+          </View>
+        ) : (
+          <RemoteImage
+            uri={resolvedStoryImage}
+            style={styles.storyDetailImage}
+            contentFit="cover"
+            mode="story"
+            label={item.title}
+            theme={theme}
+          />
+        )
       ) : null}
 
       {articleText ? (
@@ -4612,6 +4873,8 @@ function AthleteOfWeekCard({
       hasResolvedUrl(sponsorPlacement.sponsor_link_url)
   );
   const usingHeadshotFallback = !item.featuredImageUrl && Boolean(item.headshotUrl);
+  const sponsorAvailable = Boolean(sponsorLogo || sponsorName);
+  const awardLine = item.awardWeekLabel?.trim() || item.opponent?.trim() || null;
 
   useEffect(() => {
     console.log('[AOTW DEBUG][card]', {
@@ -4624,9 +4887,210 @@ function AthleteOfWeekCard({
     });
   }, [item]);
 
+  if (isModernTheme(theme)) {
+    const sponsorBadge =
+      sponsorAvailable ? (
+        <Pressable
+          disabled={!sponsorHasLink || !onSponsorPress}
+          onPress={onSponsorPress}
+          style={[
+            styles.aotwSponsorBadge,
+            {
+              backgroundColor: withAlpha(theme.colors.primary, '08'),
+              borderColor: withAlpha(theme.colors.primary, '22'),
+              borderRadius: 12,
+              maxWidth: '58%',
+            },
+          ]}
+        >
+          <Text style={[styles.aotwSponsorLabel, { color: theme.colors.primary }]}>
+            Presented by
+          </Text>
+          {sponsorLogo ? (
+            <RemoteImage
+              uri={sponsorLogo}
+              style={styles.aotwSponsorLogo}
+              contentFit="contain"
+              mode="sponsor"
+              label={sponsorName}
+              theme={theme}
+            />
+          ) : null}
+          {sponsorName ? (
+            <Text
+              style={[styles.aotwSponsorName, { color: theme.colors.text }]}
+              numberOfLines={1}
+            >
+              {sponsorName}
+            </Text>
+          ) : null}
+        </Pressable>
+      ) : null;
+
+    const cardBody = (
+      <>
+        <View
+          style={[
+            styles.aotwHeroMediaWrap,
+            { backgroundColor: theme.colors.cardAlt, aspectRatio: 1.7 },
+          ]}
+        >
+          <View
+            style={[
+              styles.modernCardAccentBar,
+              { backgroundColor: withAlpha(theme.colors.primary, 'CC') },
+            ]}
+          />
+          {imageUrl ? (
+            <View style={styles.aotwHeroMedia}>
+              <RemoteImage
+                uri={imageUrl}
+                style={styles.aotwHeroMedia}
+                contentFit={usingHeadshotFallback ? 'contain' : 'cover'}
+                mode="athlete"
+                label={item.athleteName}
+                theme={theme}
+              />
+              <LinearGradient
+                colors={['rgba(255,255,255,0.02)', 'rgba(0,0,0,0.58)']}
+                style={styles.aotwHeroOverlay}
+              />
+            </View>
+          ) : null}
+          <View style={styles.aotwHeroTopRow}>
+            <View
+              style={[
+                styles.promotionPill,
+                getThemeEditorialPillStyle(theme),
+                { marginBottom: 0 },
+              ]}
+            >
+              <Text style={[styles.promotionPillText, { color: BRAND.white, opacity: 1 }]}>
+                Athlete of the Week
+              </Text>
+            </View>
+            {sponsorBadge}
+          </View>
+          <View style={styles.aotwHeroTextWrap}>
+            {item.sportName?.trim() ? (
+              <Text style={[styles.aotwHeroKicker, { color: 'rgba(255,255,255,0.84)' }]} numberOfLines={1}>
+                {item.sportName.trim()}
+              </Text>
+            ) : null}
+            {item.athleteName ? (
+              <Text style={[styles.aotwHeroName, { color: BRAND.white }]} numberOfLines={2}>
+                {item.athleteName}
+              </Text>
+            ) : null}
+            {athleteMetaLine ? (
+              <Text style={[styles.aotwHeroMeta, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={1}>
+                {athleteMetaLine}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={[styles.aotwBodyWrap, { paddingTop: 12, paddingBottom: 14 }]}>
+          {item.athleteName ? (
+            <Text
+              style={[
+                styles.athleteOfWeekName,
+                {
+                  color: theme.colors.text,
+                  fontSize: 15,
+                  lineHeight: 18,
+                  marginBottom: 0,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {item.athleteName}
+            </Text>
+          ) : null}
+          {athleteSecondaryLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekSubtitle,
+                { color: theme.colors.mutedText, marginTop: 4 },
+              ]}
+              numberOfLines={1}
+            >
+              {athleteSecondaryLine}
+            </Text>
+          ) : null}
+          {awardLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekTitle,
+                {
+                  color: theme.colors.text,
+                  fontSize: 22,
+                  lineHeight: 28,
+                  marginTop: item.athleteName || athleteSecondaryLine ? 8 : 0,
+                },
+              ]}
+              numberOfLines={2}
+            >
+              {awardLine}
+            </Text>
+          ) : null}
+          {subtitle ? (
+            <Text
+              style={[
+                styles.athleteOfWeekSubtitle,
+                { color: theme.colors.mutedText, marginTop: awardLine ? 8 : 0 },
+              ]}
+              numberOfLines={3}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+          {statsLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekStats,
+                { color: theme.colors.mutedText, marginTop: subtitle || awardLine ? 8 : 0 },
+              ]}
+              numberOfLines={2}
+            >
+              {statsLine}
+            </Text>
+          ) : null}
+        </View>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <Pressable
+          style={[
+            styles.athleteOfWeekCard,
+            getThemeSurfaceCardStyle(theme),
+            { minHeight: 0, borderRadius: 14 },
+          ]}
+          onPress={onPress}
+        >
+          {cardBody}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.athleteOfWeekCard,
+          getThemeSurfaceCardStyle(theme),
+          { minHeight: 0, borderRadius: 14 },
+        ]}
+      >
+        {cardBody}
+      </View>
+    );
+  }
+
   if (isCleanSlateTheme(theme)) {
     const sponsorBadge =
-      sponsorLogo ? (
+      sponsorAvailable ? (
         <Pressable
           disabled={!sponsorHasLink || !onSponsorPress}
           onPress={onSponsorPress}
@@ -4641,14 +5105,16 @@ function AthleteOfWeekCard({
           <Text style={[styles.aotwSponsorLabel, { color: theme.colors.mutedText }]}>
             Presented by
           </Text>
-          <RemoteImage
-            uri={sponsorLogo}
-            style={styles.aotwSponsorLogo}
-            contentFit="contain"
-            mode="sponsor"
-            label={sponsorName}
-            theme={theme}
-          />
+          {sponsorLogo ? (
+            <RemoteImage
+              uri={sponsorLogo}
+              style={styles.aotwSponsorLogo}
+              contentFit="contain"
+              mode="sponsor"
+              label={sponsorName}
+              theme={theme}
+            />
+          ) : null}
           {sponsorName ? (
             <Text
               style={[styles.aotwSponsorName, { color: theme.colors.text }]}
@@ -4747,11 +5213,55 @@ function AthleteOfWeekCard({
         </View>
 
         <View style={styles.aotwBodyWrap}>
+          {item.athleteName ? (
+            <Text
+              style={[
+                styles.athleteOfWeekName,
+                {
+                  color: theme.colors.text,
+                  fontSize: 15,
+                  lineHeight: 18,
+                  marginBottom: 0,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {item.athleteName}
+            </Text>
+          ) : null}
+          {athleteSecondaryLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekSubtitle,
+                { color: theme.colors.mutedText, marginTop: 4 },
+              ]}
+              numberOfLines={1}
+            >
+              {athleteSecondaryLine}
+            </Text>
+          ) : null}
+          {awardLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekTitle,
+                {
+                  color: theme.colors.text,
+                  fontSize: 20,
+                  lineHeight: 25,
+                  marginBottom: 0,
+                  marginTop: item.athleteName || athleteSecondaryLine ? 8 : 0,
+                },
+              ]}
+              numberOfLines={2}
+            >
+              {awardLine}
+            </Text>
+          ) : null}
           {subtitle ? (
             <Text
               style={[
                 styles.athleteOfWeekSubtitle,
-                { color: theme.colors.mutedText, marginTop: 0 },
+                { color: theme.colors.mutedText, marginTop: awardLine ? 8 : 0 },
               ]}
               numberOfLines={2}
             >
@@ -4763,7 +5273,7 @@ function AthleteOfWeekCard({
             <Text
               style={[
                 styles.athleteOfWeekStats,
-                { color: theme.colors.mutedText, marginTop: subtitle ? 8 : 0 },
+                { color: theme.colors.mutedText, marginTop: subtitle || awardLine ? 8 : 0 },
               ]}
               numberOfLines={1}
             >
@@ -6122,6 +6632,113 @@ function HomeScreen({
         : resolvedStatusPillMode === 'live_audio'
         ? 'Live Audio'
         : 'Not Currently Live';
+    const liveCoverageSponsorBadge = !isGamedayHome && showLiveCoverageSponsor ? (
+      <View
+        pointerEvents="none"
+        style={[
+          styles.liveCoverageSponsorBadge,
+          isGradientEliteTheme(theme)
+            ? styles.liveCoverageSponsorBadgeGradientElite
+            : isModernTheme(theme)
+            ? {
+                backgroundColor: withAlpha(theme.colors.primary, '08'),
+                borderColor: withAlpha(theme.colors.primary, '22'),
+                borderRadius: 14,
+              }
+            : isCleanSlateTheme(theme)
+            ? {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+                borderRadius: 5,
+              }
+            : {
+                backgroundColor: theme.colors.cardAlt,
+                borderColor: theme.colors.border,
+              },
+        ]}
+      >
+        {isGradientEliteTheme(theme) ? (
+          <View
+            style={[
+              styles.liveCoverageSponsorBadgeCompactWrap,
+              !hasLiveCoverageSponsorLogo ? styles.liveCoverageSponsorBadgeCompactTextOnly : null,
+            ]}
+          >
+            {hasLiveCoverageSponsorLogo ? (
+              <View
+                style={[
+                  styles.liveCoverageSponsorLogoPlate,
+                  {
+                    backgroundColor: 'rgba(255,255,255,0.94)',
+                    borderColor: 'rgba(255,255,255,0.62)',
+                  },
+                ]}
+              >
+                <RemoteImage
+                  uri={liveCoverageSponsorLogo}
+                  style={styles.liveCoverageSponsorBadgeLogoCompact}
+                  contentFit="contain"
+                  mode="sponsor"
+                  label={liveCoverageSponsorName || 'Live Coverage Sponsor'}
+                  theme={theme}
+                />
+              </View>
+            ) : liveCoverageSponsorName ? (
+              <Text
+                style={[
+                  styles.liveCoverageSponsorBadgeName,
+                  styles.liveCoverageSponsorBadgeNameCompact,
+                  { color: theme.colors.text },
+                ]}
+                numberOfLines={1}
+              >
+                {liveCoverageSponsorName}
+              </Text>
+            ) : null}
+          </View>
+        ) : (
+          <>
+            <Text
+              style={[
+                styles.liveCoverageSponsorBadgeEyebrow,
+                {
+                  color: isModernTheme(theme)
+                    ? theme.colors.primary
+                    : theme.colors.mutedText,
+                },
+              ]}
+            >
+              Presented by
+            </Text>
+            <View style={styles.liveCoverageSponsorBadgeContent}>
+              {hasLiveCoverageSponsorLogo ? (
+                <RemoteImage
+                  uri={liveCoverageSponsorLogo}
+                  style={styles.liveCoverageSponsorBadgeLogo}
+                  contentFit="contain"
+                  mode="sponsor"
+                  label={liveCoverageSponsorName || 'Live Coverage Sponsor'}
+                  theme={theme}
+                />
+              ) : null}
+              {liveCoverageSponsorName ? (
+                <Text
+                  style={[
+                    styles.liveCoverageSponsorBadgeName,
+                    {
+                      color: theme.colors.text,
+                    },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {liveCoverageSponsorName}
+                </Text>
+              ) : null}
+            </View>
+          </>
+        )}
+      </View>
+    ) : null;
     const statusAccentColor = theme.colors.primary || theme.colors.accent;
     const statusPillPalette = isLightAppTheme(theme)
       ? {
@@ -6259,7 +6876,12 @@ function HomeScreen({
           handleOpenLiveCoverage();
         }}
       >
-        <View style={styles.liveNowLeft}>
+        <View
+          style={[
+            styles.liveNowLeft,
+            isGradientEliteTheme(theme) ? styles.liveNowLeftGradientElite : null,
+          ]}
+        >
           {isGamedayHome ? (
             <View
               style={{
@@ -6458,6 +7080,7 @@ function HomeScreen({
               {bodyCopy}
             </Text>
           ) : null}
+          {!isGradientEliteTheme(theme) ? liveCoverageSponsorBadge : null}
 
           <View
             style={[
@@ -6538,58 +7161,63 @@ function HomeScreen({
           </View>
         </View>
 
-        {showStatusPill ? (
+        {showStatusPill || (isGradientEliteTheme(theme) && showLiveCoverageSponsor) ? (
           <View style={styles.liveNowRight} pointerEvents="none">
-            <View
-              style={[
-                styles.heroStatusPill,
-                {
-                  backgroundColor: isGamedayHome
-                    ? gamedayStatusPalette.backgroundColor
-                    : statusPillPalette.backgroundColor,
-                  borderWidth: 1,
-                  borderColor: isGamedayHome
-                    ? gamedayStatusPalette.borderColor
-                    : statusPillPalette.borderColor,
-                  borderRadius: 999,
-                  minWidth: isModernTheme(theme) ? 126 : undefined,
-                },
-              ]}
-            >
-              {statusPillIsLive ? (
-                <PulseDot
-                  color={
-                    isGamedayHome
-                      ? gamedayStatusPalette.pulseColor
-                      : statusPillPalette.pulseColor
-                  }
-                />
-              ) : null}
-
-              <Ionicons
-                name={statusPillIcon}
-                size={16}
-                color={
-                  isGamedayHome
-                    ? gamedayStatusPalette.iconColor
-                    : statusPillPalette.iconColor
-                }
-                style={styles.heroStatusIcon}
-              />
-
-              <Text
+            {showStatusPill ? (
+              <View
                 style={[
-                  styles.heroStatusText,
+                  styles.heroStatusPill,
                   {
-                    color: isGamedayHome
-                      ? gamedayStatusPalette.textColor
-                      : statusPillPalette.textColor,
+                    backgroundColor: isGamedayHome
+                      ? gamedayStatusPalette.backgroundColor
+                      : statusPillPalette.backgroundColor,
+                    borderWidth: 1,
+                    borderColor: isGamedayHome
+                      ? gamedayStatusPalette.borderColor
+                      : statusPillPalette.borderColor,
+                    borderRadius: 999,
+                    minWidth: isModernTheme(theme) ? 126 : undefined,
                   },
                 ]}
               >
-                {statusPillLabel}
-              </Text>
-            </View>
+                {statusPillIsLive ? (
+                  <PulseDot
+                    color={
+                      isGamedayHome
+                        ? gamedayStatusPalette.pulseColor
+                        : statusPillPalette.pulseColor
+                    }
+                  />
+                ) : null}
+
+                <Ionicons
+                  name={statusPillIcon}
+                  size={16}
+                  color={
+                    isGamedayHome
+                      ? gamedayStatusPalette.iconColor
+                      : statusPillPalette.iconColor
+                  }
+                  style={styles.heroStatusIcon}
+                />
+
+                <Text
+                  style={[
+                    styles.heroStatusText,
+                    {
+                      color: isGamedayHome
+                        ? gamedayStatusPalette.textColor
+                        : statusPillPalette.textColor,
+                    },
+                  ]}
+                >
+                  {statusPillLabel}
+                </Text>
+              </View>
+            ) : null}
+            {isGradientEliteTheme(theme) && showLiveCoverageSponsor
+              ? liveCoverageSponsorBadge
+              : null}
           </View>
         ) : null}
       </Pressable>
@@ -8053,7 +8681,9 @@ function MediaScreen({
     icon: keyof typeof Ionicons.glyphMap,
     title: string,
     subtitle: string,
-    onPress: () => void
+    onPress: () => void,
+    sponsorName?: string,
+    sponsorLogoUrl?: string
   ) => (
     <Pressable
       key={key}
@@ -8103,6 +8733,70 @@ function MediaScreen({
       <View style={styles.mediaActionBody}>
         <Text style={[styles.mediaActionTitle, { color: theme.colors.text }]}>{title}</Text>
         <Text style={[styles.mediaActionText, { color: theme.colors.mutedText }]}>{subtitle}</Text>
+        {sponsorName || sponsorLogoUrl ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.mediaActionSponsorBadge,
+              isGradientEliteTheme(theme)
+                ? {
+                    backgroundColor: theme.colors.cardAlt,
+                    borderColor: withAlpha(theme.colors.primary, '4D'),
+                    borderRadius: 14,
+                  }
+                : isModernTheme(theme)
+                ? {
+                    backgroundColor: withAlpha(theme.colors.primary, '08'),
+                    borderColor: withAlpha(theme.colors.primary, '22'),
+                    borderRadius: 12,
+                  }
+                : isCleanSlateTheme(theme)
+                ? {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    borderRadius: 5,
+                  }
+                : {
+                    backgroundColor: theme.colors.cardAlt,
+                    borderColor: theme.colors.border,
+                  },
+            ]}
+          >
+            <Text
+              style={[
+                styles.mediaActionSponsorEyebrow,
+                {
+                  color:
+                    isGradientEliteTheme(theme) || isModernTheme(theme)
+                      ? theme.colors.primary
+                      : theme.colors.mutedText,
+                },
+              ]}
+            >
+              Presented by
+            </Text>
+            <View style={styles.mediaActionSponsorContent}>
+              {sponsorLogoUrl ? (
+                <RemoteImage
+                  uri={sponsorLogoUrl}
+                  style={styles.mediaActionSponsorLogo}
+                  contentFit="contain"
+                  mode="sponsor"
+                  label={sponsorName || title}
+                  theme={theme}
+                />
+              ) : null}
+              {sponsorName ? (
+                <Text
+                  style={[styles.mediaActionSponsorName, { color: theme.colors.text }]}
+                  numberOfLines={2}
+                >
+                  {sponsorName}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
       </View>
       <View
         style={[
@@ -8260,7 +8954,9 @@ function MediaScreen({
               action.icon,
               action.title,
               action.subtitle,
-              action.onPress
+              action.onPress,
+              action.sponsorName,
+              action.sponsorLogoUrl
             )
           )
         : null}
@@ -8319,6 +9015,7 @@ function ScheduleScreen({
   variant = 'school',
   accentColor,
   sportFilter,
+  source = 'global_allEvents',
   theme = DEFAULT_APP_THEME,
 }: {
   scheduleEvents: EventItem[];
@@ -8331,12 +9028,19 @@ function ScheduleScreen({
   variant?: ScheduleScreenVariant;
   accentColor?: string;
   sportFilter?: ScheduleSportFilter | null;
+  source?: 'global_allEvents' | 'custom_scheduleScreenEvents';
   theme?: AthleticOSResolvedTheme;
 }) {
   const isTeamVariant = variant === 'team';
   const scheduleScrollRef = useRef<ScrollView | null>(null);
   const compositeOffsetsRef = useRef<Record<number, number>>({});
   const hasAutoScrolledRef = useRef(false);
+  const globalScheduleWindowMeta = useRef({
+    pastCount: 0,
+    upcomingCount: 0,
+    undatedCount: 0,
+    nextUpcomingId: null as string | null,
+  });
   const visibleScheduleEvents = useMemo(() => {
     const selectedSportId = sportFilter?.sportId?.trim() || '';
     const selectedSportTokens = getScheduleSportFilterTokens(sportFilter);
@@ -8365,14 +9069,8 @@ function ScheduleScreen({
 
     if (isTeamVariant) {
       return [...teamFilteredEvents].sort((a, b) => {
-        const aTime = new Date(
-          a.eventDateTime || a.startDateTime || a.eventDate || 0
-        ).getTime();
-
-        const bTime = new Date(
-          b.eventDateTime || b.startDateTime || b.eventDate || 0
-        ).getTime();
-
+        const aTime = getScheduleItemSortTimestamp(a);
+        const bTime = getScheduleItemSortTimestamp(b);
         return aTime - bTime;
       });
     }
@@ -8383,22 +9081,117 @@ function ScheduleScreen({
 
     const futureLimit = new Date();
     futureLimit.setDate(now.getDate() + 30);
+    const datedEvents = [...teamFilteredEvents]
+      .map((event) => {
+        const parsedDate = getScheduleItemSortDate(event);
 
-    return [...teamFilteredEvents]
-      .filter((event) => {
-        const eventDate = safeDate(
-          event.eventDateTime || event.startDateTime || event.eventDate
-        );
-        return Boolean(eventDate && eventDate >= pastLimit && eventDate <= futureLimit);
+        return {
+          event,
+          parsedDate,
+        };
       })
-      .sort((a, b) => {
-        const aDate =
-          safeDate(a.eventDateTime || a.startDateTime || a.eventDate)?.getTime() ?? 0;
-        const bDate =
-          safeDate(b.eventDateTime || b.startDateTime || b.eventDate)?.getTime() ?? 0;
-        return aDate - bDate;
-      });
+      .filter(({ parsedDate }) => {
+        if (!parsedDate) {
+          return false;
+        }
+
+        return parsedDate >= pastLimit && parsedDate <= futureLimit;
+      })
+      .sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+
+    const undatedEvents = teamFilteredEvents.filter((event) => {
+      const parsedDate = getScheduleItemSortDate(event);
+      return !parsedDate;
+    });
+
+    const pastEvents = datedEvents
+      .filter(({ parsedDate }) => parsedDate < now)
+      .slice(-10)
+      .map(({ event }) => event);
+    const upcomingEvents = datedEvents
+      .filter(({ parsedDate }) => parsedDate >= now)
+      .slice(0, 15)
+      .map(({ event }) => event);
+
+    globalScheduleWindowMeta.current = {
+      pastCount: pastEvents.length,
+      upcomingCount: upcomingEvents.length,
+      undatedCount: undatedEvents.length,
+      nextUpcomingId:
+        upcomingEvents.length > 0 ? String(upcomingEvents[0].id ?? '') || null : null,
+    };
+
+    return [...pastEvents, ...upcomingEvents, ...undatedEvents];
   }, [isTeamVariant, scheduleEvents, sportFilter]);
+  const filteredOutScheduleEvents = useMemo(() => {
+    if (isTeamVariant) {
+      const selectedSportId = sportFilter?.sportId?.trim() || '';
+      const selectedSportTokens = getScheduleSportFilterTokens(sportFilter);
+
+      return scheduleEvents
+        .filter((event) => !visibleScheduleEvents.includes(event))
+        .map((event) => {
+          const normalized = normalizeScheduleItem(event);
+          const eventSportId = String(event.sportId ?? '').trim();
+          const eventTokens = [
+            normalizeSportMatchToken(event.sportName),
+            normalizeSportMatchToken(normalized.sport),
+          ].filter(Boolean);
+
+          let reason = 'team_filter_mismatch';
+          if (selectedSportId && eventSportId && eventSportId !== selectedSportId) {
+            reason = 'sport_id_mismatch';
+          } else if (
+            selectedSportTokens.size > 0 &&
+            !eventTokens.some((token) => selectedSportTokens.has(token))
+          ) {
+            reason = 'sport_token_mismatch';
+          }
+
+          return {
+            id: event.id,
+            sportId: event.sportId ?? null,
+            sportName: event.sportName ?? null,
+            opponentName: event.opponentName ?? null,
+            startsAt: event.eventDateTime || event.startDateTime || event.eventDate || null,
+            status: event.status ?? null,
+            reason,
+          };
+        });
+    }
+
+    const now = new Date();
+    const pastLimit = new Date();
+    pastLimit.setDate(now.getDate() - 30);
+    const futureLimit = new Date();
+    futureLimit.setDate(now.getDate() + 30);
+
+    return scheduleEvents
+      .filter((event) => !visibleScheduleEvents.includes(event))
+      .map((event) => {
+        const eventDate = getScheduleItemSortDate(event);
+
+        let reason = 'invalid_date_kept';
+        if (eventDate) {
+          reason =
+            eventDate < pastLimit
+              ? 'outside_past_30_days'
+              : eventDate > futureLimit
+              ? 'outside_future_30_days'
+              : 'filtered';
+        }
+
+        return {
+          id: event.id,
+          sportId: event.sportId ?? null,
+          sportName: event.sportName ?? null,
+          opponentName: event.opponentName ?? null,
+          startsAt: event.eventDateTime || event.startDateTime || event.eventDate || null,
+          status: event.status ?? null,
+          reason,
+        };
+      });
+  }, [isTeamVariant, scheduleEvents, sportFilter, visibleScheduleEvents]);
   const normalized = useMemo(
     () => visibleScheduleEvents.map(normalizeScheduleItem),
     [visibleScheduleEvents]
@@ -8410,9 +9203,7 @@ function ScheduleScreen({
 
     const now = new Date();
     const foundIndex = visibleScheduleEvents.findIndex((event) => {
-      const eventDate = safeDate(
-        event.eventDateTime || event.startDateTime || event.eventDate
-      );
+      const eventDate = getScheduleItemSortDate(event);
       return Boolean(eventDate && eventDate >= now);
     });
 
@@ -8428,6 +9219,118 @@ function ScheduleScreen({
     compositeOffsetsRef.current = {};
     hasAutoScrolledRef.current = false;
   }, [todayIndex, visibleScheduleEvents]);
+
+  useEffect(() => {
+    console.log(
+      'SCHEDULE_SORT_INPUT_SUMMARY',
+      scheduleEvents.slice(0, 40).map((event) => ({
+        id: event.id,
+        title: event.title || null,
+        opponent: event.opponentName ?? null,
+        variant,
+        displayedDate: event.date ?? event.eventDate ?? null,
+        rawDateFields: {
+          eventDateTime: event.eventDateTime ?? null,
+          startDateTime: event.startDateTime ?? null,
+          rawDate: event.rawDate ?? null,
+          eventDate: event.eventDate ?? null,
+        },
+        parsedTimestamp: getScheduleItemSortTimestamp(event),
+      }))
+    );
+    console.log(
+      'SCHEDULE_SORT_OUTPUT_SUMMARY',
+      visibleScheduleEvents.slice(0, 40).map((event, index) => ({
+        id: event.id,
+        title: event.title || null,
+        opponent: event.opponentName ?? null,
+        variant,
+        displayedDate: event.date ?? event.eventDate ?? null,
+        parsedTimestamp: getScheduleItemSortTimestamp(event),
+        sortTimestamp: getScheduleItemSortTimestamp(event),
+        finalIndex: index,
+      }))
+    );
+    console.log(
+      'SCHEDULE_UNPARSEABLE_DATE_EVENTS',
+      scheduleEvents
+        .filter((event) => !getScheduleItemSortDate(event))
+        .slice(0, 40)
+        .map((event) => ({
+          id: event.id,
+          title: event.title || null,
+          opponent: event.opponentName ?? null,
+          eventDateTime: event.eventDateTime ?? null,
+          startDateTime: event.startDateTime ?? null,
+          rawDate: event.rawDate ?? null,
+          eventDate: event.eventDate ?? null,
+        }))
+    );
+    if (!isTeamVariant) {
+      console.log(
+        'GLOBAL_SCHEDULE_ORDER_SUMMARY',
+        visibleScheduleEvents.slice(0, 40).map((event) => {
+          const normalizedDate =
+            event.eventDateTime || event.startDateTime || event.eventDate || null;
+          const parsedDate = getScheduleItemSortDate(event);
+          const bucket = !parsedDate
+            ? 'undated'
+            : parsedDate < new Date()
+            ? 'past'
+            : 'upcoming';
+
+          return {
+            id: event.id,
+            title: event.title || null,
+            opponent: event.opponentName ?? null,
+            normalizedDate,
+            bucket,
+          };
+        })
+      );
+      console.log(
+        'GLOBAL_SCHEDULE_NEXT_EVENT_ID',
+        globalScheduleWindowMeta.current.nextUpcomingId
+      );
+      console.log(
+        'GLOBAL_SCHEDULE_VISIBLE_WINDOW',
+        globalScheduleWindowMeta.current
+      );
+    }
+
+    console.log('SCHEDULE_ACTIVE_FILTERS', {
+      variant,
+      schoolId: schoolId ? String(schoolId) : null,
+      sportId: sportFilter?.sportId ?? null,
+      sportKey: sportFilter?.sportKey ?? null,
+      sportLabel: sportFilter?.sportLabel ?? null,
+      sportShortLabel: sportFilter?.sportShortLabel ?? null,
+      eventsLoading,
+    });
+    console.log('SCHEDULE_SCREEN_INPUT_SOURCE', source);
+    console.log('SCHEDULE_SCREEN_INPUT_COUNT', scheduleEvents.length);
+    console.log('SCHEDULE_SCREEN_VARIANT', variant);
+    console.log('SCHEDULE_FILTERED_RESULT_COUNT', visibleScheduleEvents.length);
+    console.log(
+      'SCHEDULE_SCREEN_FILTERED_OUT_REASONS',
+      filteredOutScheduleEvents.slice(0, 25)
+    );
+    console.log('SCHEDULE_SCREEN_AFTER_FILTER_COUNT', visibleScheduleEvents.length);
+    console.log('SCHEDULE_SCREEN_RENDER_COUNT', normalized.length);
+  }, [
+    eventsLoading,
+    filteredOutScheduleEvents,
+    normalized.length,
+    schoolId,
+    scheduleEvents.length,
+    scheduleEvents,
+    source,
+    sportFilter,
+    variant,
+    visibleScheduleEvents.length,
+    visibleScheduleEvents,
+    isTeamVariant,
+  ]);
 
   return (
     <ScrollView
@@ -10655,15 +11558,21 @@ function SportDetailScreen({
             ? await getTeamNavBySportId(schoolId, teamSportRecord.id)
             : [];
 
+        console.log('WORKING_SPORT_SCHEDULE_RESULT_COUNT', mappedEvents.length);
+        console.log(
+          'WORKING_SPORT_SCHEDULE_SUMMARY',
+          mappedEvents.slice(0, 25).map((event) => ({
+            id: event.id,
+            sport: event.sportName ?? null,
+            opponent: event.opponentName ?? null,
+            normalizedDate:
+              event.eventDateTime || event.startDateTime || event.eventDate || null,
+          }))
+        );
+
         const sortedTeamScheduleEvents = [...mappedEvents].sort((a, b) => {
-          const aTime = new Date(
-            a.eventDateTime || a.startDateTime || a.eventDate || 0
-          ).getTime();
-
-          const bTime = new Date(
-            b.eventDateTime || b.startDateTime || b.eventDate || 0
-          ).getTime();
-
+          const aTime = getScheduleItemSortTimestamp(a);
+          const bTime = getScheduleItemSortTimestamp(b);
           return aTime - bTime;
         });
 
@@ -13726,6 +14635,24 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       };
     });
 
+    console.log('GLOBAL_SCHEDULE_FETCH_RESULT_COUNT', allScheduleEvents.length);
+    console.log(
+      'GLOBAL_SCHEDULE_FETCH_SUMMARY',
+      allScheduleEvents.slice(0, 25).map((event) => ({
+        id: event.id,
+        sport: event.sportName ?? null,
+        opponent: event.opponentName ?? null,
+        normalizedDate:
+          event.eventDateTime || event.startDateTime || event.eventDate || null,
+        rawDateFields: {
+          eventDateTime: event.eventDateTime ?? null,
+          startDateTime: event.startDateTime ?? null,
+          eventDate: event.eventDate ?? null,
+          rawDate: event.rawDate ?? null,
+        },
+      }))
+    );
+
     const recent = filterRecentResultEvents(allScheduleEvents).slice(0, 10);
     const upcoming = filterUpcomingWeekEvents(allScheduleEvents).slice(0, 10);
     const nextVideoItems = await fetchYoutubePlaylistVideos(videosConfig);
@@ -13849,6 +14776,10 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
     loadHomeFeeds();
   }, [defaultSchoolConfig, resolvedSchoolId, schoolLookupComplete, schoolSlug]);
+
+  useEffect(() => {
+    console.log('GLOBAL_ALL_EVENTS_STATE_COUNT', allEvents.length);
+  }, [allEvents.length]);
 
   useEffect(() => {
     const loadSavedPreferences = async () => {
@@ -14083,8 +15014,63 @@ const handleEnableNotifications = async () => {
       await loadHomeFeeds();
     } finally {
       setRefreshing(false);
-    }
-  };
+  }
+};
+
+  const refreshGlobalScheduleEvents = useCallback(
+    async (reason: string) => {
+      if (!resolvedSchoolId) {
+        return;
+      }
+
+      console.log('SCHEDULE_FETCH_START', {
+        reason,
+        schoolId: String(resolvedSchoolId),
+      });
+
+      const [scheduleEvents, sportsData] = await Promise.all([
+        getScheduleEventsBySchoolId(resolvedSchoolId),
+        getSportsBySchoolId(resolvedSchoolId),
+      ]);
+
+      const mappedEvents = scheduleEvents.map((event) => {
+        const mapped = mapScheduleEventToHomeEventItem(
+          event,
+          schoolConfig.scheduleUrl,
+          sportsData
+        );
+
+        return {
+          ...mapped,
+          date: formatDate(mapped.rawDate),
+        };
+      });
+
+      console.log('GLOBAL_SCHEDULE_FETCH_RESULT_COUNT', mappedEvents.length);
+      console.log(
+        'GLOBAL_SCHEDULE_FETCH_SUMMARY',
+        mappedEvents.slice(0, 25).map((event) => ({
+          id: event.id,
+          sport: event.sportName ?? null,
+          opponent: event.opponentName ?? null,
+          normalizedDate:
+            event.eventDateTime || event.startDateTime || event.eventDate || null,
+          rawDateFields: {
+            eventDateTime: event.eventDateTime ?? null,
+            startDateTime: event.startDateTime ?? null,
+            eventDate: event.eventDate ?? null,
+            rawDate: event.rawDate ?? null,
+          },
+          status: event.status ?? null,
+        }))
+      );
+
+      setAllEvents(mappedEvents);
+      setRecentEvents(filterRecentResultEvents(mappedEvents).slice(0, 10));
+      setUpcomingEvents(filterUpcomingWeekEvents(mappedEvents).slice(0, 10));
+    },
+    [resolvedSchoolId, schoolConfig.scheduleUrl]
+  );
 
   const openExternalUrl = (url: string) => {
     if (!hasResolvedUrl(url)) {
@@ -14104,7 +15090,23 @@ const handleEnableNotifications = async () => {
     variant?: ScheduleScreenVariant;
     accentColor?: string;
     sportFilter?: ScheduleSportFilter | null;
+    refreshReason?: string;
   }) => {
+    const source = Array.isArray(options?.events)
+      ? 'custom_scheduleScreenEvents'
+      : 'global_allEvents';
+    console.log('OPEN_SCHEDULE_SCREEN_CALLED', {
+      mode: source,
+      passedEventsCount: Array.isArray(options?.events) ? options.events.length : null,
+      variant: options?.variant ?? 'school',
+      refreshReason: options?.refreshReason ?? null,
+    });
+    console.log('SCHEDULE_NAV_OPENED', {
+      variant: options?.variant ?? 'school',
+      hasCustomEvents: Array.isArray(options?.events),
+      customEventCount: Array.isArray(options?.events) ? options.events.length : null,
+      sportFilter: options?.sportFilter ?? null,
+    });
     setScheduleScreenEvents(options?.events ?? null);
     setScheduleScreenSportFilter(options?.sportFilter ?? null);
     setScheduleScreenTitle(options?.headerTitle ?? 'Schedule');
@@ -14113,7 +15115,38 @@ const handleEnableNotifications = async () => {
     setScheduleScreenVariant(options?.variant ?? 'school');
     setScheduleScreenAccentColor(options?.accentColor ?? schoolAccentColor);
     setScreenMode('schedule');
+
+    if (!options?.events && (options?.variant ?? 'school') === 'school') {
+      void refreshGlobalScheduleEvents(options?.refreshReason ?? 'schedule_nav_opened');
+    }
   };
+
+  const openAllSchedulesScreen = useCallback(
+    (navMeta?: {
+      destinationType?: string;
+      destinationValue?: string;
+      iconKey?: string;
+      label?: string;
+    }) => {
+      console.log('ALL_SCHEDULES_DESTINATION_HIT');
+      console.log('APPOS_NAV_DESTINATION_SELECTED', {
+        destinationType: navMeta?.destinationType ?? 'all_schedules',
+        destinationValue: navMeta?.destinationValue ?? '',
+        iconKey: navMeta?.iconKey ?? '',
+        label: navMeta?.label ?? 'Schedule',
+      });
+      console.log('GLOBAL_SCHEDULE_REFRESH_FOR_ALL_SCHEDULES');
+      openScheduleScreen({
+        headerTitle: 'Schedule',
+        headerSubtitle: appDisplayName,
+        schoolLogoUrl: schoolConfig.logoUrl,
+        variant: 'school',
+        sportFilter: null,
+        refreshReason: 'all_schedules_destination',
+      });
+    },
+    [appDisplayName, openScheduleScreen, schoolConfig.logoUrl]
+  );
 
   const openEmbedded = (title: string, url: string) => {
     setEmbeddedTitle(title);
@@ -14554,10 +15587,11 @@ const handleEnableNotifications = async () => {
         break;
       case 'all_schedules':
         onPress = () =>
-          openScheduleScreen({
-            headerTitle: 'Schedule',
-            headerSubtitle: appDisplayName,
-            schoolLogoUrl: schoolConfig.logoUrl,
+          openAllSchedulesScreen({
+            destinationType,
+            destinationValue: configuredItem.destinationValue,
+            iconKey: configuredItem.iconKey,
+            label,
           });
         break;
       case 'tickets_url':
@@ -14791,6 +15825,9 @@ const handleEnableNotifications = async () => {
         const subtitle =
           channel.description?.trim() ||
           getChannelFallbackDescription(destinationType);
+        const sponsorName = channel.sponsor_name?.trim() || '';
+        const sponsorLogoUrl = channel.sponsor_logo_url?.trim() || '';
+        const sponsorLinkUrl = channel.sponsor_link_url?.trim() || '';
         const isScheduleType = destinationType === 'schedule';
         const isVideoType = destinationType === 'video';
         const isAudioType = destinationType === 'audio';
@@ -14803,6 +15840,9 @@ const handleEnableNotifications = async () => {
             icon: getChannelIcon(destinationType, false),
             title,
             subtitle,
+            sponsorName: sponsorName || undefined,
+            sponsorLogoUrl: sponsorLogoUrl || undefined,
+            sponsorLinkUrl: sponsorLinkUrl || undefined,
             onPress: () => openExternalUrl(videoUrl),
           };
         }
@@ -14813,6 +15853,9 @@ const handleEnableNotifications = async () => {
             icon: getChannelIcon(destinationType, isCurrentAudioStream),
             title,
             subtitle,
+            sponsorName: sponsorName || undefined,
+            sponsorLogoUrl: sponsorLogoUrl || undefined,
+            sponsorLinkUrl: sponsorLinkUrl || undefined,
             onPress: () => toggleAudio(audioUrl),
           };
         }
@@ -14824,6 +15867,9 @@ const handleEnableNotifications = async () => {
               icon: getChannelIcon(destinationType, false),
               title,
               subtitle,
+              sponsorName: sponsorName || undefined,
+              sponsorLogoUrl: sponsorLogoUrl || undefined,
+              sponsorLinkUrl: sponsorLinkUrl || undefined,
               onPress: () => openEmbedded(title, generalUrl),
             };
           }
@@ -14833,6 +15879,9 @@ const handleEnableNotifications = async () => {
             icon: getChannelIcon(destinationType, false),
             title,
             subtitle,
+            sponsorName: sponsorName || undefined,
+            sponsorLogoUrl: sponsorLogoUrl || undefined,
+            sponsorLinkUrl: sponsorLinkUrl || undefined,
             onPress: openScheduleScreen,
           };
         }
@@ -14846,6 +15895,9 @@ const handleEnableNotifications = async () => {
           icon: getChannelIcon(destinationType, false),
           title,
           subtitle,
+          sponsorName: sponsorName || undefined,
+          sponsorLogoUrl: sponsorLogoUrl || undefined,
+          sponsorLinkUrl: sponsorLinkUrl || undefined,
           onPress: () => openEmbedded(title, generalUrl),
         };
       })
@@ -15029,6 +16081,9 @@ if (showPreroll && prerollConfig) {
         variant={scheduleScreenVariant}
         accentColor={scheduleScreenAccentColor}
         sportFilter={scheduleScreenSportFilter}
+        source={
+          scheduleScreenEvents ? 'custom_scheduleScreenEvents' : 'global_allEvents'
+        }
         theme={resolvedTheme}
       />
     );
@@ -16055,6 +17110,10 @@ splashSponsorLogo: {
     paddingRight: 10,
   },
 
+  liveNowLeftGradientElite: {
+    paddingRight: 8,
+  },
+
   liveNowEyebrow: {
     color: BRAND.red,
     fontSize: 10,
@@ -16575,6 +17634,12 @@ bannerImage: {
     aspectRatio: 16 / 9,
   },
 
+  storyDetailImageCropFrame: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    overflow: 'hidden',
+  },
+
   storyDetailArticlePanel: {
     marginHorizontal: 16,
     marginTop: 18,
@@ -16595,6 +17660,90 @@ bannerImage: {
 
   storyDetailBodyLink: {
     textDecorationLine: 'underline',
+  },
+
+  liveCoverageSponsorBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+
+  liveCoverageSponsorBadgeGradientElite: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+
+  liveCoverageSponsorBadgeCompactWrap: {
+    alignItems: 'flex-end',
+    maxWidth: 108,
+  },
+
+  liveCoverageSponsorBadgeCompactTextOnly: {
+    maxWidth: 132,
+  },
+
+  liveCoverageSponsorBadgeEyebrow: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+
+  liveCoverageSponsorBadgeEyebrowCompact: {
+    fontSize: 7,
+    lineHeight: 9,
+    letterSpacing: 0.45,
+    marginBottom: 4,
+    textAlign: 'right',
+  },
+
+  liveCoverageSponsorBadgeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  liveCoverageSponsorBadgeLogo: {
+    width: 78,
+    height: 24,
+    flexShrink: 0,
+  },
+
+  liveCoverageSponsorBadgeLogoCompact: {
+    width: 76,
+    height: 20,
+  },
+
+  liveCoverageSponsorLogoPlate: {
+    minWidth: 88,
+    minHeight: 28,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  liveCoverageSponsorBadgeName: {
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+
+  liveCoverageSponsorBadgeNameCompact: {
+    fontSize: 11,
+    lineHeight: 14,
+    textAlign: 'right',
   },
 
   eventsRow: {
@@ -17197,6 +18346,41 @@ heroStatusText: {
   mediaActionBody: {
     flex: 1,
     paddingRight: 12,
+  },
+
+  mediaActionSponsorBadge: {
+    marginTop: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+
+  mediaActionSponsorEyebrow: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+
+  mediaActionSponsorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  mediaActionSponsorLogo: {
+    width: 72,
+    height: 24,
+    flexShrink: 0,
+  },
+
+  mediaActionSponsorName: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
   },
 
   mediaActionTitle: {

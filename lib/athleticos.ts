@@ -231,6 +231,9 @@ export type AthleticOSAppLiveCoverageChannel = {
   embed_url?: string | null;
   target_url?: string | null;
   button_label?: string | null;
+  sponsor_name?: string | null;
+  sponsor_logo_url?: string | null;
+  sponsor_link_url?: string | null;
   display_order?: number;
   is_active?: boolean;
   created_at?: string;
@@ -485,6 +488,10 @@ export type AthleticOSStory = {
   sport_name?: string;
   image_url?: string;
   featured_image_url?: string;
+  crop_x?: number | null;
+  crop_y?: number | null;
+  crop_width?: number | null;
+  crop_height?: number | null;
   published_at?: string;
   external_url?: string;
   url?: string;
@@ -524,11 +531,17 @@ export type AthleticOSScheduleEvent = {
   status?: string;
   result?: string;
   start_datetime?: string;
+  starts_at?: string;
+  start_at?: string;
   event_date?: string;
+  game_date?: string;
+  date?: string;
   event_time_text?: string;
   home_score?: number;
   away_score?: number;
   is_final?: boolean | string | number;
+  is_visible?: boolean;
+  is_published?: boolean;
   location?: string;
   stadium_name?: string;
   location_city?: string;
@@ -709,12 +722,16 @@ function normalizeStatus(value?: string) {
 }
 
 function getScheduleEventDateTime(event: AthleticOSScheduleEvent) {
-  const startDateTime = pickFirstString(event, ['start_datetime']);
+  const startDateTime = pickFirstString(event, [
+    'start_datetime',
+    'starts_at',
+    'start_at',
+  ]);
   if (startDateTime) {
     return startDateTime;
   }
 
-  const eventDate = pickFirstString(event, ['event_date']);
+  const eventDate = pickFirstString(event, ['event_date', 'game_date', 'date']);
   const eventTimeText = pickFirstString(event, ['event_time_text']);
 
   if (eventDate && eventTimeText) {
@@ -722,6 +739,62 @@ function getScheduleEventDateTime(event: AthleticOSScheduleEvent) {
   }
 
   return eventDate ?? '';
+}
+
+function parseScheduleDateValue(value?: string) {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) {
+    return null;
+  }
+
+  const timestamp = Date.parse(trimmed);
+  if (!Number.isNaN(timestamp)) {
+    return new Date(timestamp);
+  }
+
+  const match = trimmed.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[ T]+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?$/i
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const [, yearText, monthText, dayText, hourText, minuteText, meridiemText] = match;
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const day = Number(dayText);
+  let hour = hourText ? Number(hourText) : 0;
+  const minute = minuteText ? Number(minuteText) : 0;
+
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(monthIndex) ||
+    !Number.isFinite(day) ||
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute)
+  ) {
+    return null;
+  }
+
+  const meridiem = (meridiemText ?? '').toLowerCase();
+  if (meridiem === 'pm' && hour < 12) {
+    hour += 12;
+  } else if (meridiem === 'am' && hour === 12) {
+    hour = 0;
+  }
+
+  const parsed = new Date(year, monthIndex, day, hour, minute, 0, 0);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getScheduleEventSortTimestamp(event: AthleticOSScheduleEvent) {
+  const parsed =
+    parseScheduleDateValue(getScheduleEventDateTime(event)) ||
+    parseScheduleDateValue(pickFirstString(event, ['start_datetime', 'starts_at', 'start_at'])) ||
+    parseScheduleDateValue(pickFirstString(event, ['event_date', 'game_date', 'date']));
+
+  return parsed?.getTime() ?? Number.MAX_SAFE_INTEGER;
 }
 
 function readStringArray(value: unknown) {
@@ -1659,6 +1732,9 @@ export async function getAppLiveCoverageConfigBySchoolId(schoolId: string | numb
       embed_url: pickFirstString(row, ['embed_url']) ?? '',
       target_url: pickFirstString(row, ['target_url']) ?? '',
       button_label: pickFirstString(row, ['button_label']) ?? '',
+      sponsor_name: pickFirstString(row, ['sponsor_name']) ?? '',
+      sponsor_logo_url: pickFirstString(row, ['sponsor_logo_url']) ?? '',
+      sponsor_link_url: pickFirstString(row, ['sponsor_link_url']) ?? '',
       display_order: pickFirstNumber(row, ['display_order']) ?? 0,
       is_active:
         pickFirstBoolean(row, ['is_active', 'active', 'enabled']) ?? true,
@@ -2231,6 +2307,9 @@ export async function getScheduleEventsBySchoolSlug(slug: string) {
 
 export async function getScheduleEventsBySchoolId(schoolId: string | number) {
   await requireSchoolById(schoolId);
+  console.log('SCHEDULE_FETCH_START', {
+    schoolId: String(schoolId),
+  });
 
   // Assumption to verify: `schedule_events.school_id` references `schools.id`.
   const { data, error } = await supabase
@@ -2242,11 +2321,36 @@ export async function getScheduleEventsBySchoolId(schoolId: string | number) {
     throw error;
   }
 
-  return ((data ?? []) as AthleticOSScheduleEvent[]).sort((a, b) => {
-    const aDate = normalizeSortDate(getScheduleEventDateTime(a));
-    const bDate = normalizeSortDate(getScheduleEventDateTime(b));
-    return aDate - bDate;
+  const sortedEvents = ((data ?? []) as AthleticOSScheduleEvent[]).sort((a, b) => {
+    return getScheduleEventSortTimestamp(a) - getScheduleEventSortTimestamp(b);
   });
+
+  console.log('SCHEDULE_FETCH_RESULT_COUNT', sortedEvents.length);
+  console.log(
+    'SCHEDULE_FETCH_RESULT_SUMMARY',
+    sortedEvents.slice(0, 25).map((event) => ({
+      id: pickFirstId(event, ['id']) ?? null,
+      sport_id: pickFirstId(event, ['sport_id']) ?? null,
+      sport_slug: pickFirstString(event, ['sport_slug']) ?? null,
+      sport_name: pickFirstString(event, ['sport_name']) ?? null,
+      opponent_name: pickFirstString(event, ['opponent_name']) ?? null,
+      starts_at:
+        pickFirstString(event, ['start_datetime', 'starts_at', 'start_at']) ??
+        pickFirstString(event, ['event_date', 'game_date', 'date']) ??
+        null,
+      status: pickFirstString(event, ['status']) ?? null,
+      is_visible:
+        typeof (event as Record<string, unknown>).is_visible === 'boolean'
+          ? ((event as Record<string, unknown>).is_visible as boolean)
+          : null,
+      is_published:
+        typeof (event as Record<string, unknown>).is_published === 'boolean'
+          ? ((event as Record<string, unknown>).is_published as boolean)
+          : null,
+    }))
+  );
+
+  return sortedEvents;
 }
 
 export function mapStoryToHomeNewsItem(
@@ -2273,7 +2377,13 @@ export function mapStoryToHomeNewsItem(
   const summary = pickFirstString(story, ['summary']) ?? '';
   const body =
     pickFirstString(story, ['body', 'content', 'story_body', 'html_content']) ?? '';
-  const image = pickFirstString(story, [...STORY_IMAGE_FIELDS]);
+  const featuredImageUrl = pickFirstString(story, ['featured_image_url']) ?? '';
+  const imageUrl = pickFirstString(story, ['image_url']) ?? '';
+  const cropX = typeof story.crop_x === 'number' ? story.crop_x : undefined;
+  const cropY = typeof story.crop_y === 'number' ? story.crop_y : undefined;
+  const cropWidth = typeof story.crop_width === 'number' ? story.crop_width : undefined;
+  const cropHeight = typeof story.crop_height === 'number' ? story.crop_height : undefined;
+  const image = featuredImageUrl || imageUrl || '';
   const rawDate = pickFirstString(story, [...STORY_DATE_FIELDS]);
   const sportId = pickFirstId(story, ['sport_id']) ?? '';
   const storySportRows = Array.isArray(story.story_sports) ? story.story_sports : [];
@@ -2308,7 +2418,13 @@ export function mapStoryToHomeNewsItem(
     sportId: sportId || undefined,
     sportLabel,
     sportName: sportLabel,
-    image,
+    image: image || undefined,
+    featuredImageUrl: featuredImageUrl || undefined,
+    imageUrl: imageUrl || undefined,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
     rawDate,
   };
 }
@@ -2333,9 +2449,13 @@ export function mapScheduleEventToHomeEventItem(
     : '';
   const status = pickFirstString(event, ['status']) ?? '';
   const result = pickFirstString(event, ['result']) ?? '';
-  const eventDate = pickFirstString(event, ['event_date']) ?? '';
+  const eventDate = pickFirstString(event, ['event_date', 'game_date', 'date']) ?? '';
   const eventTimeText = pickFirstString(event, ['event_time_text']) ?? '';
-  const startDateTime = pickFirstString(event, ['start_datetime']) ?? '';
+  const startDateTime = pickFirstString(event, [
+    'start_datetime',
+    'starts_at',
+    'start_at',
+  ]) ?? '';
   const eventDateTime = getScheduleEventDateTime(event);
   const rawDate = eventDateTime;
   const link = pickFirstString(event, ['external_url', 'url']) ?? fallbackLink;
