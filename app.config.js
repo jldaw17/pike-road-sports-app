@@ -111,6 +111,16 @@ function resolveIconPath(iconPath, fallbackPath) {
   return fallbackPath;
 }
 
+function resolveEasProjectId(variantConfig) {
+  const envProjectId = String(
+    process.env.EXPO_PUBLIC_EAS_PROJECT_ID ||
+      process.env.EAS_PROJECT_ID ||
+      ''
+  ).trim();
+
+  return envProjectId || variantConfig.easProjectId || '';
+}
+
 module.exports = () => {
   const baseExpoConfig = appJson.expo || {};
   const variantConfig = resolveVariantConfig();
@@ -134,9 +144,11 @@ module.exports = () => {
     appVariant: variantConfig.appVariant,
   };
 
-  if (variantConfig.easProjectId) {
+  const resolvedProjectId = resolveEasProjectId(variantConfig);
+
+  if (resolvedProjectId) {
     nextExtra.eas = {
-      projectId: variantConfig.easProjectId,
+      projectId: resolvedProjectId,
     };
   }
 

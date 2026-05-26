@@ -41,6 +41,13 @@
         "APP_VARIANT": "recruitos",
         "EXPO_PUBLIC_SCHOOL_SLUG": "recruitos"
       }
+    },
+    "sylacauga": {
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "sylacauga",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "sylacauga"
+      }
     }
   },
   "submit": {
