@@ -213,6 +213,26 @@ export type AthleticOSAppLiveCoverageConfig = {
   status_pill_mode?: string;
   destination_type: string;
   destination_value: string;
+  channels?: AthleticOSAppLiveCoverageChannel[];
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+};
+
+export type AthleticOSAppLiveCoverageChannel = {
+  id?: string | number;
+  school_id?: string | number;
+  title?: string;
+  description?: string;
+  channel_type?: string;
+  sport_id?: string | number | null;
+  audio_stream_url?: string | null;
+  video_url?: string | null;
+  embed_url?: string | null;
+  target_url?: string | null;
+  button_label?: string | null;
+  display_order?: number;
+  is_active?: boolean;
   created_at?: string;
   updated_at?: string;
   [key: string]: unknown;
@@ -1600,19 +1620,49 @@ export async function getAppLiveCoverageConfigBySchoolId(schoolId: string | numb
   try {
     await requireSchoolById(schoolId);
 
-    const { data, error } = await supabase
-      .from('app_live_coverage_config')
-      .select('*')
-      .eq('school_id', schoolId)
-      .maybeSingle();
+    const [{ data, error }, { data: channelData, error: channelError }] = await Promise.all([
+      supabase
+        .from('app_live_coverage_config')
+        .select('*')
+        .eq('school_id', schoolId)
+        .maybeSingle(),
+      supabase
+        .from('app_live_coverage_channels')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('display_order', { ascending: true })
+        .order('id', { ascending: true }),
+    ]);
 
     if (error) {
       throw error;
     }
 
+    if (channelError) {
+      throw channelError;
+    }
+
     if (!data) {
       return null;
     }
+
+    const channels = ((channelData ?? []) as Record<string, unknown>[]).map((row) => ({
+      ...(row as Record<string, unknown>),
+      id: pickFirstId(row, ['id']) ?? row.id,
+      school_id: pickFirstId(row, ['school_id']) ?? row.school_id,
+      title: pickFirstString(row, ['title']) ?? '',
+      description: pickFirstString(row, ['description']) ?? '',
+      channel_type: pickFirstString(row, ['channel_type']) ?? '',
+      sport_id: pickFirstId(row, ['sport_id']) ?? row.sport_id ?? null,
+      audio_stream_url: pickFirstString(row, ['audio_stream_url']) ?? '',
+      video_url: pickFirstString(row, ['video_url']) ?? '',
+      embed_url: pickFirstString(row, ['embed_url']) ?? '',
+      target_url: pickFirstString(row, ['target_url']) ?? '',
+      button_label: pickFirstString(row, ['button_label']) ?? '',
+      display_order: pickFirstNumber(row, ['display_order']) ?? 0,
+      is_active:
+        pickFirstBoolean(row, ['is_active', 'active', 'enabled']) ?? true,
+    })) as AthleticOSAppLiveCoverageChannel[];
 
     return {
       ...(data as Record<string, unknown>),
@@ -1627,6 +1677,7 @@ export async function getAppLiveCoverageConfigBySchoolId(schoolId: string | numb
         pickFirstString(data, ['status_pill_mode', 'status_pill_state']) ?? '',
       destination_type: pickFirstString(data, ['destination_type']) ?? '',
       destination_value: pickFirstString(data, ['destination_value']) ?? '',
+      channels,
     } as AthleticOSAppLiveCoverageConfig;
   } catch (error) {
     if (isMissingAppOSRelationError(error)) {

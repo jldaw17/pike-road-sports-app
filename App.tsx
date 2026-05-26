@@ -1272,6 +1272,14 @@ type ScreenMode =
   | 'manageTeams'
   | 'savedEvents';
 
+type MediaScreenAction = {
+  key: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+};
+
 type SportType = {
   key: string;
   label: string;
@@ -3029,6 +3037,7 @@ function LaunchSplash({
             >
               {shouldRenderSplashLogo ? (
                 <View
+                  pointerEvents="none"
                   style={[
                     styles.flashLogoPlate,
                     !showDefaultSplash
@@ -6073,7 +6082,7 @@ function HomeScreen({
     );
 
     if (destinationType === 'broadcast_page') {
-      console.log('BROADCAST_PAGE_BRANCH_HIT');
+      console.log('LIVE_COVERAGE_BROADCAST_BRANCH');
       onGoToMedia();
       return;
     }
@@ -6246,7 +6255,7 @@ function HomeScreen({
           pressed ? { opacity: 0.88, transform: [{ scale: 0.985 }] } : null,
         ]}
         onPress={() => {
-          console.log('LIVE_COVERAGE_PRESS_FIRED');
+          console.log('LIVE_COVERAGE_CARD_PRESS');
           handleOpenLiveCoverage();
         }}
       >
@@ -6450,7 +6459,7 @@ function HomeScreen({
             </Text>
           ) : null}
 
-          <Pressable
+          <View
             style={[
               styles.liveNowCTA,
               isModernTheme(theme)
@@ -6477,7 +6486,7 @@ function HomeScreen({
                   }
                 : null,
             ]}
-            onPress={handleOpenLiveCoverage}
+            pointerEvents="none"
           >
             <Text
               style={[
@@ -6526,11 +6535,11 @@ function HomeScreen({
                   : BRAND.white
               }
             />
-          </Pressable>
+          </View>
         </View>
 
         {showStatusPill ? (
-          <View style={styles.liveNowRight}>
+          <View style={styles.liveNowRight} pointerEvents="none">
             <View
               style={[
                 styles.heroStatusPill,
@@ -7983,8 +7992,13 @@ function MediaScreen({
   onOpenExternal,
   onOpenSchedule,
   onToggleAudio,
+  mediaActions,
   watchUrl,
   listenUrl,
+  watchLabel = 'Watch Live',
+  watchDescription = 'Open the live video stream.',
+  listenLabel = 'Listen Live',
+  listenDescription = 'Start or pause the live audio stream.',
   scheduleUrl,
   mainSiteUrl,
   displayName,
@@ -7999,9 +8013,14 @@ function MediaScreen({
   onOpenEmbedded: (title: string, url: string) => void;
   onOpenExternal: (url: string) => void;
   onOpenSchedule: () => void;
-  onToggleAudio: () => void;
+  onToggleAudio: (streamUrl?: string) => void;
+  mediaActions?: MediaScreenAction[];
   watchUrl: string;
   listenUrl: string;
+  watchLabel?: string;
+  watchDescription?: string;
+  listenLabel?: string;
+  listenDescription?: string;
   scheduleUrl: string;
   mainSiteUrl: string;
   displayName?: string;
@@ -8016,11 +8035,14 @@ function MediaScreen({
   scheduleAvailable: boolean;
   theme?: AthleticOSResolvedTheme;
 }) {
+  const hasAppOsMediaActions = Array.isArray(mediaActions);
   const hasWatchUrl = hasResolvedUrl(watchUrl);
   const hasListenUrl = hasResolvedUrl(listenUrl);
   const hasScheduleUrl = scheduleAvailable;
   const hasMainSiteUrl = hasResolvedUrl(mainSiteUrl);
-  const hasActions = hasWatchUrl || hasListenUrl || hasScheduleUrl || hasMainSiteUrl;
+  const hasActions = hasAppOsMediaActions
+    ? mediaActions.length > 0
+    : hasWatchUrl || hasListenUrl || hasScheduleUrl || hasMainSiteUrl;
   const heroSchoolName =
     displayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
     'Media';
@@ -8231,31 +8253,39 @@ function MediaScreen({
         </View>
       ) : null}
 
-      {hasWatchUrl ? (
+      {hasAppOsMediaActions
+        ? mediaActions.map((action) =>
+            renderMediaAction(
+              action.key,
+              action.icon,
+              action.title,
+              action.subtitle,
+              action.onPress
+            )
+          )
+        : null}
+
+      {!hasAppOsMediaActions && hasWatchUrl ? (
         renderMediaAction(
           'watch',
           'videocam',
-          liveStatus.video ? 'Watch Live Now' : 'Watch Live',
-          'Open the live video stream.',
+          watchLabel,
+          watchDescription,
           () => onOpenExternal(watchUrl)
         )
       ) : null}
 
-      {hasListenUrl ? (
+      {!hasAppOsMediaActions && hasListenUrl ? (
         renderMediaAction(
           'listen',
           isAudioPlaying ? 'pause-circle' : 'headset',
-          isAudioPlaying
-            ? 'Pause Live Audio'
-            : liveStatus.audio
-            ? 'Listen Live Now'
-            : 'Listen Live',
-          'Start or pause the live audio stream.',
-          onToggleAudio
+          listenLabel,
+          listenDescription,
+          () => onToggleAudio(listenUrl)
         )
       ) : null}
 
-      {hasScheduleUrl ? (
+      {!hasAppOsMediaActions && hasScheduleUrl ? (
         renderMediaAction(
           'schedule',
           'calendar',
@@ -8265,7 +8295,7 @@ function MediaScreen({
         )
       ) : null}
 
-      {hasMainSiteUrl ? (
+      {!hasAppOsMediaActions && hasMainSiteUrl ? (
         renderMediaAction(
           'website',
           'globe-outline',
@@ -14166,7 +14196,6 @@ const handleEnableNotifications = async () => {
     setEmbeddedUrl('');
     setSelectedAthlete(null);
     setSelectedStory(null);
-    console.log('MEDIA_SCREEN_STATE_SET');
   };
 
   const handleBottomNavChange = (tab: TabKey) => {
@@ -14246,6 +14275,45 @@ const handleEnableNotifications = async () => {
     },
     [schoolConfig.mainSiteUrl]
   );
+
+  const appOsMediaChannels = useMemo(() => {
+    const rawChannels = Array.isArray(liveCoverageConfig?.channels)
+      ? liveCoverageConfig.channels
+      : [];
+
+    return rawChannels
+      .filter((channel) => channel?.is_active === true)
+      .sort((a, b) => {
+        const orderDiff =
+          (a.display_order ?? Number.MAX_SAFE_INTEGER) -
+          (b.display_order ?? Number.MAX_SAFE_INTEGER);
+
+        if (orderDiff !== 0) {
+          return orderDiff;
+        }
+
+        return String(a.id ?? '').localeCompare(String(b.id ?? ''));
+      });
+  }, [liveCoverageConfig?.channels]);
+
+  useEffect(() => {
+    console.log('APPOS_LIVE_COVERAGE_CONFIG_ID', liveCoverageConfig?.id ?? null);
+    console.log('APPOS_LIVE_COVERAGE_CHANNEL_COUNT', appOsMediaChannels.length);
+    console.log(
+      'APPOS_LIVE_COVERAGE_CHANNELS_SUMMARY',
+      appOsMediaChannels.map((channel) => ({
+        id: channel.id ?? null,
+        title: channel.title ?? '',
+        channel_type: channel.channel_type ?? '',
+        is_active: channel.is_active !== false,
+        display_order: channel.display_order ?? null,
+        hasVideoUrl: Boolean(channel.video_url),
+        hasAudioStreamUrl: Boolean(channel.audio_stream_url),
+        hasEmbedUrl: Boolean(channel.embed_url),
+        hasTargetUrl: Boolean(channel.target_url),
+      }))
+    );
+  }, [appOsMediaChannels, liveCoverageConfig?.id]);
 
   const openHeroQuickActionSchedule = useCallback(
     async (action: AthleticOSHeroQuickAction) => {
@@ -14648,6 +14716,150 @@ const handleEnableNotifications = async () => {
   }
 };
 
+  const appOsBroadcastMediaActions = useMemo<MediaScreenAction[]>(() => {
+    const getChannelFallbackLabel = (destinationType: string) => {
+      if (destinationType === 'video') {
+        return 'Watch Live';
+      }
+
+      if (destinationType === 'audio') {
+        return 'Listen Live';
+      }
+
+      if (destinationType === 'schedule') {
+        return 'View Schedule';
+      }
+
+      return 'Open Website';
+    };
+
+    const getChannelFallbackDescription = (destinationType: string) => {
+      if (destinationType === 'video') {
+        return 'Open the live video stream.';
+      }
+
+      if (destinationType === 'audio') {
+        return 'Start or pause the live audio stream.';
+      }
+
+      if (destinationType === 'schedule') {
+        return 'Open the in-app school schedule.';
+      }
+
+      return 'Open the live coverage link.';
+    };
+
+    const getChannelIcon = (destinationType: string, isCurrentAudioStream: boolean) => {
+      if (destinationType === 'video') {
+        return 'videocam' as const;
+      }
+
+      if (destinationType === 'audio') {
+        return isCurrentAudioStream && isPlaying ? 'pause-circle' : 'headset';
+      }
+
+      if (destinationType === 'schedule') {
+        return 'calendar';
+      }
+
+      return 'globe-outline';
+    };
+
+    return appOsMediaChannels
+      .map((channel) => {
+        const destinationType = normalizeBottomNavDestinationType(channel.channel_type);
+        const videoUrl =
+          resolveSchoolScopedUrl(channel.video_url) ||
+          resolveSchoolScopedUrl(channel.embed_url) ||
+          resolveSchoolScopedUrl(channel.target_url) ||
+          '';
+        const audioUrl =
+          resolveSchoolScopedUrl(channel.audio_stream_url) ||
+          resolveSchoolScopedUrl(channel.target_url) ||
+          resolveSchoolScopedUrl(channel.embed_url) ||
+          '';
+        const generalUrl =
+          resolveSchoolScopedUrl(channel.target_url) ||
+          resolveSchoolScopedUrl(channel.embed_url) ||
+          resolveSchoolScopedUrl(channel.video_url) ||
+          resolveSchoolScopedUrl(channel.audio_stream_url) ||
+          '';
+        const title =
+          channel.button_label?.trim() ||
+          channel.title?.trim() ||
+          getChannelFallbackLabel(destinationType);
+        const subtitle =
+          channel.description?.trim() ||
+          getChannelFallbackDescription(destinationType);
+        const isScheduleType = destinationType === 'schedule';
+        const isVideoType = destinationType === 'video';
+        const isAudioType = destinationType === 'audio';
+        const isCurrentAudioStream =
+          Boolean(audioUrl) && audioUrl === currentAudioUrlRef.current;
+
+        if (isVideoType && videoUrl) {
+          return {
+            key: `media-channel-${channel.id ?? title}-video`,
+            icon: getChannelIcon(destinationType, false),
+            title,
+            subtitle,
+            onPress: () => openExternalUrl(videoUrl),
+          };
+        }
+
+        if (isAudioType && audioUrl) {
+          return {
+            key: `media-channel-${channel.id ?? title}-audio`,
+            icon: getChannelIcon(destinationType, isCurrentAudioStream),
+            title,
+            subtitle,
+            onPress: () => toggleAudio(audioUrl),
+          };
+        }
+
+        if (isScheduleType) {
+          if (generalUrl) {
+            return {
+              key: `media-channel-${channel.id ?? title}-schedule-link`,
+              icon: getChannelIcon(destinationType, false),
+              title,
+              subtitle,
+              onPress: () => openEmbedded(title, generalUrl),
+            };
+          }
+
+          return {
+            key: `media-channel-${channel.id ?? title}-schedule`,
+            icon: getChannelIcon(destinationType, false),
+            title,
+            subtitle,
+            onPress: openScheduleScreen,
+          };
+        }
+
+        if (!generalUrl) {
+          return null;
+        }
+
+        return {
+          key: `media-channel-${channel.id ?? title}-link`,
+          icon: getChannelIcon(destinationType, false),
+          title,
+          subtitle,
+          onPress: () => openEmbedded(title, generalUrl),
+        };
+      })
+      .filter((action): action is MediaScreenAction => action !== null);
+  }, [
+    appOsMediaChannels,
+    isPlaying,
+    openEmbedded,
+    openExternalUrl,
+    openScheduleScreen,
+    resolveSchoolScopedUrl,
+    toggleAudio,
+  ]);
+
 if (!themeConfigLoaded) {
   return (
     <SafeAreaView
@@ -14821,13 +15033,13 @@ if (showPreroll && prerollConfig) {
       />
     );
   } else if (screenMode === 'media') {
-    console.log('MEDIA_SCREEN_RENDERING');
     mainContent = (
       <MediaScreen
         onOpenEmbedded={openEmbedded}
         onOpenExternal={openExternalUrl}
         onOpenSchedule={openScheduleScreen}
         onToggleAudio={toggleAudio}
+        mediaActions={appOsBroadcastMediaActions}
         watchUrl={schoolConfig.watchUrl}
         listenUrl={schoolConfig.listenUrl}
         scheduleUrl={schoolConfig.scheduleUrl}
@@ -14924,6 +15136,7 @@ if (showPreroll && prerollConfig) {
             onOpenExternal={openExternalUrl}
             onOpenSchedule={openScheduleScreen}
             onToggleAudio={toggleAudio}
+            mediaActions={appOsBroadcastMediaActions}
             watchUrl={schoolConfig.watchUrl}
             listenUrl={schoolConfig.listenUrl}
             scheduleUrl={schoolConfig.scheduleUrl}
