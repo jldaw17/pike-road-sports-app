@@ -14257,6 +14257,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const {
     token: expoPushToken,
     isEnabled: pushNotificationsEnabled,
+    lastRegistrationStatus,
     enable: enablePushNotifications,
   } = usePushNotifications(schoolSlug);
 
@@ -14938,6 +14939,22 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   }, [pushNotificationsEnabled]);
 
   useEffect(() => {
+    console.log('PUSH_SETTINGS_SCREEN_STATE', {
+      schoolSlug: schoolSlug?.trim().toLowerCase() || '(missing)',
+      notificationsEnabled,
+      pushNotificationsEnabled,
+      lastRegistrationStatus,
+      hasExpoPushToken: Boolean(expoPushToken),
+    });
+  }, [
+    expoPushToken,
+    lastRegistrationStatus,
+    notificationsEnabled,
+    pushNotificationsEnabled,
+    schoolSlug,
+  ]);
+
+  useEffect(() => {
     if (!expoPushToken || !resolvedSchoolId || followedTeams.length === 0) {
       return;
     }
@@ -15013,10 +15030,32 @@ const handleEnableNotifications = async () => {
     }
 
     if (!token) {
-      Alert.alert(
-        'Notifications Not Enabled',
-        'We could not get permission for notifications on this device.'
-      );
+      if (lastRegistrationStatus === 'project_id_missing') {
+        Alert.alert(
+          'Notifications Not Enabled',
+          'This build is missing required push configuration. Please reinstall the latest TestFlight build.'
+        );
+      } else if (lastRegistrationStatus === 'token_missing') {
+        Alert.alert(
+          'Notifications Not Enabled',
+          'Notification permission was granted, but this device did not return a valid push token.'
+        );
+      } else if (lastRegistrationStatus === 'save_failed') {
+        Alert.alert(
+          'Notifications Not Enabled',
+          'Notification permission was granted, but we could not save this device for push notifications yet.'
+        );
+      } else if (lastRegistrationStatus === 'error') {
+        Alert.alert(
+          'Notifications Not Enabled',
+          'Something went wrong while registering this device for notifications.'
+        );
+      } else {
+        Alert.alert(
+          'Notifications Not Enabled',
+          'We could not get permission for notifications on this device.'
+        );
+      }
       return;
     }
 

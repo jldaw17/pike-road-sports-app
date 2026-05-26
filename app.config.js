@@ -55,7 +55,7 @@ const VARIANT_CONFIGS = {
     slug: 'sylacauga-athletics',
     scheme: 'sylacaugaathletics',
     iosBundleIdentifier: 'com.athleticos.sylacauga',
-    icon: './assets/images/icon.png',
+    icon: './assets/images/schools/sylacauga/app-icon.png',
     easProjectId: '8673888c-85fd-46b5-adae-d1c603e9acbd',
   },
 };

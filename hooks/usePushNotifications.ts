@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Platform } from 'react-native';
 
 import {
+  type PushRegistrationStatus,
   getPushPermissionStatus,
   registerForPushNotifications,
 } from '../lib/push/registerForPush';
@@ -15,6 +16,8 @@ export const PUSH_PERMISSION_DENIED = '__push_permission_denied__';
 export function usePushNotifications(schoolSlug?: string) {
   const [token, setToken] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
+  const [lastRegistrationStatus, setLastRegistrationStatus] =
+    useState<PushRegistrationStatus | 'idle'>('idle');
   const isRegisteringRef = useRef(false);
   const autoRegisterAttemptedRef = useRef(false);
   const hasShownDeniedAlertRef = useRef(false);
@@ -66,6 +69,7 @@ export function usePushNotifications(schoolSlug?: string) {
       const result = await registerForPushNotifications(schoolSlug);
       console.log('[PushOS] result:', result.status);
       console.log('PUSH_TOKEN_SAVE_RESULT', result.status);
+      setLastRegistrationStatus(result.status);
 
       if (result.status === 'denied') {
         setIsEnabled(false);
@@ -88,6 +92,7 @@ export function usePushNotifications(schoolSlug?: string) {
 
       return result.token;
     } catch {
+      setLastRegistrationStatus('error');
       setIsEnabled(false);
       setToken('');
       return '';
@@ -148,6 +153,7 @@ export function usePushNotifications(schoolSlug?: string) {
         await enable();
       } else if (permissionStatus === 'denied') {
         setIsEnabled(false);
+        setLastRegistrationStatus('denied');
       }
     });
 
@@ -159,6 +165,7 @@ export function usePushNotifications(schoolSlug?: string) {
   return {
     token,
     isEnabled,
+    lastRegistrationStatus,
     enable,
   };
 }

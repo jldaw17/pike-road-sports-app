@@ -47,7 +47,7 @@ export async function getPushPermissionStatus() {
     const settings = await Notifications.getPermissionsAsync();
     const status = settings.granted ? 'granted' : settings.status;
     console.log('[PushOS] permission status:', status);
-    console.log('PUSH_PERMISSION_STATUS', status);
+    console.log('PUSH_PERMISSION_INITIAL_STATUS', status);
     return status;
   } catch (error) {
     console.log('[PushOS] error', error);
@@ -78,11 +78,15 @@ export async function registerForPushNotifications(
     const existingSettings = await Notifications.getPermissionsAsync();
     let finalStatus = existingSettings.granted ? 'granted' : existingSettings.status;
     console.log('Notification permission status:', finalStatus);
+    console.log('PUSH_PERMISSION_INITIAL_STATUS', finalStatus);
 
     if (finalStatus === 'undetermined') {
       const requestSettings = await Notifications.requestPermissionsAsync();
       finalStatus = requestSettings.granted ? 'granted' : requestSettings.status;
       console.log('Notification permission status:', finalStatus);
+      console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
+    } else {
+      console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
     }
 
     if (finalStatus !== 'granted') {
@@ -116,6 +120,10 @@ export async function registerForPushNotifications(
     const expoPushToken = tokenResponse.data?.trim() ?? '';
 
     console.log('[PushOS] token', maskPushToken(expoPushToken) || '(missing)');
+    console.log(
+      'PUSH_TOKEN_GENERATED_MASKED',
+      maskPushToken(expoPushToken) || '(missing)'
+    );
 
     if (!finalSchoolSlug || !expoPushToken || !isValidExpoPushToken(expoPushToken)) {
       return {
@@ -149,7 +157,7 @@ export async function registerForPushNotifications(
       };
     }
 
-    console.log('[PushOS] saved', expoPushToken);
+    console.log('[PushOS] saved', maskPushToken(expoPushToken));
     console.log('PUSH_TOKEN_SAVE_RESULT', {
       status: 'saved',
       schoolSlug: finalSchoolSlug,
