@@ -927,6 +927,20 @@ function getSportAliases(sportKey: string) {
   return SPORT_KEY_ALIASES[sportKey] ?? [sportKey];
 }
 
+function getSportMatchTokens(sportKey: string, sport?: AthleticOSSport | null) {
+  const aliasTokens = getSportAliases(sportKey).map(normalizeToken);
+  const sportTokens = sport
+    ? [
+        pickFirstString(sport, ['slug']),
+        pickFirstString(sport, ['name']),
+      ]
+        .filter(Boolean)
+        .map((value) => normalizeToken(value))
+    : [];
+
+  return new Set([...aliasTokens, ...sportTokens].filter(Boolean));
+}
+
 function getDefaultSportSlug(sportKey: string) {
   return getSportAliases(sportKey)[0] ?? sportKey;
 }
@@ -1027,17 +1041,24 @@ function scheduleEventMatchesSport(
   sportKey: string,
   sport?: AthleticOSSport | null
 ) {
-  const aliases = new Set(getSportAliases(sportKey).map(normalizeToken));
+  const aliases = getSportMatchTokens(sportKey, sport);
   const sportId = pickFirstId(event, ['sport_id']);
   const matchedSportId = sport ? pickFirstId(sport, ['id']) : undefined;
+  const nestedSportValue = (event as Record<string, unknown>).sports ?? (event as Record<string, unknown>).sport ?? null;
+  const nestedSport = Array.isArray(nestedSportValue)
+    ? (nestedSportValue[0] as Record<string, unknown> | undefined) ?? null
+    : ((nestedSportValue as Record<string, unknown> | null) ?? null);
+  const nestedSportId = pickFirstId((nestedSport ?? {}) as Record<string, unknown>, ['id', 'sport_id']);
 
-  if (sportId && matchedSportId && sportId === matchedSportId) {
+  if (matchedSportId && (sportId === matchedSportId || nestedSportId === matchedSportId)) {
     return true;
   }
 
   const candidates = [
     pickFirstString(event, ['sport_slug']),
     pickFirstString(event, ['sport_name']),
+    pickFirstString(event, ['sport', 'team_name']),
+    pickFirstString((nestedSport ?? {}) as Record<string, unknown>, ['slug', 'name']),
   ]
     .filter(Boolean)
     .map((value) => normalizeToken(value));
@@ -2048,6 +2069,44 @@ export async function getSportScheduleEventsBySchoolId(
     getScheduleEventsBySchoolId(schoolId),
     getSportBySchoolIdAndKey(schoolId, sportKey),
   ]);
+
+  const matchedSportId = sport ? pickFirstId(sport, ['id']) : undefined;
+  if (matchedSportId) {
+    const exactMatches = events.filter((event) => {
+      const eventSportId = pickFirstId(event, ['sport_id']);
+      const nestedSportValue =
+        (event as Record<string, unknown>).sports ?? (event as Record<string, unknown>).sport ?? null;
+      const nestedSport = Array.isArray(nestedSportValue)
+        ? (nestedSportValue[0] as Record<string, unknown> | undefined) ?? null
+        : ((nestedSportValue as Record<string, unknown> | null) ?? null);
+      const nestedSportId = pickFirstId((nestedSport ?? {}) as Record<string, unknown>, ['id', 'sport_id']);
+
+      return eventSportId === matchedSportId || nestedSportId === matchedSportId;
+    });
+
+    if (exactMatches.length > 0) {
+      return exactMatches;
+    }
+
+    const strictTokens = getSportMatchTokens(sportKey, sport);
+    return events.filter((event) => {
+      const nestedSportValue =
+        (event as Record<string, unknown>).sports ?? (event as Record<string, unknown>).sport ?? null;
+      const nestedSport = Array.isArray(nestedSportValue)
+        ? (nestedSportValue[0] as Record<string, unknown> | undefined) ?? null
+        : ((nestedSportValue as Record<string, unknown> | null) ?? null);
+      const candidates = [
+        pickFirstString(event, ['sport_slug']),
+        pickFirstString(event, ['sport_name']),
+        pickFirstString(event, ['sport']),
+        pickFirstString((nestedSport ?? {}) as Record<string, unknown>, ['slug', 'name']),
+      ]
+        .filter(Boolean)
+        .map((value) => normalizeToken(value));
+
+      return candidates.some((candidate) => strictTokens.has(candidate));
+    });
+  }
 
   return events.filter((event) => scheduleEventMatchesSport(event, sportKey, sport));
 }

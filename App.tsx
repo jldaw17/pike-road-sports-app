@@ -128,6 +128,10 @@ function isPower5Theme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'sec_power5';
 }
 
+function isGradientEliteTheme(theme: AthleticOSResolvedTheme) {
+  return theme.meta.themeKey === 'gradient_elite';
+}
+
 function getModernDisplayLabel(label: string, fallback?: string) {
   const normalized = (label || fallback || '').trim();
 
@@ -481,6 +485,14 @@ function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
     return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
   }
 
+  if (isPower5Theme(theme)) {
+    return [theme.colors.primary, theme.colors.secondary];
+  }
+
+  if (isGradientEliteTheme(theme)) {
+    return [theme.colors.primary, theme.colors.secondary];
+  }
+
   return [theme.colors.heroStart, theme.colors.heroEnd, theme.colors.cardAlt];
 }
 
@@ -503,6 +515,14 @@ function getThemeDarkHeroGradient(theme: AthleticOSResolvedTheme) {
 
   if (isCleanSlateTheme(theme)) {
     return [theme.colors.surface, theme.colors.surface, theme.colors.surface];
+  }
+
+  if (isPower5Theme(theme)) {
+    return [theme.colors.primary, theme.colors.secondary];
+  }
+
+  if (isGradientEliteTheme(theme)) {
+    return [theme.colors.primary, theme.colors.secondary];
   }
 
   return [BRAND.black, theme.colors.heroEnd, theme.colors.cardAlt];
@@ -529,7 +549,43 @@ function getThemeBackdropGradient(theme: AthleticOSResolvedTheme) {
     return [theme.colors.background, theme.colors.background, theme.colors.background];
   }
 
+  if (isPower5Theme(theme)) {
+    return [
+      withAlpha(theme.colors.primary, '0E'),
+      theme.colors.card,
+      theme.colors.background,
+    ];
+  }
+
+  if (isGradientEliteTheme(theme)) {
+    return [theme.colors.primary, '#000000'];
+  }
+
   return [`${theme.colors.secondary}22`, `${theme.colors.primary}12`, theme.colors.background];
+}
+
+function renderGradientEliteBackdrop(theme: AthleticOSResolvedTheme) {
+  return isGradientEliteTheme(theme) ? (
+    <LinearGradient
+      colors={getThemeBackdropGradient(theme)}
+      start={{ x: 1, y: 1 }}
+      end={{ x: 0, y: 0 }}
+      style={styles.teamsScreenBackdrop}
+      pointerEvents="none"
+    />
+  ) : null;
+}
+
+function getThemeBaseBackgroundColor(theme: AthleticOSResolvedTheme) {
+  if (isGradientEliteTheme(theme)) {
+    return '#000000';
+  }
+
+  if (isGamedayTheme(theme)) {
+    return theme.colors.primary;
+  }
+
+  return theme.colors.background;
 }
 
 function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
@@ -640,6 +696,33 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
     };
   }
 
+  if (isPower5Theme(theme)) {
+    return {
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    };
+  }
+
+  if (isGradientEliteTheme(theme)) {
+    return {
+      backgroundColor: '#000000',
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.22)',
+      shadowColor: withAlpha(theme.colors.primary, '18'),
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 5,
+    };
+  }
+
   if (!isLightAppTheme(theme)) {
     return null;
   }
@@ -683,6 +766,33 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
       shadowRadius: 10,
       shadowOffset: { width: 0, height: 4 },
       elevation: 4,
+    };
+  }
+
+  if (isPower5Theme(theme)) {
+    return {
+      backgroundColor: theme.colors.card,
+      borderColor: theme.colors.border,
+      borderWidth: 1,
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    };
+  }
+
+  if (isGradientEliteTheme(theme)) {
+    return {
+      backgroundColor: '#050505',
+      borderColor: 'rgba(255,255,255,0.18)',
+      borderWidth: 1,
+      borderRadius: 20,
+      shadowColor: withAlpha(theme.colors.primary, '18'),
+      shadowOpacity: 0.11,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 5,
     };
   }
 
@@ -731,6 +841,33 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 3 },
       elevation: 3,
+    };
+  }
+
+  if (isPower5Theme(theme)) {
+    return {
+      backgroundColor: theme.colors.cardAlt,
+      borderColor: theme.colors.border,
+      borderWidth: 1,
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+    };
+  }
+
+  if (isGradientEliteTheme(theme)) {
+    return {
+      backgroundColor: '#0A0A0A',
+      borderColor: 'rgba(255,255,255,0.14)',
+      borderWidth: 1,
+      borderRadius: 18,
+      shadowColor: withAlpha(theme.colors.primary, '14'),
+      shadowOpacity: 0.09,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
     };
   }
 
@@ -835,6 +972,22 @@ function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle
 function getRecruitingExperiencePalette(theme: AthleticOSResolvedTheme) {
   const resolvedAccent = theme.colors.accent || theme.colors.primary;
   const resolvedSecondary = theme.colors.secondary || theme.colors.primary;
+
+  if (isGradientEliteTheme(theme)) {
+    return {
+      background: '#000000',
+      surface: '#050505',
+      surfaceAlt: '#0A0A0A',
+      border: 'rgba(255,255,255,0.22)',
+      borderSoft: 'rgba(255,255,255,0.14)',
+      text: '#FFFFFF',
+      mutedText: 'rgba(255,255,255,0.72)',
+      accent: resolvedAccent,
+      accentSoft: withAlpha(resolvedAccent, '16'),
+      secondarySoft: withAlpha(resolvedAccent, '12'),
+      heroGradient: ['#05070C', withAlpha(resolvedSecondary, '26'), withAlpha(resolvedAccent, '1E')],
+    };
+  }
 
   return {
     background: '#080B12',
@@ -1094,6 +1247,13 @@ function resolveBottomNavIcon(iconKey?: string): keyof typeof Ionicons.glyphMap 
 }
 
 type TabKey = 'home' | 'teams' | 'media' | 'tickets' | 'more';
+
+type ScheduleSportFilter = {
+  sportId?: string;
+  sportKey?: string;
+  sportLabel?: string;
+  sportShortLabel?: string;
+};
 type BottomNavSlot = 1 | 2 | 4;
 type ScreenMode =
   | 'tabs'
@@ -1567,15 +1727,14 @@ function RemoteImage({
   const initials = getInitials(label);
   const isLogoMode =
     mode === 'logo' || mode === 'sponsor' || mode === 'opponent';
-  const fallbackBackground = isLightAppTheme(theme)
-    ? theme.colors.cardAlt
-    : BRAND.surfaceAlt;
-  const fallbackBorder = isLightAppTheme(theme)
-    ? theme.colors.border
-    : BRAND.border;
+  const fallbackBackground =
+    isGradientEliteTheme(theme) && mode === 'athlete'
+      ? theme.colors.primary
+      : theme.colors.cardAlt;
+  const fallbackBorder = theme.colors.border;
   const fallbackColor = isLightAppTheme(theme)
     ? theme.colors.primary
-    : BRAND.white;
+    : theme.colors.text;
   const showFallback = !resolvedUri || didFail;
 
   useEffect(() => {
@@ -2156,6 +2315,25 @@ function normalizeScheduleItem(item: EventItem) {
   };
 }
 
+function normalizeSportMatchToken(value?: string | null) {
+  return (value ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function getScheduleSportFilterTokens(filter?: ScheduleSportFilter | null) {
+  return new Set(
+    [
+      normalizeSportMatchToken(filter?.sportKey),
+      normalizeSportMatchToken(filter?.sportLabel),
+      normalizeSportMatchToken(filter?.sportShortLabel),
+    ].filter(Boolean)
+  );
+}
+
 function getSportColor(sport: string) {
   switch (sport) {
     case 'Football':
@@ -2679,23 +2857,22 @@ function AudioMiniPlayer({
     return null;
   }
 
-  return (
-    <View
-      style={[
-        styles.audioBar,
-        isCleanSlateTheme(theme)
-          ? {
-              backgroundColor: theme.colors.background,
-              borderTopColor: theme.colors.border,
-            }
-          : null,
-      ]}
-    >
+  const isGradientElite = isGradientEliteTheme(theme);
+  const buttonTextColor = isGradientElite ? '#FFFFFF' : theme.colors.primary;
+  const buttonBackgroundColor = isGradientElite
+    ? theme.colors.primary
+    : theme.colors.cardAlt;
+  const buttonBorderColor = isGradientElite
+    ? 'rgba(255,255,255,0.16)'
+    : theme.colors.primary;
+
+  const content = (
+    <>
       <View style={styles.audioBarLeft}>
-        <Text style={[styles.audioBarTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>
+        <Text style={[styles.audioBarTitle, { color: theme.colors.text }]}>
           {title || 'Live Audio'}
         </Text>
-        <Text style={[styles.audioBarSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : '#CFCFCF' }]}>
+        <Text style={[styles.audioBarSub, { color: theme.colors.mutedText }]}>
           {isLoading
             ? 'Loading stream...'
             : isPlaying
@@ -2707,25 +2884,61 @@ function AudioMiniPlayer({
       <Pressable
         style={[
           styles.audioBarButton,
-          isCleanSlateTheme(theme)
-            ? {
-                backgroundColor: theme.colors.surface,
-                borderWidth: 1,
-                borderColor: theme.colors.primary,
-              }
-            : null,
+          {
+            backgroundColor: buttonBackgroundColor,
+            borderWidth: 1,
+            borderColor: buttonBorderColor,
+          },
         ]}
         onPress={onToggle}
       >
         <Ionicons
           name={isPlaying ? 'pause' : 'play'}
           size={18}
-          color={isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.white}
+          color={buttonTextColor}
         />
-        <Text style={[styles.audioBarButtonText, { color: isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.white }]}>
+        <Text style={[styles.audioBarButtonText, { color: buttonTextColor }]}>
           {isLoading ? '...' : isPlaying ? 'Pause' : 'Play'}
         </Text>
       </Pressable>
+    </>
+  );
+
+  if (isGradientElite) {
+    return (
+      <LinearGradient
+        colors={[theme.colors.primary, '#000000']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.audioBar,
+          {
+            backgroundColor: 'transparent',
+            borderTopColor: 'rgba(255,255,255,0.14)',
+          },
+        ]}
+      >
+        {content}
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.audioBar,
+        isCleanSlateTheme(theme)
+          ? {
+              backgroundColor: theme.colors.background,
+              borderTopColor: theme.colors.border,
+            }
+          : {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+            }
+      ]}
+    >
+      {content}
     </View>
   );
 }
@@ -2773,7 +2986,7 @@ function LaunchSplash({
     <Animated.View
       style={[
         styles.flashContainer,
-        isCleanSlateTheme(theme)
+        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
           ? {
               backgroundColor: theme.colors.background,
             }
@@ -2786,7 +2999,7 @@ function LaunchSplash({
     >
       <StatusBar
         barStyle={isCleanSlateTheme(theme) ? 'dark-content' : 'light-content'}
-        backgroundColor={isCleanSlateTheme(theme) ? theme.colors.background : '#1F3B7A'}
+        backgroundColor={theme.colors.background}
       />
 
       {hasSplashBackground ? (
@@ -2796,9 +3009,9 @@ function LaunchSplash({
           imageStyle={styles.flashBackgroundImageInner}
           resizeMode="cover"
         >
-          {showDefaultSplash && !isCleanSlateTheme(theme) ? <View style={styles.flashOverlay} /> : null}
+          {showDefaultSplash && !isCleanSlateTheme(theme) && !isGradientEliteTheme(theme) ? <View style={styles.flashOverlay} /> : null}
 
-          {showDefaultSplash && !isCleanSlateTheme(theme) ? (
+          {showDefaultSplash && !isCleanSlateTheme(theme) && !isGradientEliteTheme(theme) ? (
             <View style={styles.flashTopStripeWrap}>
               <View style={styles.flashTopStripeBlack} />
               <View style={styles.flashTopStripeRed} />
@@ -2917,9 +3130,9 @@ function LaunchSplash({
               : null,
           ]}
         >
-          {!isCleanSlateTheme(theme) ? <View style={styles.flashOverlay} /> : null}
+          {!isCleanSlateTheme(theme) && !isGradientEliteTheme(theme) ? <View style={styles.flashOverlay} /> : null}
 
-          {!isCleanSlateTheme(theme) ? (
+          {!isCleanSlateTheme(theme) && !isGradientEliteTheme(theme) ? (
             <View style={styles.flashTopStripeWrap}>
               <View style={styles.flashTopStripeBlack} />
               <View style={styles.flashTopStripeRed} />
@@ -2928,7 +3141,7 @@ function LaunchSplash({
           ) : null}
 
           <View style={styles.flashCenterArea}>
-            {!isCleanSlateTheme(theme) ? <View style={styles.flashShadowLong} /> : null}
+            {!isCleanSlateTheme(theme) && !isGradientEliteTheme(theme) ? <View style={styles.flashShadowLong} /> : null}
             <Animated.View
               style={{
                 transform: [{ translateY: logoSlide }],
@@ -3115,9 +3328,7 @@ function NewsCard({
           />
         ) : (
           <LinearGradient
-            colors={isCleanSlateTheme(theme)
-              ? [theme.colors.cardAlt, theme.colors.surface]
-              : [BRAND.primaryDark, BRAND.black]}
+            colors={[theme.colors.cardAlt, theme.colors.background]}
             style={styles.featuredStoryImage}
           />
         )}
@@ -3255,7 +3466,14 @@ function NewsCard({
       {item.image ? (
         <RemoteImage
           uri={item.image}
-          style={styles.newsThumbWide}
+          style={[
+            styles.newsThumbWide,
+            isPower5Theme(theme)
+              ? {
+                  backgroundColor: theme.colors.cardAlt,
+                }
+              : null,
+          ]}
           contentFit="cover"
           mode="story"
           label={item.title}
@@ -3265,17 +3483,16 @@ function NewsCard({
         <View
           style={[
             styles.newsThumbFallbackWide,
-            isCleanSlateTheme(theme)
-              ? {
-                  backgroundColor: theme.colors.cardAlt,
-                }
-              : null,
+            {
+              backgroundColor: theme.colors.cardAlt,
+              borderColor: theme.colors.border,
+            },
           ]}
         >
           <Ionicons
             name="newspaper-outline"
             size={22}
-            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            color={theme.colors.text}
           />
         </View>
       )}
@@ -3323,16 +3540,25 @@ function StoryDetailScreen({
       style={[
         styles.screen,
         {
-          backgroundColor: isGamedayHome ? theme.colors.primary : theme.colors.background,
+          backgroundColor: isGamedayHome
+            ? theme.colors.primary
+            : isPower5Theme(theme)
+            ? '#000000'
+            : theme.colors.background,
         },
       ]}
       contentContainerStyle={[
         styles.screenContent,
         {
-          backgroundColor: isGamedayHome ? theme.colors.primary : theme.colors.background,
+          backgroundColor: isGamedayHome
+            ? theme.colors.primary
+            : isPower5Theme(theme)
+            ? '#000000'
+            : theme.colors.background,
         },
       ]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[styles.storyDetailHero, getThemeHeroShellStyle(theme)]}
@@ -3564,9 +3790,7 @@ function StoryCarouselCard({
         />
       ) : (
         <LinearGradient
-          colors={isCleanSlateTheme(theme)
-            ? [theme.colors.cardAlt, theme.colors.surface]
-            : [BRAND.primaryDark, BRAND.black]}
+          colors={[theme.colors.cardAlt, theme.colors.background]}
           style={styles.storyCarouselImage}
         />
       )}
@@ -3740,9 +3964,7 @@ function VideoCarouselCard({
         />
       ) : (
         <LinearGradient
-          colors={isCleanSlateTheme(theme)
-            ? [theme.colors.cardAlt, theme.colors.surface]
-            : [BRAND.primaryDark, BRAND.black]}
+          colors={[theme.colors.cardAlt, theme.colors.background]}
           style={styles.videoCarouselImage}
         />
       )}
@@ -3919,9 +4141,7 @@ function GalleryCarouselCard({
         />
       ) : (
         <LinearGradient
-          colors={isCleanSlateTheme(theme)
-            ? [theme.colors.cardAlt, theme.colors.surface]
-            : [BRAND.primaryDark, BRAND.black]}
+          colors={[theme.colors.cardAlt, theme.colors.background]}
           style={styles.galleryCarouselImage}
         />
       )}
@@ -4086,6 +4306,12 @@ function PromotionCard({
               style={[
                 styles.promotionCardButton,
                 getThemeEditorialButtonStyle(theme),
+                isGradientEliteTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.buttonBackground || theme.colors.primary,
+                      borderColor: theme.colors.buttonBackground || theme.colors.primary,
+                    }
+                  : null,
                 { marginTop: 12, paddingHorizontal: 14, paddingVertical: 10 },
               ]}
             >
@@ -4143,11 +4369,7 @@ function PromotionCard({
         />
       ) : (
         <LinearGradient
-          colors={
-            isCleanSlateTheme(theme)
-              ? [theme.colors.cardAlt, theme.colors.surface]
-              : [BRAND.primaryDark, BRAND.surface]
-          }
+          colors={[theme.colors.cardAlt, theme.colors.background]}
           style={styles.promotionCardImage}
         />
       )}
@@ -4204,12 +4426,20 @@ function PromotionCard({
             style={[
               styles.promotionCardButton,
               getThemeEditorialButtonStyle(theme),
+              isGradientEliteTheme(theme)
+                ? {
+                    backgroundColor: theme.colors.buttonBackground || theme.colors.primary,
+                    borderColor: theme.colors.buttonBackground || theme.colors.primary,
+                  }
+                : null,
             ]}
           >
             <Text
               style={[
                 styles.promotionCardButtonText,
-                isCleanSlateTheme(theme) ? { color: theme.colors.buttonText } : null,
+                isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                  ? { color: theme.colors.buttonText }
+                  : null,
               ]}
             >
               {promotion.cta_text.trim()}
@@ -4217,7 +4447,11 @@ function PromotionCard({
             <Ionicons
               name="chevron-forward"
               size={16}
-              color={isCleanSlateTheme(theme) ? theme.colors.buttonText : BRAND.white}
+              color={
+                isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                  ? theme.colors.buttonText
+                  : BRAND.white
+              }
             />
           </View>
         ) : null}
@@ -4570,11 +4804,7 @@ function AthleteOfWeekCard({
         />
       ) : (
         <LinearGradient
-          colors={
-            isCleanSlateTheme(theme)
-              ? [theme.colors.cardAlt, theme.colors.surface]
-              : [BRAND.primaryDark, BRAND.surface]
-          }
+          colors={[theme.colors.cardAlt, theme.colors.background]}
           style={styles.athleteOfWeekImage}
         />
       )}
@@ -4704,9 +4934,10 @@ function AthleteOfWeekDetailScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[
@@ -5126,19 +5357,32 @@ function TeamTile({
   onPress: () => void;
   theme?: AthleticOSResolvedTheme;
 }) {
+  const isPower5 = isPower5Theme(theme);
+  const isGradientElite = isGradientEliteTheme(theme);
+
   return (
     <Pressable style={styles.teamTile} onPress={onPress}>
       <LinearGradient
         colors={
           isCleanSlateTheme(theme)
             ? [theme.colors.surface, theme.colors.cardAlt]
-            : [BRAND.surfaceAlt, BRAND.surface]
+            : isPower5 || isGradientElite
+            ? isGradientElite
+              ? ['#FFFFFF', '#F7F7F7']
+              : [theme.colors.card, theme.colors.cardAlt]
+            : [theme.colors.cardAlt, theme.colors.surface]
         }
         style={[
           styles.teamTileInner,
+          {
+            borderColor:
+              isGradientElite ? 'rgba(255,255,255,0.28)' : theme.colors.border,
+            ...(isPower5 || isGradientElite
+              ? { backgroundColor: isGradientElite ? '#FFFFFF' : theme.colors.card }
+              : null),
+          },
           isCleanSlateTheme(theme)
             ? {
-                borderColor: theme.colors.border,
                 borderRadius: 5,
               }
             : null,
@@ -5155,10 +5399,34 @@ function TeamTile({
             }}
           />
         ) : null}
-        <Text style={[styles.teamTileTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>
+        <Text
+          style={[
+            styles.teamTileTitle,
+            {
+              color:
+                isCleanSlateTheme(theme) || isPower5
+                  ? theme.colors.text
+                  : isGradientElite
+                    ? theme.colors.primary
+                  : BRAND.white,
+            },
+          ]}
+        >
           {sport.shortLabel || sport.label}
         </Text>
-        <Text style={[styles.teamTileSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.gray }]}>
+        <Text
+          style={[
+            styles.teamTileSub,
+            {
+              color:
+                isCleanSlateTheme(theme) || isPower5
+                  ? theme.colors.mutedText
+                  : isGradientElite
+                    ? withAlpha(theme.colors.text, 'B8')
+                  : BRAND.gray,
+            },
+          ]}
+        >
           News, roster, schedule
         </Text>
         <View
@@ -5166,8 +5434,14 @@ function TeamTile({
             styles.teamTileArrowWrap,
             isModernTheme(theme)
               ? {
-                  backgroundColor: withAlpha(theme.colors.primary, '0C'),
+              backgroundColor: withAlpha(theme.colors.primary, '0C'),
                   borderColor: withAlpha(theme.colors.primary, '18'),
+                }
+              : isPower5 || isGradientElite
+              ? {
+                  backgroundColor: isGradientElite ? '#FFFFFF' : theme.colors.cardAlt,
+                  borderColor:
+                    isGradientElite ? 'rgba(255,255,255,0.22)' : theme.colors.border,
                 }
               : isCleanSlateTheme(theme)
               ? {
@@ -5182,6 +5456,8 @@ function TeamTile({
             size={18}
             color={
               isModernTheme(theme)
+                ? theme.colors.primary
+                : isPower5 || isGradientElite
                 ? theme.colors.primary
                 : isGamedayTheme(theme)
                 ? theme.colors.secondary
@@ -5615,75 +5891,182 @@ function HomeScreen({
     gamedayLiveSponsorBackground,
     'B8'
   );
+  const moduleContent = (
+    <>
+      {showNotificationPrompt && !notificationsEnabled && (
+        <View
+          style={[
+            styles.notificationSignupCard,
+            isGradientEliteTheme(theme)
+              ? {
+                  backgroundColor: '#050505',
+                  borderColor: 'rgba(255,255,255,0.18)',
+                }
+              : null,
+            !isGamedayHome && !isCleanSlateTheme(theme) && !isGradientEliteTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+            isGamedayHome
+              ? {
+                  backgroundColor: withAlpha(theme.colors.secondary, 'E8'),
+                  borderColor: withAlpha(theme.colors.primary, '38'),
+                  borderRadius: 18,
+                  shadowColor: withAlpha(theme.colors.secondary, '26'),
+                  shadowOpacity: 0.15,
+                  shadowRadius: 11,
+                  shadowOffset: { width: 0, height: 4 },
+                  elevation: 3,
+                }
+              : null,
+            isCleanSlateTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                }
+              : null,
+          ]}
+        >
+          <View style={styles.notificationTextWrap}>
+            <Text
+              style={[
+                styles.notificationSignupTitle,
+                {
+                  color:
+                    isCleanSlateTheme(theme) || isGamedayHome
+                      ? theme.colors.text
+                      : theme.colors.text,
+                },
+              ]}
+            >
+              Get live broadcast + final score alerts
+            </Text>
+            <Text
+              style={[
+                styles.notificationSignupText,
+                {
+                  color:
+                    isCleanSlateTheme(theme) || isGamedayHome
+                      ? theme.colors.mutedText
+                      : theme.colors.mutedText,
+                },
+              ]}
+            >
+              Be the first to know when your teams are live and when finals go official.
+            </Text>
+          </View>
+
+          <View style={styles.notificationButtonRow}>
+            <Pressable
+              style={[
+                styles.notificationPrimaryButton,
+                isGradientEliteTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.primary,
+                      borderColor: theme.colors.primary,
+                    }
+                  : null,
+                !isGamedayHome && !isCleanSlateTheme(theme) && !isGradientEliteTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.primary,
+                    }
+                  : null,
+                isGamedayHome
+                  ? {
+                      backgroundColor: withAlpha(theme.colors.accent, '1E'),
+                      borderWidth: 1,
+                      borderColor: withAlpha(theme.colors.accent, '54'),
+                    }
+                  : null,
+                isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.surface,
+                      borderWidth: 1,
+                      borderColor: theme.colors.primary,
+                    }
+                  : null,
+              ]}
+              onPress={onEnableNotifications}
+            >
+              <Text
+              style={[
+                styles.notificationPrimaryButtonText,
+                isCleanSlateTheme(theme)
+                  ? { color: theme.colors.primary }
+                : isGamedayHome
+                  ? { color: theme.colors.text }
+                  : { color: theme.colors.buttonText },
+              ]}
+            >
+                Enable
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.notificationSecondaryButton,
+                isGradientEliteTheme(theme)
+                  ? {
+                      backgroundColor: '#080808',
+                      borderColor: 'rgba(255,255,255,0.18)',
+                    }
+                  : null,
+                isPower5Theme(theme)
+                  ? {
+                      backgroundColor: theme.colors.cardAlt,
+                      borderColor: theme.colors.border,
+                    }
+                  : null,
+                !isGamedayHome &&
+                !isCleanSlateTheme(theme) &&
+                !isPower5Theme(theme) &&
+                !isGradientEliteTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                    }
+                  : null,
+                isGamedayHome
+                  ? {
+                      backgroundColor: withAlpha(theme.colors.primary, '18'),
+                      borderColor: withAlpha(theme.colors.primary, '36'),
+                    }
+                  : null,
+                isCleanSlateTheme(theme)
+                  ? {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                    }
+                  : null,
+              ]}
+              onPress={onDismissNotificationPrompt}
+            >
+              <Text
+              style={[
+                styles.notificationSecondaryButtonText,
+                isCleanSlateTheme(theme) || isGamedayHome
+                  ? { color: theme.colors.text }
+                  : { color: theme.colors.text },
+              ]}
+            >
+                Not Now
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {resolvedModules.map((module) => renderHomeModule(module))}
+    </>
+  );
 
   const handleOpenLiveCoverage = () => {
-    const destinationType = normalizeModuleKey(liveCoverageConfig?.destination_type);
-    const destinationValue = liveCoverageConfig?.destination_value?.trim() || '';
-
-    if (destinationType === 'custom_url' && hasResolvedUrl(destinationValue)) {
-      onOpenEmbedded(
-        liveCoverageConfig?.headline?.trim() || heroTitle,
-        destinationValue
-      );
-      return;
-    }
-
-    if (
-      destinationType === 'schedule' ||
-      destinationType === 'schedule_screen' ||
-      destinationType === 'all_schedules'
-    ) {
-      onOpenSchedule();
-      return;
-    }
-
-    if (
-      destinationType === 'website' ||
-      destinationType === 'main_site' ||
-      destinationType === 'school_website'
-    ) {
-      if (hasMainSiteUrl) {
-        onOpenEmbedded('Website', schoolConfig.mainSiteUrl);
-        return;
-      }
-    }
-
-    if (
-      destinationType === 'watch_live' ||
-      destinationType === 'watch_url' ||
-      destinationType === 'video'
-    ) {
-      if (hasWatchUrl) {
-        onOpenExternal(schoolConfig.watchUrl);
-        return;
-      }
-    }
-
-    if (
-      destinationType === 'listen_live' ||
-      destinationType === 'listen_url' ||
-      destinationType === 'audio'
-    ) {
-      if (hasListenUrl) {
-        onToggleAudio();
-        return;
-      }
-    }
-
-    if (destinationType === 'watch_tab') {
-      onGoToMedia();
-      return;
-    }
-
-    if (destinationType === 'broadcast_page' || !destinationType) {
-      onGoToMedia();
-      return;
-    }
-
     onGoToMedia();
   };
 
-  const renderLiveCoverageModule = () => {
+  function renderLiveCoverageModule() {
     if (!hasLiveCoverageModule || !liveCoverageConfig?.is_enabled) {
       return null;
     }
@@ -5786,10 +6169,25 @@ function HomeScreen({
                 : theme.colors.border,
           },
           getThemeCardShellStyle(theme),
-          isModernTheme(theme)
-            ? {
-                borderRadius: 16,
-                backgroundColor: withAlpha(theme.colors.primary, '03'),
+                isGradientEliteTheme(theme)
+                  ? {
+                      borderRadius: 20,
+                      backgroundColor: '#050505',
+                      borderColor: statusPillIsLive
+                        ? 'rgba(255,255,255,0.22)'
+                        : 'rgba(255,255,255,0.14)',
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      shadowColor: withAlpha(theme.colors.primary, '18'),
+                      shadowOpacity: 0.1,
+                      shadowRadius: 10,
+                      shadowOffset: { width: 0, height: 4 },
+                      elevation: 4,
+                    }
+                  : isModernTheme(theme)
+                  ? {
+                      borderRadius: 16,
+                      backgroundColor: withAlpha(theme.colors.primary, '03'),
                 borderColor: withAlpha(theme.colors.primary, statusPillIsLive ? '32' : '22'),
                 borderTopWidth: 3,
                 borderTopColor: withAlpha(theme.colors.primary, statusPillIsLive ? '72' : '3E'),
@@ -6052,6 +6450,8 @@ function HomeScreen({
                         letterSpacing: 0.9,
                         marginBottom: 4,
                       }
+                    : isGradientEliteTheme(theme)
+                    ? { color: theme.colors.primary }
                     : isModernTheme(theme)
                     ? { color: theme.colors.primary }
                     : { color: BRAND.red },
@@ -6248,10 +6648,11 @@ function HomeScreen({
         ) : null}
       </Pressable>
     );
-  };
+  }
 
-  const renderStoriesModule = (title: string) => (
-    <React.Fragment key="stories">
+  function renderStoriesModule(title: string) {
+    return (
+      <React.Fragment key="stories">
         <OptionalSectionHeader
           title={title}
           actionLabel={hasMainSiteUrl ? 'Website' : undefined}
@@ -6288,10 +6689,11 @@ function HomeScreen({
           ))}
         </ScrollView>
       )}
-    </React.Fragment>
-  );
+      </React.Fragment>
+    );
+  }
 
-  const renderVideosModule = (title: string) => {
+  function renderVideosModule(title: string) {
     if (videoCarouselItems.length === 0) {
       return null;
     }
@@ -6321,9 +6723,9 @@ function HomeScreen({
         </ScrollView>
       </React.Fragment>
     );
-  };
+  }
 
-  const renderGalleriesModule = (title: string) => {
+  function renderGalleriesModule(title: string) {
     if (galleryCarouselItems.length === 0) {
       return null;
     }
@@ -6349,10 +6751,11 @@ function HomeScreen({
         </ScrollView>
       </React.Fragment>
     );
-  };
+  }
 
-  const renderRecentResultsModule = (title: string) => (
-    <React.Fragment key="recent_results">
+  function renderRecentResultsModule(title: string) {
+    return (
+      <React.Fragment key="recent_results">
       <OptionalSectionHeader title={title} theme={theme} />
       {eventsLoading ? (
         <View style={styles.loadingWrap}>
@@ -6384,11 +6787,13 @@ function HomeScreen({
           ))}
         </ScrollView>
       )}
-    </React.Fragment>
-  );
+      </React.Fragment>
+    );
+  }
 
-  const renderUpcomingGamesModule = (title: string) => (
-    <React.Fragment key="upcoming_games">
+  function renderUpcomingGamesModule(title: string) {
+    return (
+      <React.Fragment key="upcoming_games">
       <OptionalSectionHeader
         title={title}
         actionLabel={hasScheduleUrl ? 'Schedule' : undefined}
@@ -6424,11 +6829,13 @@ function HomeScreen({
           ))}
         </ScrollView>
       )}
-    </React.Fragment>
-  );
+      </React.Fragment>
+    );
+  }
 
-  const renderNextGameModule = (title: string) => (
-    <React.Fragment key="next_game">
+  function renderNextGameModule(title: string) {
+    return (
+      <React.Fragment key="next_game">
       <OptionalSectionHeader title={title} theme={theme} />
       {eventsLoading ? (
         <View style={styles.loadingWrap}>
@@ -6447,43 +6854,44 @@ function HomeScreen({
           <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No upcoming games scheduled.</Text>
         </View>
       )}
-    </React.Fragment>
-  );
-
-  const renderAthleteOfWeekModule = (title: string) => (
-    athleteOfWeek &&
-    [
-      athleteOfWeek.athleteName,
-      athleteOfWeek.sportName,
-      athleteOfWeek.summary,
-      athleteOfWeek.featuredImageUrl,
-      athleteOfWeek.headshotUrl,
-    ]
-      .filter(Boolean)
-      .join('')
-      .trim() ? (
-      <React.Fragment key="athlete_of_week">
-        <OptionalSectionHeader title={title} theme={theme} />
-        <AthleteOfWeekCard
-          item={athleteOfWeek}
-          sponsorPlacement={athleteOfWeekSponsorPlacement}
-          onSponsorPress={
-            athleteOfWeekSponsorPlacement?.sponsor_link_url?.trim() &&
-            hasResolvedUrl(athleteOfWeekSponsorPlacement.sponsor_link_url)
-              ? () =>
-                  onOpenEmbedded(
-                    athleteOfWeekSponsorPlacement.sponsor_name?.trim() || 'Presented by',
-                    athleteOfWeekSponsorPlacement.sponsor_link_url!.trim()
-                  )
-              : undefined
-          }
-          theme={theme}
-        />
       </React.Fragment>
-    ) : (console.log('[AOTW DEBUG][module-skipped]', athleteOfWeek), null)
-  );
+    );
+  }
 
-  const renderSponsorsModule = (title: string) => {
+  function renderAthleteOfWeekModule(title: string) {
+    return athleteOfWeek &&
+      [
+        athleteOfWeek.athleteName,
+        athleteOfWeek.sportName,
+        athleteOfWeek.summary,
+        athleteOfWeek.featuredImageUrl,
+        athleteOfWeek.headshotUrl,
+      ]
+        .filter(Boolean)
+        .join('')
+        .trim() ? (
+        <React.Fragment key="athlete_of_week">
+          <OptionalSectionHeader title={title} theme={theme} />
+          <AthleteOfWeekCard
+            item={athleteOfWeek}
+            sponsorPlacement={athleteOfWeekSponsorPlacement}
+            onSponsorPress={
+              athleteOfWeekSponsorPlacement?.sponsor_link_url?.trim() &&
+              hasResolvedUrl(athleteOfWeekSponsorPlacement.sponsor_link_url)
+                ? () =>
+                    onOpenEmbedded(
+                      athleteOfWeekSponsorPlacement.sponsor_name?.trim() || 'Presented by',
+                      athleteOfWeekSponsorPlacement.sponsor_link_url!.trim()
+                    )
+                : undefined
+            }
+            theme={theme}
+          />
+        </React.Fragment>
+      ) : (console.log('[AOTW DEBUG][module-skipped]', athleteOfWeek), null);
+  }
+
+  function renderSponsorsModule(title: string) {
     if (!sponsorPlacement) {
       console.log('[APPOS SPONSOR DEBUG][standard-skipped]', {
         reason: 'no-standard-placement',
@@ -6566,9 +6974,9 @@ function HomeScreen({
         )}
       </React.Fragment>
     );
-  };
+  }
 
-  const renderPresentingSponsorModule = (title: string) => {
+  function renderPresentingSponsorModule(title: string) {
     if (!hasPresentingSponsorModule || !presentingSponsorCardPlacement) {
       console.log('[APPOS SPONSOR DEBUG][presenting-skipped]', {
         hasPresentingSponsorModule,
@@ -6654,9 +7062,9 @@ function HomeScreen({
         )}
       </React.Fragment>
     );
-  };
+  }
 
-  const renderSponsorCarouselModule = (title: string) => {
+  function renderSponsorCarouselModule(title: string) {
     if (sponsorCarouselPlacements.length === 0) {
       console.log('[APPOS SPONSOR DEBUG][carousel-skipped]', {
         placements: sponsorCarouselPlacements,
@@ -6763,9 +7171,9 @@ function HomeScreen({
         </View>
       </React.Fragment>
     );
-  };
+  }
 
-  const renderPromotionModule = (title: string) => {
+  function renderPromotionModule(title: string) {
     if (!promotionCard || promotionCard.is_active === false) {
       return null;
     }
@@ -6801,9 +7209,9 @@ function HomeScreen({
         </View>
       </React.Fragment>
     );
-  };
+  }
 
-  const renderHomeModule = (module: AthleticOSAppHomeModule) => {
+  function renderHomeModule(module: AthleticOSAppHomeModule) {
     const title = module.label?.trim() || '';
     const moduleKey = normalizeModuleKey(module.module_key);
 
@@ -6837,20 +7245,20 @@ function HomeScreen({
       default:
         return null;
     }
-  };
+  }
 
   return (
     <ScrollView
       style={[
         styles.screen,
         {
-          backgroundColor: isGamedayHome ? theme.colors.primary : theme.colors.background,
+          backgroundColor: getThemeBaseBackgroundColor(theme),
         },
       ]}
       contentContainerStyle={[
         styles.screenContent,
         {
-          backgroundColor: isGamedayHome ? theme.colors.primary : theme.colors.background,
+          backgroundColor: getThemeBaseBackgroundColor(theme),
         },
       ]}
       refreshControl={
@@ -7436,128 +7844,31 @@ function HomeScreen({
       </LinearGradient>
       )}
 
-      {showNotificationPrompt && !notificationsEnabled && (
+      {isPower5Theme(theme) || isGradientEliteTheme(theme) ? (
         <View
           style={[
-            styles.notificationSignupCard,
-            isGamedayHome
-              ? {
-                  backgroundColor: withAlpha(theme.colors.secondary, 'E8'),
-                  borderColor: withAlpha(theme.colors.primary, '38'),
-                  borderRadius: 18,
-                  shadowColor: withAlpha(theme.colors.secondary, '26'),
-                  shadowOpacity: 0.15,
-                  shadowRadius: 11,
-                  shadowOffset: { width: 0, height: 4 },
-                  elevation: 3,
-                }
-              : null,
-            isCleanSlateTheme(theme)
-              ? {
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.border,
-                }
-              : null,
+            styles.power5HomeModuleShell,
+            {
+              backgroundColor: isPower5Theme(theme)
+                ? '#000000'
+                : '#000000',
+            },
           ]}
         >
-          <View style={styles.notificationTextWrap}>
-            <Text
-              style={[
-                styles.notificationSignupTitle,
-                {
-                  color:
-                    isCleanSlateTheme(theme) || isGamedayHome
-                      ? theme.colors.text
-                      : BRAND.white,
-                },
-              ]}
-            >
-              Get live broadcast + final score alerts
-            </Text>
-            <Text
-              style={[
-                styles.notificationSignupText,
-                {
-                  color:
-                    isCleanSlateTheme(theme) || isGamedayHome
-                      ? theme.colors.mutedText
-                      : BRAND.gray,
-                },
-              ]}
-            >
-              Be the first to know when your teams are live and when finals go official.
-            </Text>
-          </View>
-
-          <View style={styles.notificationButtonRow}>
-            <Pressable
-              style={[
-                styles.notificationPrimaryButton,
-                isGamedayHome
-                  ? {
-                      backgroundColor: withAlpha(theme.colors.accent, '1E'),
-                      borderWidth: 1,
-                      borderColor: withAlpha(theme.colors.accent, '54'),
-                    }
-                  : null,
-                isCleanSlateTheme(theme)
-                  ? {
-                      backgroundColor: theme.colors.surface,
-                      borderWidth: 1,
-                      borderColor: theme.colors.primary,
-                    }
-                  : null,
-              ]}
-              onPress={onEnableNotifications}
-            >
-              <Text
-              style={[
-                styles.notificationPrimaryButtonText,
-                isCleanSlateTheme(theme)
-                  ? { color: theme.colors.primary }
-                  : isGamedayHome
-                  ? { color: theme.colors.text }
-                  : null,
-              ]}
-            >
-                Enable
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.notificationSecondaryButton,
-                isGamedayHome
-                  ? {
-                      backgroundColor: withAlpha(theme.colors.primary, '18'),
-                      borderColor: withAlpha(theme.colors.primary, '36'),
-                    }
-                  : null,
-                isCleanSlateTheme(theme)
-                  ? {
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                    }
-                  : null,
-              ]}
-              onPress={onDismissNotificationPrompt}
-            >
-              <Text
-              style={[
-                styles.notificationSecondaryButtonText,
-                isCleanSlateTheme(theme) || isGamedayHome
-                  ? { color: theme.colors.text }
-                  : null,
-              ]}
-            >
-                Not Now
-              </Text>
-            </Pressable>
-          </View>
+          {isGradientEliteTheme(theme) ? (
+            <LinearGradient
+              colors={getThemeBackdropGradient(theme)}
+              start={{ x: 1, y: 1 }}
+              end={{ x: 0, y: 0 }}
+              style={styles.power5HomeModuleBackdrop}
+              pointerEvents="none"
+            />
+          ) : null}
+          {moduleContent}
         </View>
+      ) : (
+        moduleContent
       )}
-
-      {resolvedModules.map((module) => renderHomeModule(module))}
     </ScrollView>
   );
 }
@@ -7587,10 +7898,10 @@ function TeamsScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
       contentContainerStyle={[
         styles.screenContent,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
       <LinearGradient
@@ -7701,8 +8012,12 @@ function TeamsScreen({
               style={[
                 styles.teamDirectoryChevronWrap,
                 {
-                  backgroundColor: theme.colors.cardAlt,
-                  borderColor: theme.colors.border,
+                  backgroundColor: isGradientEliteTheme(theme)
+                    ? theme.colors.primary
+                    : theme.colors.cardAlt,
+                  borderColor: isGradientEliteTheme(theme)
+                    ? theme.colors.primary
+                    : theme.colors.border,
                   borderRadius: isCleanSlateTheme(theme) ? 5 : undefined,
                 },
               ]}
@@ -7710,7 +8025,13 @@ function TeamsScreen({
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.text}
+                color={
+                  isGradientEliteTheme(theme)
+                    ? '#FFFFFF'
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.primary
+                    : theme.colors.text
+                }
               />
             </View>
           </Pressable>
@@ -7830,10 +8151,10 @@ function MediaScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
       contentContainerStyle={[
         styles.screenContent,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
       <LinearGradient
@@ -8008,6 +8329,7 @@ function ScheduleScreen({
   schoolId,
   variant = 'school',
   accentColor,
+  sportFilter,
   theme = DEFAULT_APP_THEME,
 }: {
   scheduleEvents: EventItem[];
@@ -8019,6 +8341,7 @@ function ScheduleScreen({
   schoolId?: string | number | null;
   variant?: ScheduleScreenVariant;
   accentColor?: string;
+  sportFilter?: ScheduleSportFilter | null;
   theme?: AthleticOSResolvedTheme;
 }) {
   const isTeamVariant = variant === 'team';
@@ -8026,8 +8349,33 @@ function ScheduleScreen({
   const compositeOffsetsRef = useRef<Record<number, number>>({});
   const hasAutoScrolledRef = useRef(false);
   const visibleScheduleEvents = useMemo(() => {
+    const selectedSportId = sportFilter?.sportId?.trim() || '';
+    const selectedSportTokens = getScheduleSportFilterTokens(sportFilter);
+    const teamFilteredEvents = isTeamVariant
+      ? scheduleEvents.filter((event) => {
+          if (selectedSportId) {
+            const eventSportId = String(event.sportId ?? '').trim();
+            if (eventSportId) {
+              return eventSportId === selectedSportId;
+            }
+          }
+
+          if (selectedSportTokens.size === 0) {
+            return true;
+          }
+
+          const normalized = normalizeScheduleItem(event);
+          const eventTokens = [
+            normalizeSportMatchToken(event.sportName),
+            normalizeSportMatchToken(normalized.sport),
+          ].filter(Boolean);
+
+          return eventTokens.some((token) => selectedSportTokens.has(token));
+        })
+      : scheduleEvents;
+
     if (isTeamVariant) {
-      return [...scheduleEvents].sort((a, b) => {
+      return [...teamFilteredEvents].sort((a, b) => {
         const aTime = new Date(
           a.eventDateTime || a.startDateTime || a.eventDate || 0
         ).getTime();
@@ -8047,7 +8395,7 @@ function ScheduleScreen({
     const futureLimit = new Date();
     futureLimit.setDate(now.getDate() + 30);
 
-    return [...scheduleEvents]
+    return [...teamFilteredEvents]
       .filter((event) => {
         const eventDate = safeDate(
           event.eventDateTime || event.startDateTime || event.eventDate
@@ -8061,7 +8409,7 @@ function ScheduleScreen({
           safeDate(b.eventDateTime || b.startDateTime || b.eventDate)?.getTime() ?? 0;
         return aDate - bDate;
       });
-  }, [isTeamVariant, scheduleEvents]);
+  }, [isTeamVariant, scheduleEvents, sportFilter]);
   const normalized = useMemo(
     () => visibleScheduleEvents.map(normalizeScheduleItem),
     [visibleScheduleEvents]
@@ -8095,9 +8443,10 @@ function ScheduleScreen({
   return (
     <ScrollView
       ref={scheduleScrollRef}
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[
@@ -8267,6 +8616,11 @@ function ScheduleScreen({
                         paddingHorizontal: 13,
                         paddingVertical: 12,
                       }
+                    : isGradientEliteTheme(theme)
+                      ? {
+                          backgroundColor: '#050505',
+                          borderColor: 'rgba(255,255,255,0.18)',
+                        }
                     : null,
                 ]}
               >
@@ -8281,6 +8635,11 @@ function ScheduleScreen({
                               borderColor: theme.colors.border,
                               borderRadius: 5,
                             }
+                          : isGradientEliteTheme(theme)
+                            ? {
+                                backgroundColor: '#0A0A0A',
+                                borderColor: 'rgba(255,255,255,0.14)',
+                              }
                           : null,
                       ]}
                     >
@@ -8303,6 +8662,8 @@ function ScheduleScreen({
                       styles.teamScheduleSportTag,
                       isCleanSlateTheme(theme)
                         ? { backgroundColor: theme.colors.primary, borderRadius: 4 }
+                        : isGradientEliteTheme(theme)
+                          ? { backgroundColor: theme.colors.primary }
                         : { backgroundColor: resolvedAccentColor },
                     ]}
                   >
@@ -8310,7 +8671,7 @@ function ScheduleScreen({
                       style={[
                         styles.scheduleSportTagText,
                         {
-                          color: isCleanSlateTheme(theme)
+                          color: isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                             ? BRAND.white
                             : theme.colors.pillText,
                           },
@@ -8323,7 +8684,7 @@ function ScheduleScreen({
                   <Text
                     style={[
                       styles.teamScheduleMatchup,
-                      isCleanSlateTheme(theme)
+                      isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                         ? { color: theme.colors.text, fontSize: 18, lineHeight: 21 }
                         : null,
                     ]}
@@ -8336,7 +8697,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleStatus,
-                        isCleanSlateTheme(theme) ? { color: theme.colors.primary } : null,
+                        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                          ? { color: theme.colors.primary }
+                          : null,
                       ]}
                     >
                       {item.statusLabel}
@@ -8353,7 +8716,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleLocation,
-                        isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                          ? { color: theme.colors.mutedText }
+                          : null,
                       ]}
                       numberOfLines={1}
                     >
@@ -8366,7 +8731,9 @@ function ScheduleScreen({
                   <Text
                     style={[
                       styles.teamScheduleDate,
-                      isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+                      isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                        ? { color: theme.colors.text }
+                        : null,
                     ]}
                   >
                     {item.displayDate}
@@ -8375,7 +8742,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleTime,
-                        isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                          ? { color: theme.colors.mutedText }
+                          : null,
                       ]}
                     >
                       {item.timeLabel}
@@ -8399,6 +8768,11 @@ function ScheduleScreen({
                           paddingHorizontal: 13,
                           paddingVertical: 12,
                         }
+                      : isGradientEliteTheme(theme)
+                        ? {
+                            backgroundColor: '#050505',
+                            borderColor: 'rgba(255,255,255,0.18)',
+                          }
                       : null,
                   ]}
                   onLayout={
@@ -8432,6 +8806,11 @@ function ScheduleScreen({
                                 borderColor: theme.colors.border,
                                 borderRadius: 5,
                               }
+                            : isGradientEliteTheme(theme)
+                              ? {
+                                  backgroundColor: '#0A0A0A',
+                                  borderColor: 'rgba(255,255,255,0.14)',
+                                }
                             : null,
                         ]}
                       >
@@ -8454,6 +8833,8 @@ function ScheduleScreen({
                       styles.teamScheduleSportTag,
                       isCleanSlateTheme(theme)
                         ? { backgroundColor: theme.colors.primary, borderRadius: 4 }
+                        : isGradientEliteTheme(theme)
+                          ? { backgroundColor: theme.colors.primary }
                         : { backgroundColor: resolvedAccentColor },
                     ]}
                   >
@@ -8461,7 +8842,7 @@ function ScheduleScreen({
                         style={[
                           styles.scheduleSportTagText,
                           {
-                            color: isCleanSlateTheme(theme)
+                            color: isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                               ? BRAND.white
                               : theme.colors.pillText,
                           },
@@ -8474,7 +8855,7 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleMatchup,
-                        isCleanSlateTheme(theme)
+                        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                           ? { color: theme.colors.text, fontSize: 18, lineHeight: 21 }
                           : null,
                       ]}
@@ -8487,7 +8868,9 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleStatus,
-                          isCleanSlateTheme(theme) ? { color: theme.colors.primary } : null,
+                          isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                            ? { color: theme.colors.primary }
+                            : null,
                         ]}
                       >
                         {item.statusLabel}
@@ -8504,7 +8887,9 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleLocation,
-                          isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                          isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                            ? { color: theme.colors.mutedText }
+                            : null,
                         ]}
                         numberOfLines={1}
                       >
@@ -8517,7 +8902,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleDate,
-                        isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+                        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                          ? { color: theme.colors.text }
+                          : null,
                       ]}
                     >
                       {item.displayDate}
@@ -8526,7 +8913,9 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleTime,
-                          isCleanSlateTheme(theme) ? { color: theme.colors.mutedText } : null,
+                          isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                            ? { color: theme.colors.mutedText }
+                            : null,
                         ]}
                       >
                         {item.timeLabel}
@@ -8625,9 +9014,10 @@ function RosterScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[
@@ -8797,6 +9187,11 @@ function RosterScreen({
                             backgroundColor: theme.colors.buttonBackground,
                             borderColor: theme.colors.buttonBackground,
                           }
+                      : isGradientEliteTheme(theme)
+                        ? {
+                            backgroundColor: '#050505',
+                            borderColor: 'rgba(255,255,255,0.18)',
+                          }
                       : isModern
                         ? {
                             backgroundColor: theme.colors.card,
@@ -8816,6 +9211,8 @@ function RosterScreen({
                       styles.rosterSortChipText,
                       active
                         ? { color: theme.colors.buttonText }
+                        : isGradientEliteTheme(theme)
+                          ? { color: theme.colors.text }
                         : isModern
                           ? { color: theme.colors.text }
                           : null,
@@ -8843,6 +9240,15 @@ function RosterScreen({
                 key={athlete.id}
                 style={[
                   styles.rosterCard,
+                  isGradientEliteTheme(theme)
+                    ? {
+                        backgroundColor: '#050505',
+                        borderColor: 'rgba(255,255,255,0.18)',
+                      }
+                    : {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                      },
                   isModern
                     ? {
                         backgroundColor: theme.colors.card,
@@ -8863,6 +9269,11 @@ function RosterScreen({
                     uri={imageUrl}
                     style={[
                       styles.rosterPhoto,
+                      isGradientEliteTheme(theme)
+                        ? {
+                            backgroundColor: theme.colors.primary,
+                          }
+                        : null,
                       isModern
                         ? {
                             borderRadius: 12,
@@ -8879,10 +9290,16 @@ function RosterScreen({
                   <View
                     style={[
                       styles.rosterPhotoFallback,
+                      {
+                        backgroundColor: isModern
+                          ? theme.colors.primary
+                          : isGradientEliteTheme(theme)
+                            ? theme.colors.primary
+                          : theme.colors.cardAlt,
+                      },
                       isModern
                         ? {
                             borderRadius: 12,
-                            backgroundColor: theme.colors.primary,
                           }
                         : null,
                     ]}
@@ -8890,7 +9307,7 @@ function RosterScreen({
                     <Ionicons
                       name="person"
                       size={22}
-                      color={isModern ? theme.colors.buttonText : BRAND.white}
+                      color={isModern ? theme.colors.buttonText : theme.colors.text}
                     />
                   </View>
                 )}
@@ -8900,7 +9317,9 @@ function RosterScreen({
                     <Text
                       style={[
                         styles.rosterName,
-                        isModern ? { color: theme.colors.text } : null,
+                        isGradientEliteTheme(theme) || isModern
+                          ? { color: theme.colors.text }
+                          : null,
                       ]}
                       numberOfLines={1}
                     >
@@ -8908,12 +9327,14 @@ function RosterScreen({
                     </Text>
                     {numberLabel ? (
                       <Text
-                        style={[
-                          styles.rosterNumber,
-                          isModern ? { color: theme.colors.primary } : null,
-                        ]}
-                      >
-                        #{numberLabel}
+                      style={[
+                        styles.rosterNumber,
+                        isGradientEliteTheme(theme) || isModern
+                          ? { color: theme.colors.primary }
+                          : null,
+                      ]}
+                    >
+                      #{numberLabel}
                       </Text>
                     ) : null}
                   </View>
@@ -8922,7 +9343,9 @@ function RosterScreen({
                     <Text
                       style={[
                         styles.rosterMeta,
-                        isModern ? { color: theme.colors.mutedText } : null,
+                        isGradientEliteTheme(theme) || isModern
+                          ? { color: theme.colors.mutedText }
+                          : null,
                       ]}
                     >
                       {metaBits}
@@ -8932,7 +9355,11 @@ function RosterScreen({
                     <Text
                       style={[
                         styles.rosterMetaSecondary,
-                        isModern ? { color: theme.colors.text } : null,
+                        isGradientEliteTheme(theme)
+                          ? { color: theme.colors.mutedText }
+                          : isModern
+                            ? { color: theme.colors.text }
+                            : null,
                       ]}
                     >
                       {sizeBits}
@@ -8943,7 +9370,7 @@ function RosterScreen({
                 <Ionicons
                   name="chevron-forward"
                   size={20}
-                  color={isModern ? theme.colors.primary : BRAND.gray}
+                  color={isGradientEliteTheme(theme) || isModern ? theme.colors.primary : BRAND.gray}
                   style={styles.newsChevron}
                 />
               </Pressable>
@@ -8979,9 +9406,10 @@ function AthleteProfileScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[styles.storyDetailHero, getThemeHeroShellStyle(theme)]}
@@ -9029,7 +9457,10 @@ function AthleteProfileScreen({
         {imageUrl ? (
           <RemoteImage
             uri={imageUrl}
-            style={styles.rosterProfileImage}
+            style={[
+              styles.rosterProfileImage,
+              isGradientEliteTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
+            ]}
             contentFit="cover"
             mode="athlete"
             label={athlete.fullName}
@@ -9039,15 +9470,17 @@ function AthleteProfileScreen({
           <View
             style={[
               styles.rosterProfileImageFallback,
-              isCleanSlateTheme(theme)
-                ? { backgroundColor: theme.colors.cardAlt }
-                : null,
+              {
+                backgroundColor: isGradientEliteTheme(theme) ? theme.colors.primary : theme.colors.cardAlt,
+                borderColor: isGradientEliteTheme(theme) ? 'rgba(255,255,255,0.18)' : undefined,
+                borderWidth: isGradientEliteTheme(theme) ? 1 : undefined,
+              },
             ]}
           >
             <Ionicons
               name="person"
               size={40}
-              color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+              color={theme.colors.text}
             />
           </View>
         )}
@@ -9118,6 +9551,7 @@ function RecruitingScreen({
         { backgroundColor: recruitingPalette.background },
       ]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={recruitingPalette.heroGradient}
         style={[
@@ -9194,7 +9628,10 @@ function RecruitingScreen({
                 String(p.default_photo_url ?? p.photo_url).trim() ? (
                   <RemoteImage
                     uri={String(p.default_photo_url ?? p.photo_url).trim()}
-                    style={styles.recruitingProfilePhoto}
+                    style={[
+                      styles.recruitingProfilePhoto,
+                      isGradientEliteTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
+                    ]}
                     contentFit="cover"
                     mode="athlete"
                     label={`${String(p.first_name ?? '')} ${String(p.last_name ?? '')}`.trim()}
@@ -9205,7 +9642,9 @@ function RecruitingScreen({
                     style={[
                       styles.recruitingProfilePhotoFallback,
                       {
-                        backgroundColor: recruitingPalette.surfaceAlt,
+                        backgroundColor: isGradientEliteTheme(theme)
+                          ? theme.colors.primary
+                          : recruitingPalette.surfaceAlt,
                         borderColor: recruitingPalette.border,
                         shadowColor: recruitingPalette.accent,
                         shadowOpacity: 0.12,
@@ -9369,6 +9808,7 @@ function RecruitingPlayerScreen({
         { backgroundColor: recruitingPalette.background },
       ]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={recruitingPalette.heroGradient}
         style={[
@@ -9436,11 +9876,19 @@ function RecruitingPlayerScreen({
             },
           ]}
         >
-          <View style={styles.recruitingPlayerPhotoStage}>
+          <View
+            style={[
+              styles.recruitingPlayerPhotoStage,
+              isGradientEliteTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
+            ]}
+          >
             {headshotUrl ? (
               <RemoteImage
                 uri={headshotUrl}
-                style={styles.recruitingPlayerPhoto}
+                style={[
+                  styles.recruitingPlayerPhoto,
+                  isGradientEliteTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
+                ]}
                 contentFit="cover"
                 mode="athlete"
                 label={playerName}
@@ -9451,7 +9899,9 @@ function RecruitingPlayerScreen({
                 style={[
                   styles.recruitingPlayerPhotoFallback,
                   {
-                    backgroundColor: recruitingPalette.surfaceAlt,
+                    backgroundColor: isGradientEliteTheme(theme)
+                      ? theme.colors.primary
+                      : recruitingPalette.surfaceAlt,
                     borderColor: recruitingPalette.border,
                     shadowColor: recruitingPalette.accent,
                     shadowOpacity: 0.1,
@@ -9863,6 +10313,7 @@ function SportDetailScreen({
     schoolLogoUrl?: string;
     variant?: ScheduleScreenVariant;
     accentColor?: string;
+    sportFilter?: ScheduleSportFilter | null;
   }) => void;
   onOpenStoryDetail: (item: NewsItem) => void;
   followedTeams: string[];
@@ -9930,6 +10381,12 @@ function SportDetailScreen({
             schoolLogoUrl: schoolConfig.logoUrl,
             variant: 'team',
             accentColor: scheduleAccentColor,
+            sportFilter: {
+              sportId: teamSportId,
+              sportKey: sport.key,
+              sportLabel: sport.label,
+              sportShortLabel: sport.shortLabel,
+            },
           }),
       });
     }
@@ -9971,6 +10428,7 @@ function SportDetailScreen({
     schoolConfig.logoUrl,
     sport.label,
     sport.shortLabel,
+    teamSportId,
     allTeamScheduleEvents,
   ]);
 
@@ -10004,6 +10462,12 @@ function SportDetailScreen({
                   schoolLogoUrl: schoolConfig.logoUrl,
                   variant: 'team',
                   accentColor: scheduleAccentColor,
+                  sportFilter: {
+                    sportId: teamSportId,
+                    sportKey: sport.key,
+                    sportLabel: sport.label,
+                    sportShortLabel: sport.shortLabel,
+                  },
                 }),
             });
           } else {
@@ -10254,9 +10718,10 @@ function SportDetailScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
+      {renderGradientEliteBackdrop(theme)}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[
@@ -10393,6 +10858,11 @@ function SportDetailScreen({
                   backgroundColor: theme.colors.buttonBackground,
                   borderColor: theme.colors.primary,
                 }
+                      : isGradientEliteTheme(theme)
+                        ? {
+                            backgroundColor: '#050505',
+                            borderColor: 'rgba(255,255,255,0.18)',
+                          }
               : null,
             isFollowing
               ? [
@@ -10402,6 +10872,11 @@ function SportDetailScreen({
                         backgroundColor: theme.colors.buttonBackground,
                         borderColor: theme.colors.primary,
                       }
+                    : isGradientEliteTheme(theme)
+                      ? {
+                          backgroundColor: theme.colors.buttonBackground,
+                          borderColor: theme.colors.buttonBackground,
+                        }
                     : {
                         backgroundColor: theme.colors.buttonBackground,
                         borderColor: theme.colors.buttonBackground,
@@ -10460,6 +10935,11 @@ function SportDetailScreen({
                         borderColor: withAlpha(theme.colors.primary, '16'),
                         borderRadius: 12,
                       }
+                    : isGradientEliteTheme(theme)
+                      ? {
+                          backgroundColor: '#050505',
+                          borderColor: 'rgba(255,255,255,0.18)',
+                        }
                     : isCleanSlateTheme(theme)
                       ? {
                           backgroundColor: theme.colors.card,
@@ -10496,7 +10976,7 @@ function SportDetailScreen({
                     color={
                       isGamedayTheme(theme)
                         ? theme.colors.text
-                        : isCleanSlateTheme(theme)
+                        : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                         ? theme.colors.accent
                         : BRAND.white
                     }
@@ -10506,7 +10986,10 @@ function SportDetailScreen({
                   style={[
                     styles.sportActionText,
                     {
-                      color: isLightAppTheme(theme) ? theme.colors.text : BRAND.white,
+                      color:
+                        isLightAppTheme(theme) || isGradientEliteTheme(theme)
+                          ? theme.colors.text
+                          : BRAND.white,
                     },
                   ]}
                 >
@@ -10557,6 +11040,12 @@ function SportDetailScreen({
                         paddingVertical: 10,
                       }
                     : null,
+                  isGradientEliteTheme(theme)
+                    ? {
+                        backgroundColor: '#050505',
+                        borderColor: 'rgba(255,255,255,0.18)',
+                      }
+                    : null,
                   isCleanSlateTheme(theme)
                     ? {
                         backgroundColor: theme.colors.card,
@@ -10575,6 +11064,12 @@ function SportDetailScreen({
                     schoolLogoUrl: schoolConfig.logoUrl,
                     variant: 'team',
                     accentColor: scheduleAccentColor,
+                    sportFilter: {
+                      sportId: teamSportId,
+                      sportKey: sport.key,
+                      sportLabel: sport.label,
+                      sportShortLabel: sport.shortLabel,
+                    },
                   })
                 }
               >
@@ -10586,7 +11081,7 @@ function SportDetailScreen({
                         {
                           color: isGamedayTheme(theme)
                             ? theme.colors.primary
-                            : isCleanSlateTheme(theme)
+                            : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                             ? theme.colors.primary
                             : BRAND.lightGray,
                         },
@@ -10603,7 +11098,7 @@ function SportDetailScreen({
                           {
                             color: isGamedayTheme(theme)
                               ? theme.colors.mutedText
-                              : isCleanSlateTheme(theme)
+                              : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                               ? theme.colors.mutedText
                               : BRAND.gray,
                           },
@@ -10618,7 +11113,9 @@ function SportDetailScreen({
                         styles.teamGameMatchup,
                         {
                           color:
-                            isGamedayTheme(theme) || isCleanSlateTheme(theme)
+                            isGamedayTheme(theme) ||
+                            isCleanSlateTheme(theme) ||
+                            isGradientEliteTheme(theme)
                               ? theme.colors.text
                               : BRAND.white,
                         },
@@ -10636,7 +11133,9 @@ function SportDetailScreen({
                             styles.teamGameScoreValue,
                             {
                               color:
-                                isGamedayTheme(theme) || isCleanSlateTheme(theme)
+                                isGamedayTheme(theme) ||
+                                isCleanSlateTheme(theme) ||
+                                isGradientEliteTheme(theme)
                                   ? theme.colors.text
                                   : BRAND.white,
                             },
@@ -10649,7 +11148,9 @@ function SportDetailScreen({
                             styles.teamGameScoreSeparator,
                             {
                               color:
-                                isGamedayTheme(theme) || isCleanSlateTheme(theme)
+                                isGamedayTheme(theme) ||
+                                isCleanSlateTheme(theme) ||
+                                isGradientEliteTheme(theme)
                                   ? theme.colors.mutedText
                                   : BRAND.white,
                             },
@@ -10662,7 +11163,9 @@ function SportDetailScreen({
                             styles.teamGameScoreValue,
                             {
                               color:
-                                isGamedayTheme(theme) || isCleanSlateTheme(theme)
+                                isGamedayTheme(theme) ||
+                                isCleanSlateTheme(theme) ||
+                                isGradientEliteTheme(theme)
                                   ? theme.colors.text
                                   : BRAND.white,
                             },
@@ -10679,7 +11182,9 @@ function SportDetailScreen({
                         styles.teamGameDate,
                         {
                           color:
-                            isGamedayTheme(theme) || isCleanSlateTheme(theme)
+                            isGamedayTheme(theme) ||
+                            isCleanSlateTheme(theme) ||
+                            isGradientEliteTheme(theme)
                               ? theme.colors.text
                               : BRAND.white,
                         },
@@ -10696,7 +11201,7 @@ function SportDetailScreen({
                           {
                             color: isGamedayTheme(theme)
                               ? theme.colors.mutedText
-                              : isCleanSlateTheme(theme)
+                              : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                               ? theme.colors.mutedText
                               : BRAND.gray,
                           },
@@ -10718,6 +11223,12 @@ function SportDetailScreen({
                               backgroundColor: withAlpha(theme.colors.primary, '18'),
                               borderColor: withAlpha(theme.colors.primary, '34'),
                               borderRadius: 10,
+                            }
+                          : null,
+                        isGradientEliteTheme(theme)
+                          ? {
+                              backgroundColor: '#0A0A0A',
+                              borderColor: 'rgba(255,255,255,0.14)',
                             }
                           : null,
                         isCleanSlateTheme(theme)
@@ -10797,10 +11308,10 @@ function NewsListScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
       contentContainerStyle={[
         styles.screenContent,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
       <LinearGradient
@@ -10930,15 +11441,17 @@ function NewsListScreen({
                     theme={theme}
                   />
                 ) : (
-                  <View
-                    style={[
-                      styles.newsArchiveThumbFallback,
-                      {
-                        backgroundColor: theme.colors.cardAlt,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                  >
+        <View
+          style={[
+            styles.newsArchiveThumbFallback,
+            {
+              backgroundColor: isGradientEliteTheme(theme) ? '#0A0A0A' : theme.colors.cardAlt,
+              borderColor: isGradientEliteTheme(theme)
+                ? 'rgba(255,255,255,0.14)'
+                : theme.colors.border,
+            },
+          ]}
+        >
                     <Ionicons name="newspaper-outline" size={22} color={BRAND.white} />
                   </View>
                 )}
@@ -10987,13 +11500,15 @@ function NewsListScreen({
                 </View>
 
                 <View
-                  style={[
-                    styles.newsArchiveChevronWrap,
-                    {
-                      backgroundColor: theme.colors.cardAlt,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
+                style={[
+                  styles.newsArchiveChevronWrap,
+                  {
+                    backgroundColor: isGradientEliteTheme(theme) ? '#0A0A0A' : theme.colors.cardAlt,
+                    borderColor: isGradientEliteTheme(theme)
+                      ? 'rgba(255,255,255,0.14)'
+                      : theme.colors.border,
+                  },
+                ]}
                 >
                   <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
                 </View>
@@ -11025,18 +11540,22 @@ function EmbeddedWebView({
     <SafeAreaView
       style={[
         styles.webSafe,
-        isCleanSlateTheme(theme)
-          ? { backgroundColor: theme.colors.background }
+        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+          ? { backgroundColor: getThemeBaseBackgroundColor(theme) }
           : null,
       ]}
     >
       <View
         style={[
           styles.webHeader,
-          isCleanSlateTheme(theme)
+          isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
             ? {
-                backgroundColor: theme.colors.surface,
-                borderBottomColor: theme.colors.border,
+              backgroundColor: isGradientEliteTheme(theme)
+                  ? '#000000'
+                  : theme.colors.surface,
+                borderBottomColor: isGradientEliteTheme(theme)
+                  ? 'rgba(255,255,255,0.18)'
+                  : theme.colors.border,
               }
             : null,
         ]}
@@ -11044,10 +11563,12 @@ function EmbeddedWebView({
         <Pressable
           style={[
             styles.webBackButton,
-            isCleanSlateTheme(theme)
+            isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
               ? {
-                  backgroundColor: theme.colors.cardAlt,
-                  borderColor: theme.colors.border,
+                  backgroundColor: isGradientEliteTheme(theme) ? '#0A0A0A' : theme.colors.cardAlt,
+                  borderColor: isGradientEliteTheme(theme)
+                    ? 'rgba(255,255,255,0.14)'
+                    : theme.colors.border,
                 }
               : null,
           ]}
@@ -11062,14 +11583,20 @@ function EmbeddedWebView({
           <Ionicons
             name="arrow-back"
             size={20}
-            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            color={
+              isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                ? theme.colors.text
+                : BRAND.white
+            }
           />
         </Pressable>
 
         <Text
           style={[
             styles.webHeaderTitle,
-            isCleanSlateTheme(theme) ? { color: theme.colors.text } : null,
+            isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+              ? { color: theme.colors.text }
+              : null,
           ]}
           numberOfLines={1}
         >
@@ -11079,10 +11606,12 @@ function EmbeddedWebView({
         <Pressable
           style={[
             styles.webExternalButton,
-            isCleanSlateTheme(theme)
+            isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
               ? {
-                  backgroundColor: theme.colors.cardAlt,
-                  borderColor: theme.colors.border,
+                  backgroundColor: isGradientEliteTheme(theme) ? '#0A0A0A' : theme.colors.cardAlt,
+                  borderColor: isGradientEliteTheme(theme)
+                    ? 'rgba(255,255,255,0.14)'
+                    : theme.colors.border,
                 }
               : null,
           ]}
@@ -11091,7 +11620,11 @@ function EmbeddedWebView({
           <Ionicons
             name="open-outline"
             size={18}
-            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            color={
+              isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                ? theme.colors.text
+                : BRAND.white
+            }
           />
         </Pressable>
       </View>
@@ -11099,8 +11632,8 @@ function EmbeddedWebView({
       <View
         style={[
           styles.webContentWrap,
-          isCleanSlateTheme(theme)
-            ? { backgroundColor: theme.colors.background }
+          isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+            ? { backgroundColor: getThemeBaseBackgroundColor(theme) }
             : null,
         ]}
       >
@@ -11108,12 +11641,18 @@ function EmbeddedWebView({
           <View
             style={[
               styles.webLoadingOverlay,
-              isCleanSlateTheme(theme)
-                ? { backgroundColor: theme.colors.background }
+              isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                ? { backgroundColor: getThemeBaseBackgroundColor(theme) }
                 : null,
             ]}
           >
-            <ActivityIndicator color={isCleanSlateTheme(theme) ? theme.colors.primary : BRAND.primary} />
+            <ActivityIndicator
+              color={
+                isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                  ? theme.colors.primary
+                  : BRAND.primary
+              }
+            />
           </View>
         ) : null}
 
@@ -11122,8 +11661,8 @@ function EmbeddedWebView({
           source={{ uri: url }}
           style={[
             styles.webView,
-            isCleanSlateTheme(theme)
-              ? { backgroundColor: theme.colors.background }
+            isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+              ? { backgroundColor: getThemeBaseBackgroundColor(theme) }
               : null,
           ]}
           javaScriptEnabled
@@ -11161,24 +11700,33 @@ function TicketsScreen({
       style={[
         styles.screen,
         isLightMode ? styles.screenLight : null,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
       contentContainerStyle={[
         styles.screenContent,
         isLightMode ? styles.screenContentLight : null,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
+      {isGradientEliteTheme(theme) ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
       <LinearGradient
         colors={
           isCleanSlateTheme(theme)
             ? [theme.colors.surface, theme.colors.surface, theme.colors.surface]
-            : isGamedayTheme(theme)
+          : isGamedayTheme(theme)
             ? [
                 withAlpha(theme.colors.secondary, 'FA'),
                 withAlpha(theme.colors.secondary, 'EE'),
               ]
-            : [BRAND.red, BRAND.primaryDark]
+            : isGradientEliteTheme(theme)
+            ? [theme.colors.primary, theme.colors.secondary]
+            : [theme.colors.accent, theme.colors.secondary]
         }
         style={[
           styles.tabHero,
@@ -11193,7 +11741,7 @@ function TicketsScreen({
             styles.tabHeroEyebrow,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
             },
@@ -11206,7 +11754,7 @@ function TicketsScreen({
             styles.tabHeroTitle,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                   ? theme.colors.text
                   : BRAND.white,
             },
@@ -11219,7 +11767,7 @@ function TicketsScreen({
             styles.tabHeroText,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
             },
@@ -11239,6 +11787,11 @@ function TicketsScreen({
                   borderColor: withAlpha(theme.colors.primary, '42'),
                   borderRadius: 14,
                 }
+              : isGradientEliteTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                }
               : null,
             isCleanSlateTheme(theme)
               ? {
@@ -11253,7 +11806,7 @@ function TicketsScreen({
             name="ticket-outline"
             size={28}
             color={
-              isCleanSlateTheme(theme) || isGamedayTheme(theme)
+              isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                 ? theme.colors.primary
                 : BRAND.white
             }
@@ -11264,7 +11817,7 @@ function TicketsScreen({
                 styles.watchCardTitle,
                 {
                   color:
-                    isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                    isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                       ? theme.colors.text
                       : BRAND.white,
                 },
@@ -11277,7 +11830,7 @@ function TicketsScreen({
                 styles.watchCardText,
                 {
                   color:
-                    isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                    isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                       ? theme.colors.mutedText
                       : BRAND.lightGray,
                 },
@@ -11320,10 +11873,12 @@ function MoreListRow({
               borderRadius: 14,
             }
           : null,
-        isCleanSlateTheme(theme)
+        isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
           ? {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
+              backgroundColor: isGradientEliteTheme(theme) ? '#FFFFFF' : theme.colors.card,
+              borderColor: isGradientEliteTheme(theme)
+                ? 'rgba(255,255,255,0.28)'
+                : theme.colors.border,
             }
           : null,
       ]}
@@ -11338,6 +11893,8 @@ function MoreListRow({
               color:
                 isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.text
+                  : isGradientEliteTheme(theme)
+                    ? theme.colors.primary
                   : BRAND.white,
             },
           ]}
@@ -11352,6 +11909,8 @@ function MoreListRow({
                 color:
                   isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.mutedText
+                    : isGradientEliteTheme(theme)
+                      ? withAlpha(theme.colors.text, 'B8')
                     : BRAND.gray,
               },
             ]}
@@ -11367,6 +11926,8 @@ function MoreListRow({
           color={
             isCleanSlateTheme(theme) || isGamedayTheme(theme)
               ? theme.colors.text
+              : isGradientEliteTheme(theme)
+                ? theme.colors.primary
               : BRAND.gray
           }
         />
@@ -11424,8 +11985,10 @@ function MoreScreen({
               borderRadius: 14,
             }
           : {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
+              backgroundColor: isGradientEliteTheme(theme) ? '#050505' : theme.colors.card,
+              borderColor: isGradientEliteTheme(theme)
+                ? 'rgba(255,255,255,0.18)'
+                : theme.colors.border,
             },
       ]}
       onPress={onPress}
@@ -11442,10 +12005,10 @@ function MoreScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
       contentContainerStyle={[
         styles.screenContent,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
       <LinearGradient
@@ -11552,10 +12115,18 @@ function MoreScreen({
             styles.teamDirectoryCard,
             styles.morePrimaryCard,
             {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
+              backgroundColor: isGradientEliteTheme(theme) ? '#FFFFFF' : theme.colors.card,
+              borderColor: isGradientEliteTheme(theme)
+                ? 'rgba(255,255,255,0.28)'
+                : theme.colors.border,
             },
             getThemeCardShellStyle(theme),
+            isGradientEliteTheme(theme)
+              ? {
+                  backgroundColor: '#FFFFFF',
+                  borderColor: 'rgba(255,255,255,0.28)',
+                }
+              : null,
           ]}
           onPress={onOpenManageTeams}
         >
@@ -11568,8 +12139,24 @@ function MoreScreen({
             />
           ) : null}
           <View style={styles.teamDirectoryContent}>
-            <Text style={[styles.teamDirectoryTitle, { color: theme.colors.text }]}>My Teams</Text>
-            <Text style={[styles.teamDirectorySub, { color: theme.colors.mutedText }]}>
+            <Text
+              style={[
+                styles.teamDirectoryTitle,
+                { color: isGradientEliteTheme(theme) ? theme.colors.primary : theme.colors.text },
+              ]}
+            >
+              My Teams
+            </Text>
+            <Text
+              style={[
+                styles.teamDirectorySub,
+                {
+                  color: isGradientEliteTheme(theme)
+                    ? withAlpha(theme.colors.text, 'B8')
+                    : theme.colors.mutedText,
+                },
+              ]}
+            >
               {followedTeamsCount > 0
                 ? `${followedTeamsCount} followed teams`
                 : 'Manage followed teams'}
@@ -11579,12 +12166,18 @@ function MoreScreen({
             style={[
               styles.teamDirectoryChevronWrap,
               {
-                backgroundColor: theme.colors.cardAlt,
-                borderColor: theme.colors.border,
+                backgroundColor: isGradientEliteTheme(theme) ? '#FFFFFF' : theme.colors.cardAlt,
+                borderColor: isGradientEliteTheme(theme)
+                  ? 'rgba(255,255,255,0.22)'
+                  : theme.colors.border,
               },
             ]}
           >
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={isGradientEliteTheme(theme) ? theme.colors.primary : theme.colors.text}
+            />
           </View>
         </Pressable>
 
@@ -11595,8 +12188,10 @@ function MoreScreen({
           style={[
             styles.moreSettingsPanel,
             {
-              backgroundColor: theme.colors.cardAlt,
-              borderColor: theme.colors.border,
+              backgroundColor: isGradientEliteTheme(theme) ? '#050505' : theme.colors.cardAlt,
+              borderColor: isGradientEliteTheme(theme)
+                ? 'rgba(255,255,255,0.18)'
+                : theme.colors.border,
             },
             isCleanSlateTheme(theme)
               ? {
@@ -11657,13 +12252,20 @@ function ManageTeamsScreen({
   const isLightMode = themeMode === 'light';
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
       contentContainerStyle={[
         styles.screenContent,
         isLightMode ? styles.screenContentLight : null,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
+      {isGradientEliteTheme(theme) ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[
@@ -11760,8 +12362,13 @@ function ManageTeamsScreen({
                         borderRadius: 14,
                       }
                     : null,
-                  isCleanSlateTheme(theme)
-                    ? { backgroundColor: theme.colors.card, borderColor: theme.colors.border }
+                  isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                    ? {
+                        backgroundColor: isGradientEliteTheme(theme) ? '#FFFFFF' : theme.colors.card,
+                        borderColor: isGradientEliteTheme(theme)
+                          ? 'rgba(255,255,255,0.28)'
+                          : theme.colors.border,
+                      }
                     : null,
                 ]}
               >
@@ -11773,6 +12380,8 @@ function ManageTeamsScreen({
                         color:
                           isCleanSlateTheme(theme) || isGamedayTheme(theme)
                             ? theme.colors.text
+                            : isGradientEliteTheme(theme)
+                              ? theme.colors.primary
                             : BRAND.white,
                       },
                     ]}
@@ -11786,6 +12395,8 @@ function ManageTeamsScreen({
                         color:
                           isCleanSlateTheme(theme) || isGamedayTheme(theme)
                             ? theme.colors.mutedText
+                            : isGradientEliteTheme(theme)
+                              ? withAlpha(theme.colors.text, 'B8')
                             : BRAND.gray,
                       },
                     ]}
@@ -11797,7 +12408,7 @@ function ManageTeamsScreen({
                   style={[
                     styles.inlineFollowButton,
                     isFollowing ? styles.inlineFollowButtonActive : null,
-                    isCleanSlateTheme(theme)
+                    isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                       ? {
                           backgroundColor: theme.colors.buttonBackground,
                           borderColor: isFollowing ? theme.colors.primary : theme.colors.border,
@@ -11809,7 +12420,7 @@ function ManageTeamsScreen({
                   <Text
                     style={[
                       styles.inlineFollowButtonText,
-                      isCleanSlateTheme(theme)
+                      isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                         ? { color: isFollowing ? theme.colors.buttonText : theme.colors.text }
                         : null,
                     ]}
@@ -11852,13 +12463,20 @@ function SettingsScreen({
   const isLightMode = themeMode === 'light';
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
       contentContainerStyle={[
         styles.screenContent,
         isLightMode ? styles.screenContentLight : null,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
+      {isGradientEliteTheme(theme) ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[
@@ -12031,9 +12649,16 @@ function SavedEventsScreen({
   const isLightMode = themeMode === 'light';
   return (
     <ScrollView
-      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[styles.screenContent, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
+      {isGradientEliteTheme(theme) ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
       <LinearGradient
         colors={getThemeDarkHeroGradient(theme)}
         style={[
@@ -12131,6 +12756,7 @@ function BottomNav({
   const isLightMode = themeMode === 'light';
   const isModern = isModernTheme(theme);
   const isGameday = isGamedayTheme(theme);
+  const isGradientElite = isGradientEliteTheme(theme);
   const isCleanSlate = isCleanSlateTheme(theme) && !isModern;
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const homeItem = items.find((item) => item.key === 'home');
@@ -12211,6 +12837,24 @@ function BottomNav({
               elevation: 8,
             }
           : null,
+        isGradientElite
+          ? {
+              backgroundColor: 'transparent',
+              borderTopWidth: 0,
+              borderTopColor: 'transparent',
+              borderTopLeftRadius: 18,
+              borderTopRightRadius: 18,
+              paddingTop: 6,
+              paddingBottom: 9,
+              minHeight: 60,
+              overflow: 'hidden',
+              shadowColor: 'transparent',
+              shadowOpacity: 0,
+              shadowRadius: 0,
+              shadowOffset: { width: 0, height: 0 },
+              elevation: 0,
+            }
+          : null,
         isCleanSlate
           ? {
               backgroundColor: theme.colors.surface,
@@ -12229,9 +12873,32 @@ function BottomNav({
               shadowOffset: { width: 0, height: 1 },
               elevation: 1,
             }
-          : null,
+          : isPower5Theme(theme)
+          ? {
+              backgroundColor: '#000000',
+              borderTopColor: withAlpha(theme.colors.primary, '34'),
+              borderTopWidth: 1.5,
+              shadowColor: withAlpha(theme.colors.primary, '14'),
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: -3 },
+              elevation: 5,
+            }
+          : {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+            }
       ]}
     >
+      {isGradientElite ? (
+        <LinearGradient
+          colors={[theme.colors.primary, '#000000']}
+          start={{ x: 1, y: 1 }}
+          end={{ x: 0, y: 0 }}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
+      ) : null}
       {items.map((item) => {
         const active = item.active;
 
@@ -12251,6 +12918,7 @@ function BottomNav({
                     styles.asnTabFloatWrap,
                     isCleanSlate ? { marginTop: -10, marginBottom: 1 } : null,
                     isGameday ? { marginTop: -18, marginBottom: 0 } : null,
+                    isGradientElite ? { marginTop: -14, marginBottom: 0 } : null,
                     { transform: [{ scale: homePulse }] },
                   ]}
                 >
@@ -12310,6 +12978,25 @@ function BottomNav({
                               elevation: active ? 6 : 3,
                             }
                           : null,
+                        isGradientElite
+                          ? {
+                              width: 60,
+                              height: 60,
+                              borderRadius: 18,
+                              backgroundColor: active
+                                ? withAlpha(theme.colors.primary, '16')
+                                : '#050505',
+                              borderWidth: active ? 2 : 1,
+                              borderColor: active
+                                ? withAlpha(theme.colors.primary, '88')
+                                : 'rgba(255,255,255,0.18)',
+                              shadowColor: withAlpha(theme.colors.primary, active ? '24' : '16'),
+                              shadowOpacity: active ? 0.18 : 0.08,
+                              shadowRadius: active ? 12 : 8,
+                              shadowOffset: { width: 0, height: 4 },
+                              elevation: active ? 7 : 4,
+                            }
+                          : null,
                         isCleanSlate
                           ? {
                               width: 46,
@@ -12342,6 +13029,8 @@ function BottomNav({
                               ? { width: 88, height: 88 }
                               : isGameday
                               ? { width: 90, height: 90 }
+                              : isGradientElite
+                              ? { width: 82, height: 82 }
                               : isCleanSlate
                               ? { width: 69, height: 69 }
                               : null,
@@ -12366,9 +13055,11 @@ function BottomNav({
                     styles.asnTabLabel,
                     {
                       color: active
-                        ? theme.colors.secondary
+                        ? isGameday
+                          ? theme.colors.secondary
+                          : theme.colors.primary
                         : withAlpha(theme.colors.text, '88'),
-                      fontWeight: active && (isModern || isGameday) ? '800' : '700',
+                      fontWeight: active && (isModern || isGameday || isGradientElite) ? '800' : '700',
                     },
                   ]}
                 >
@@ -12421,6 +13112,12 @@ function BottomNav({
                     size={21}
                     color={active ? theme.colors.secondary : withAlpha(theme.colors.text, '88')}
                   />
+                ) : isGradientElite ? (
+                  <Ionicons
+                    name={item.icon!}
+                    size={21}
+                    color={active ? theme.colors.primary : withAlpha(theme.colors.text, '88')}
+                  />
                 ) : (
                   <Ionicons
                     name={item.icon!}
@@ -12433,9 +13130,11 @@ function BottomNav({
                     styles.bottomNavLabel,
                     {
                       color: active
-                        ? theme.colors.secondary
+                        ? isGameday
+                          ? theme.colors.secondary
+                          : theme.colors.primary
                         : withAlpha(theme.colors.text, '88'),
-                      fontWeight: active && (isModern || isGameday) ? '800' : '700',
+                      fontWeight: active && (isModern || isGameday || isGradientElite) ? '800' : '700',
                     },
                   ]}
                 >
@@ -12485,6 +13184,7 @@ export default function App() {
   );
   const player = useAudioPlayer(null);
   const playerStatus = useAudioPlayerStatus(player);
+  const currentAudioUrlRef = useRef('');
 
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
@@ -12505,7 +13205,9 @@ export default function App() {
   const [selectedAthlete, setSelectedAthlete] = useState<AthleticOSRosterAthlete | null>(null);
   const [selectedStory, setSelectedStory] = useState<NewsItem | null>(null);
   const [previousScreenMode, setPreviousScreenMode] = useState<ScreenMode>('tabs');
-  const [scheduleScreenEvents, setScheduleScreenEvents] = useState<EventItem[]>([]);
+  const [scheduleScreenEvents, setScheduleScreenEvents] = useState<EventItem[] | null>(null);
+  const [scheduleScreenSportFilter, setScheduleScreenSportFilter] =
+    useState<ScheduleSportFilter | null>(null);
   const [scheduleScreenTitle, setScheduleScreenTitle] = useState('Schedule');
   const [scheduleScreenSubtitle, setScheduleScreenSubtitle] = useState('');
   const [scheduleScreenLogoUrl, setScheduleScreenLogoUrl] = useState('');
@@ -12615,21 +13317,32 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     enable: enablePushNotifications,
   } = usePushNotifications(schoolSlug);
 
-  const isPlaying = Boolean((playerStatus as any)?.playing);
-  const isLoading = Boolean((playerStatus as any)?.loading);
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
   const hasMainSiteUrl = hasResolvedUrl(schoolConfig.mainSiteUrl);
+  const isPlaying = Boolean((playerStatus as any)?.playing);
+  const isLoading = Boolean(
+    hasListenUrl &&
+      audioPlayerVisible &&
+      (Boolean((playerStatus as any)?.isBuffering) ||
+        Boolean((playerStatus as any)?.isLoaded === false))
+  );
 
   useEffect(() => {
-    if (!hasListenUrl) {
+    const nextListenUrl = resolveSchoolScopedUrl(schoolConfig.listenUrl);
+
+    if (!nextListenUrl) {
       try {
         player.pause();
       } catch {}
+      currentAudioUrlRef.current = '';
       return;
     }
 
-    player.replace(schoolConfig.listenUrl);
-  }, [hasListenUrl, player, schoolConfig.listenUrl]);
+    if (currentAudioUrlRef.current !== nextListenUrl) {
+      player.replace(nextListenUrl);
+      currentAudioUrlRef.current = nextListenUrl;
+    }
+  }, [player, resolveSchoolScopedUrl, schoolConfig.listenUrl]);
 
   useEffect(() => {
   setAudioModeAsync({
@@ -12920,7 +13633,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       (typeof mergedSchoolConfig.accentColor === 'string' &&
       mergedSchoolConfig.accentColor.trim()
         ? mergedSchoolConfig.accentColor.trim()
-        : '') ||
+      : '') ||
       (typeof mergedSchoolConfig.secondaryColor === 'string' &&
       mergedSchoolConfig.secondaryColor.trim()
         ? mergedSchoolConfig.secondaryColor.trim()
@@ -12928,27 +13641,27 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       (typeof mergedSchoolConfig.primaryColor === 'string' &&
       mergedSchoolConfig.primaryColor.trim()
         ? mergedSchoolConfig.primaryColor.trim()
-        : '') ||
-      BRAND.primary;
+      : '') ||
+      '';
     const mergedThemeConfig = {
       ...(nextThemeConfig ?? {}),
       theme_key: nextThemeConfig?.theme_key?.trim() || 'sec_power5',
       primary_color:
-        (nextThemeKey === 'sec_power5'
+        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite'
           ? mergedSchoolConfig.primaryColor?.trim() ||
             nextThemeConfig?.primary_color?.trim()
           : nextThemeConfig?.primary_color?.trim() ||
             mergedSchoolConfig.primaryColor?.trim()) ||
-        BRAND.primary,
+        '',
       secondary_color:
-        (nextThemeKey === 'sec_power5'
+        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite'
           ? mergedSchoolConfig.secondaryColor?.trim() ||
             nextThemeConfig?.secondary_color?.trim()
           : nextThemeConfig?.secondary_color?.trim() ||
             mergedSchoolConfig.secondaryColor?.trim()) ||
-        BRAND.primaryDark,
+        '',
       accent_color:
-        (nextThemeKey === 'sec_power5'
+        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite'
           ? mergedSchoolConfig.accentColor?.trim() ||
             mergedSchoolConfig.primaryColor?.trim() ||
             mergedSchoolConfig.secondaryColor?.trim() ||
@@ -13401,8 +14114,10 @@ const handleEnableNotifications = async () => {
     schoolLogoUrl?: string;
     variant?: ScheduleScreenVariant;
     accentColor?: string;
+    sportFilter?: ScheduleSportFilter | null;
   }) => {
-    setScheduleScreenEvents(options?.events ?? allEvents);
+    setScheduleScreenEvents(options?.events ?? null);
+    setScheduleScreenSportFilter(options?.sportFilter ?? null);
     setScheduleScreenTitle(options?.headerTitle ?? 'Schedule');
     setScheduleScreenSubtitle(options?.headerSubtitle ?? appDisplayName);
     setScheduleScreenLogoUrl(options?.schoolLogoUrl ?? schoolConfig.logoUrl);
@@ -13476,7 +14191,29 @@ const handleEnableNotifications = async () => {
     setSelectedStory(null);
   };
 
+  const openMediaScreen = () => {
+    setActiveTab('media');
+    setScreenMode('tabs');
+    setSelectedRecruitingSport(null);
+    setSelectedRecruitingSportId('');
+    setSelectedRecruitingPlayer(null);
+    setRecruitingHeaderSubtitle('');
+    setRecruitingLogoUrl('');
+    setSelectedRosterSport(null);
+    setSelectedRosterSportId('');
+    setRosterItems([]);
+    setEmbeddedTitle('');
+    setEmbeddedUrl('');
+    setSelectedAthlete(null);
+    setSelectedStory(null);
+  };
+
   const handleBottomNavChange = (tab: TabKey) => {
+    if (tab === 'media') {
+      openMediaScreen();
+      return;
+    }
+
     setActiveTab(tab);
     setScreenMode('tabs');
     setSelectedRecruitingSport(null);
@@ -13586,6 +14323,11 @@ const handleEnableNotifications = async () => {
           schoolLogoUrl: schoolConfig.logoUrl,
           variant: 'team',
           accentColor: schoolAccentColor,
+          sportFilter: {
+            sportKey: matchedSport.sport.key,
+            sportLabel: matchedSport.sport.label,
+            sportShortLabel: matchedSport.sport.shortLabel,
+          },
         });
       } catch (error) {
         console.log('Hero quick action schedule load error:', error);
@@ -13720,7 +14462,7 @@ const handleEnableNotifications = async () => {
           iconKey: 'broadcast',
           icon: 'radio-outline',
           activeTabKey: 'media',
-          onPress: () => handleBottomNavChange('media'),
+          onPress: openMediaScreen,
         };
       case 2:
         return {
@@ -13777,7 +14519,7 @@ const handleEnableNotifications = async () => {
       case 'broadcast_video':
       case 'media':
         active = screenMode === 'tabs' && activeTab === 'media';
-        onPress = () => handleBottomNavChange('media');
+        onPress = openMediaScreen;
         break;
       case 'all_schedules':
         onPress = () =>
@@ -13852,7 +14594,8 @@ const handleEnableNotifications = async () => {
 
   const closeSpecialScreen = () => {
     setScreenMode('tabs');
-    setScheduleScreenEvents([]);
+    setScheduleScreenEvents(null);
+    setScheduleScreenSportFilter(null);
     setScheduleScreenTitle('Schedule');
     setScheduleScreenSubtitle('');
     setScheduleScreenLogoUrl('');
@@ -13902,7 +14645,9 @@ const handleEnableNotifications = async () => {
 
   const toggleAudio = async (streamUrl?: string) => {
   try {
-    const resolvedStreamUrl = resolveSchoolScopedUrl(streamUrl || schoolConfig.listenUrl);
+    const resolvedStreamUrl = resolveSchoolScopedUrl(
+      streamUrl || currentAudioUrlRef.current || schoolConfig.listenUrl
+    );
 
     if (!resolvedStreamUrl) {
       Alert.alert('Audio Unavailable', 'No live audio stream is configured.');
@@ -13910,7 +14655,7 @@ const handleEnableNotifications = async () => {
     }
 
     if (isPlaying) {
-      await player.pause();
+      player.pause();
 
       if (Platform.OS === 'android') {
         player.setActiveForLockScreen(false);
@@ -13920,7 +14665,10 @@ const handleEnableNotifications = async () => {
     }
 
     setAudioPlayerVisible(true);
-    player.replace(resolvedStreamUrl);
+    if (currentAudioUrlRef.current !== resolvedStreamUrl) {
+      player.replace(resolvedStreamUrl);
+      currentAudioUrlRef.current = resolvedStreamUrl;
+    }
 
     if (Platform.OS === 'android') {
       player.setActiveForLockScreen(true, {
@@ -13930,7 +14678,7 @@ const handleEnableNotifications = async () => {
       });
     }
 
-    await player.play();
+    player.play();
   } catch (error) {
     console.log('Audio toggle error:', error);
     Alert.alert('Audio Error', 'Could not start the stream.');
@@ -14096,7 +14844,7 @@ if (showPreroll && prerollConfig) {
   } else if (screenMode === 'schedule') {
     mainContent = (
       <ScheduleScreen
-        scheduleEvents={scheduleScreenEvents.length > 0 ? scheduleScreenEvents : allEvents}
+        scheduleEvents={scheduleScreenEvents ?? allEvents}
         eventsLoading={eventsLoading}
         onBack={closeSpecialScreen}
         headerTitle={scheduleScreenTitle}
@@ -14105,6 +14853,7 @@ if (showPreroll && prerollConfig) {
         schoolId={resolvedSchoolId}
         variant={scheduleScreenVariant}
         accentColor={scheduleScreenAccentColor}
+        sportFilter={scheduleScreenSportFilter}
         theme={resolvedTheme}
       />
     );
@@ -14137,7 +14886,7 @@ if (showPreroll && prerollConfig) {
             onOpenSchedule={openScheduleScreen}
             onOpenSport={openSport}
             onToggleAudio={toggleAudio}
-            onGoToMedia={() => setActiveTab('media')}
+            onGoToMedia={openMediaScreen}
             newsItems={newsItems}
             newsLoading={newsLoading}
             recentEvents={recentEvents}
@@ -14240,9 +14989,7 @@ if (showPreroll && prerollConfig) {
       style={[
         styles.appShell,
         {
-          backgroundColor: isGamedayTheme(resolvedTheme)
-            ? resolvedTheme.colors.primary
-            : resolvedTheme.colors.background,
+          backgroundColor: getThemeBaseBackgroundColor(resolvedTheme),
         },
       ]}
     >
@@ -14251,9 +14998,7 @@ if (showPreroll && prerollConfig) {
         style={[
           styles.appContent,
           {
-            backgroundColor: isGamedayTheme(resolvedTheme)
-              ? resolvedTheme.colors.primary
-              : resolvedTheme.colors.background,
+            backgroundColor: getThemeBaseBackgroundColor(resolvedTheme),
           },
         ]}
       >
@@ -14396,6 +15141,14 @@ const styles = StyleSheet.create({
 
   screenContentLight: {
     backgroundColor: '#F5F7FB',
+  },
+
+  power5HomeModuleShell: {
+    position: 'relative',
+  },
+
+  power5HomeModuleBackdrop: {
+    ...StyleSheet.absoluteFillObject,
   },
 
   loadingWrap: {

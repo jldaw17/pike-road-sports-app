@@ -134,14 +134,23 @@ const ATHLETICOS_THEME_PRESETS: AthleticOSThemePreset[] = [
     label: 'Gradient Elite',
     description: 'Premium, luminous gradients layered over dark athletics surfaces.',
     colors: {
-      ...DEFAULT_THEME_COLORS,
-      primary: '#2A4A8D',
-      secondary: '#172B57',
-      accent: '#DA365A',
-      cardAlt: '#22345B',
-      glow: '#F3F4FF',
-      heroStart: '#C32651',
-      heroEnd: '#1F4D97',
+      primary: '#1A1A1A',
+      secondary: '#000000',
+      accent: '#D4D4D8',
+      background: '#000000',
+      surface: '#050505',
+      card: '#0A0A0A',
+      cardAlt: '#111111',
+      text: '#FFFFFF',
+      mutedText: '#D1D5DB',
+      border: '#171717',
+      pillBackground: '#1A1A1A',
+      pillText: '#FFFFFF',
+      buttonBackground: '#1A1A1A',
+      buttonText: '#FFFFFF',
+      glow: '#F3F4F6',
+      heroStart: '#1A1A1A',
+      heroEnd: '#000000',
     },
     styles: {
       backgroundStyle: 'luxe_gradient',
@@ -207,8 +216,100 @@ function normalizeHexColor(value?: string) {
   return /^#[0-9a-f]{6}$/i.test(normalized) ? normalized : '';
 }
 
-function resolveThemeSurfaceTokens(surfaceStyle: string) {
+function hexToRgb(hex: string) {
+  const normalized = normalizeHexColor(hex);
+  if (!normalized) {
+    return null;
+  }
+
+  return {
+    r: parseInt(normalized.slice(1, 3), 16),
+    g: parseInt(normalized.slice(3, 5), 16),
+    b: parseInt(normalized.slice(5, 7), 16),
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  const toHex = (value: number) =>
+    Math.max(0, Math.min(255, Math.round(value)))
+      .toString(16)
+      .padStart(2, '0');
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function mixHexColors(baseHex: string, overlayHex: string, overlayWeight: number) {
+  const base = hexToRgb(baseHex);
+  const overlay = hexToRgb(overlayHex);
+  if (!base || !overlay) {
+    return normalizeHexColor(baseHex) || normalizeHexColor(overlayHex) || '';
+  }
+
+  const weight = Math.max(0, Math.min(1, overlayWeight));
+  return rgbToHex(
+    base.r * (1 - weight) + overlay.r * weight,
+    base.g * (1 - weight) + overlay.g * weight,
+    base.b * (1 - weight) + overlay.b * weight
+  );
+}
+
+function isLightHexColor(hex: string) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return false;
+  }
+
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+  return luminance > 0.68;
+}
+
+function resolveThemeSurfaceTokens(
+  surfaceStyle: string,
+  resolvedPrimary = '',
+  resolvedSecondary = '',
+  resolvedAccent = ''
+) {
   switch (surfaceStyle) {
+    case 'elite_surface': {
+      const neutralBackground = '#000000';
+      const neutralSurface = '#050505';
+      const neutralCard = '#0A0A0A';
+      const neutralCardAlt = '#111111';
+      const neutralBorder = '#171717';
+      const normalizedPrimary = normalizeHexColor(resolvedPrimary);
+      const normalizedSecondary = normalizeHexColor(resolvedSecondary);
+      const normalizedAccent = normalizeHexColor(resolvedAccent);
+      const depthColor =
+        normalizedSecondary && !isLightHexColor(normalizedSecondary)
+          ? normalizedSecondary
+          : normalizedPrimary && !isLightHexColor(normalizedPrimary)
+          ? normalizedPrimary
+          : normalizedAccent && !isLightHexColor(normalizedAccent)
+          ? normalizedAccent
+          : '';
+
+      return {
+        background: neutralBackground,
+        surface: normalizedSecondary
+          ? mixHexColors(neutralSurface, normalizedSecondary, 0.06)
+          : neutralSurface,
+        card: normalizedPrimary
+          ? mixHexColors(neutralCard, normalizedPrimary, 0.08)
+          : neutralCard,
+        cardAlt: normalizedPrimary
+          ? mixHexColors(neutralCardAlt, normalizedPrimary, 0.16)
+          : depthColor
+          ? mixHexColors(neutralCardAlt, depthColor, 0.08)
+          : neutralCardAlt,
+        border: normalizedPrimary
+          ? mixHexColors(neutralBorder, normalizedPrimary, 0.28)
+          : normalizedAccent
+          ? mixHexColors(neutralBorder, normalizedAccent, 0.2)
+          : neutralBorder,
+        text: '#FFFFFF',
+        mutedText: '#D1D5DB',
+      };
+    }
     case 'modern_surface':
       return {
         background: '#FFFFFF',
@@ -249,6 +350,48 @@ function resolveThemeSurfaceTokens(surfaceStyle: string) {
         text: '#FFFFFF',
         mutedText: '#D0D5DD',
       };
+    case 'layered_dark': {
+      const neutralBackground = '#000000';
+      const neutralSurface = '#050505';
+      const neutralCard = '#0A0A0A';
+      const neutralCardAlt = '#111111';
+      const neutralBorder = '#171717';
+      const normalizedPrimary = normalizeHexColor(resolvedPrimary);
+      const normalizedSecondary = normalizeHexColor(resolvedSecondary);
+      const normalizedAccent = normalizeHexColor(resolvedAccent);
+      const depthColor =
+        normalizedSecondary && !isLightHexColor(normalizedSecondary)
+          ? normalizedSecondary
+          : normalizedPrimary && !isLightHexColor(normalizedPrimary)
+          ? normalizedPrimary
+          : normalizedAccent && !isLightHexColor(normalizedAccent)
+          ? normalizedAccent
+          : '';
+
+      const background = neutralBackground;
+      const surface = neutralSurface;
+      const card = neutralCard;
+      const cardAlt = normalizedPrimary
+        ? mixHexColors(neutralCardAlt, normalizedPrimary, 0.14)
+        : depthColor
+        ? mixHexColors(neutralCardAlt, depthColor, 0.08)
+        : neutralCardAlt;
+      const border = normalizedPrimary
+        ? mixHexColors(neutralBorder, normalizedPrimary, 0.26)
+        : normalizedAccent
+        ? mixHexColors(neutralBorder, normalizedAccent, 0.2)
+        : neutralBorder;
+
+      return {
+        background,
+        surface,
+        card,
+        cardAlt,
+        border,
+        text: '#FFFFFF',
+        mutedText: '#D1D5DB',
+      };
+    }
     default:
       return {
         background: DEFAULT_THEME_COLORS.background,
@@ -306,8 +449,8 @@ function resolveThemeHeroTokens(
       };
     case 'elite_gradient':
       return {
-        heroStart: resolvedAccent || '#C32651',
-        heroEnd: resolvedPrimary || '#1F4D97',
+        heroStart: resolvedPrimary || '#2A4A8D',
+        heroEnd: resolvedSecondary || '#172B57',
       };
     default:
       return {
@@ -342,6 +485,11 @@ function resolveThemePillTokens(
       return {
         pillBackground: '#EAECF0',
         pillText: '#101828',
+      };
+    case 'elite_badge':
+      return {
+        pillBackground: resolvedPrimary || resolvedAccent || '#1A1A1A',
+        pillText: '#FFFFFF',
       };
     default:
       return {
@@ -389,7 +537,12 @@ export function resolveAthleticOSTheme(
         newsStyle: normalizeThemeKey(config?.news_style) || preset.styles.newsStyle,
       };
 
-  const surfaceTokens = resolveThemeSurfaceTokens(resolvedStyles.surfaceStyle);
+  const surfaceTokens = resolveThemeSurfaceTokens(
+    resolvedStyles.surfaceStyle,
+    resolvedPrimary,
+    resolvedSecondary,
+    resolvedAccent
+  );
   const heroTokens = resolveThemeHeroTokens(
     resolvedStyles.heroStyle,
     resolvedPrimary,
@@ -416,6 +569,10 @@ export function resolveAthleticOSTheme(
   const glow =
     isLockedLightTheme
       ? 'transparent'
+      : preset.key === 'sec_power5'
+      ? mixHexColors('#F5F5F5', resolvedPrimary || resolvedAccent || '#FFFFFF', 0.32)
+      : preset.key === 'gradient_elite'
+      ? mixHexColors('#F5F5F5', resolvedPrimary || resolvedAccent || '#FFFFFF', 0.38)
       : resolvedStyles.navStyle === 'light_nav'
       ? '#D9E4FF'
       : preset.colors.glow || DEFAULT_THEME_COLORS.glow;

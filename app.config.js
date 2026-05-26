@@ -49,6 +49,14 @@ const VARIANT_CONFIGS = {
     iosBundleIdentifier: 'com.athleticos.gamedayos',
     icon: './assets/images/icon.png',
   },
+  sylacauga: {
+    schoolSlug: 'sylacauga',
+    name: 'Sylacauga Athletics',
+    slug: 'sylacauga-athletics',
+    scheme: 'sylacaugaathletics',
+    iosBundleIdentifier: 'com.athleticos.sylacauga',
+    icon: './assets/images/icon.png',
+  },
 };
 
 function isLocalDevelopment() {
@@ -67,7 +75,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga.'
   );
 }
 
