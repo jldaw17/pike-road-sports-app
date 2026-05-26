@@ -1257,6 +1257,7 @@ type ScheduleSportFilter = {
 type BottomNavSlot = 1 | 2 | 4;
 type ScreenMode =
   | 'tabs'
+  | 'media'
   | 'sportDetail'
   | 'roster'
   | 'recruiting'
@@ -3534,13 +3535,14 @@ function StoryDetailScreen({
   const body = item.body?.trim() || '';
   const articleText = body || summary;
   const sportName = item.sportLabel?.trim() || 'Athletics';
+  const isGameday = isGamedayTheme(theme);
 
   return (
     <ScrollView
       style={[
         styles.screen,
         {
-          backgroundColor: isGamedayHome
+          backgroundColor: isGameday
             ? theme.colors.primary
             : isPower5Theme(theme)
             ? '#000000'
@@ -3550,7 +3552,7 @@ function StoryDetailScreen({
       contentContainerStyle={[
         styles.screenContent,
         {
-          backgroundColor: isGamedayHome
+          backgroundColor: isGameday
             ? theme.colors.primary
             : isPower5Theme(theme)
             ? '#000000'
@@ -6063,6 +6065,19 @@ function HomeScreen({
   );
 
   const handleOpenLiveCoverage = () => {
+    console.log('HANDLE_OPEN_LIVE_COVERAGE', {
+      destinationType: liveCoverageConfig?.destination_type,
+    });
+    const destinationType = normalizeBottomNavDestinationType(
+      liveCoverageConfig?.destination_type
+    );
+
+    if (destinationType === 'broadcast_page') {
+      console.log('BROADCAST_PAGE_BRANCH_HIT');
+      onGoToMedia();
+      return;
+    }
+
     onGoToMedia();
   };
 
@@ -6230,7 +6245,10 @@ function HomeScreen({
             : null,
           pressed ? { opacity: 0.88, transform: [{ scale: 0.985 }] } : null,
         ]}
-        onPress={handleOpenLiveCoverage}
+        onPress={() => {
+          console.log('LIVE_COVERAGE_PRESS_FIRED');
+          handleOpenLiveCoverage();
+        }}
       >
         <View style={styles.liveNowLeft}>
           {isGamedayHome ? (
@@ -6273,161 +6291,79 @@ function HomeScreen({
               </View>
 
               {showLiveCoverageSponsor ? (
-                hasLiveCoverageSponsorLink ? (
-                  <Pressable
+                <View
+                  style={[
+                    styles.heroSponsorLogoWrap,
+                    {
+                      width: 132,
+                      height: 'auto',
+                      minHeight: 46,
+                      flexShrink: 0,
+                      paddingHorizontal: 8,
+                      paddingVertical: 7,
+                      alignItems: 'stretch',
+                      justifyContent: 'center',
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: withAlpha(theme.colors.primary, '30'),
+                      backgroundColor: gamedayLiveSponsorBackground,
+                    },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.heroSponsorLogoWrap,
+                      styles.heroSponsorInlineText,
                       {
-                        width: 132,
-                        height: 'auto',
-                        minHeight: 46,
-                        flexShrink: 0,
-                        paddingHorizontal: 8,
-                        paddingVertical: 7,
-                        alignItems: 'stretch',
-                        justifyContent: 'center',
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: withAlpha(theme.colors.primary, '30'),
-                        backgroundColor: gamedayLiveSponsorBackground,
+                        color: gamedayLiveSponsorMutedTextColor,
+                        marginTop: 0,
+                        marginBottom: 5,
+                        fontSize: 8,
+                        lineHeight: 10,
+                        letterSpacing: 0.42,
+                        textAlign: 'right',
                       },
                     ]}
-                    onPress={() =>
-                      onOpenEmbedded(
-                        liveCoverageSponsorName || 'Presented by',
-                        liveCoverageSponsorLink
-                      )
-                    }
+                    numberOfLines={1}
                   >
+                    Presented by
+                  </Text>
+                  {hasLiveCoverageSponsorLogo ? (
+                    <View
+                      style={{
+                        width: '100%',
+                        height: 28,
+                        alignSelf: 'flex-end',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <RemoteImage
+                        uri={liveCoverageSponsorLogo}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="contain"
+                        mode="sponsor"
+                        label={liveCoverageSponsorName}
+                        theme={theme}
+                      />
+                    </View>
+                  ) : (
                     <Text
                       style={[
                         styles.heroSponsorInlineText,
                         {
-                          color: gamedayLiveSponsorMutedTextColor,
+                          color: gamedayLiveSponsorTextColor,
                           marginTop: 0,
-                          marginBottom: 5,
-                          fontSize: 8,
-                          lineHeight: 10,
-                          letterSpacing: 0.42,
+                          fontSize: 10,
+                          lineHeight: 12,
+                          letterSpacing: 0.3,
                           textAlign: 'right',
                         },
                       ]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
-                      Presented by
+                      {liveCoverageSponsorName}
                     </Text>
-                    {hasLiveCoverageSponsorLogo ? (
-                      <View
-                        style={{
-                          width: '100%',
-                          height: 28,
-                          alignSelf: 'flex-end',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <RemoteImage
-                          uri={liveCoverageSponsorLogo}
-                          style={{ width: '100%', height: '100%' }}
-                          contentFit="contain"
-                          mode="sponsor"
-                          label={liveCoverageSponsorName}
-                          theme={theme}
-                        />
-                      </View>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.heroSponsorInlineText,
-                          {
-                            color: gamedayLiveSponsorTextColor,
-                            marginTop: 0,
-                            fontSize: 10,
-                            lineHeight: 12,
-                            letterSpacing: 0.3,
-                            textAlign: 'right',
-                          },
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {liveCoverageSponsorName}
-                      </Text>
-                    )}
-                  </Pressable>
-                ) : (
-                  <View
-                    style={[
-                      styles.heroSponsorLogoWrap,
-                      {
-                        width: 132,
-                        height: 'auto',
-                        minHeight: 46,
-                        flexShrink: 0,
-                        paddingHorizontal: 8,
-                        paddingVertical: 7,
-                        alignItems: 'stretch',
-                        justifyContent: 'center',
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: withAlpha(theme.colors.primary, '30'),
-                        backgroundColor: gamedayLiveSponsorBackground,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.heroSponsorInlineText,
-                        {
-                          color: gamedayLiveSponsorMutedTextColor,
-                          marginTop: 0,
-                          marginBottom: 5,
-                          fontSize: 8,
-                          lineHeight: 10,
-                          letterSpacing: 0.42,
-                          textAlign: 'right',
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      Presented by
-                    </Text>
-                    {hasLiveCoverageSponsorLogo ? (
-                      <View
-                        style={{
-                          width: '100%',
-                          height: 28,
-                          alignSelf: 'flex-end',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <RemoteImage
-                          uri={liveCoverageSponsorLogo}
-                          style={{ width: '100%', height: '100%' }}
-                          contentFit="contain"
-                          mode="sponsor"
-                          label={liveCoverageSponsorName}
-                          theme={theme}
-                        />
-                      </View>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.heroSponsorInlineText,
-                          {
-                            color: gamedayLiveSponsorTextColor,
-                            marginTop: 0,
-                            fontSize: 10,
-                            lineHeight: 12,
-                            letterSpacing: 0.3,
-                            textAlign: 'right',
-                          },
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {liveCoverageSponsorName}
-                      </Text>
-                    )}
-                  </View>
-                )
+                  )}
+                </View>
               ) : null}
             </View>
           ) : (
@@ -6514,7 +6450,7 @@ function HomeScreen({
             </Text>
           ) : null}
 
-          <View
+          <Pressable
             style={[
               styles.liveNowCTA,
               isModernTheme(theme)
@@ -6541,6 +6477,7 @@ function HomeScreen({
                   }
                 : null,
             ]}
+            onPress={handleOpenLiveCoverage}
           >
             <Text
               style={[
@@ -6589,7 +6526,7 @@ function HomeScreen({
                   : BRAND.white
               }
             />
-          </View>
+          </Pressable>
         </View>
 
         {showStatusPill ? (
@@ -8120,15 +8057,25 @@ function MediaScreen({
         style={[
           styles.mediaActionIconWrap,
           {
-            backgroundColor: theme.colors.cardAlt,
-            borderColor: theme.colors.border,
+            backgroundColor: isGradientEliteTheme(theme)
+              ? theme.colors.buttonBackground
+              : theme.colors.cardAlt,
+            borderColor: isGradientEliteTheme(theme)
+              ? theme.colors.buttonBackground
+              : theme.colors.border,
           },
         ]}
       >
         <Ionicons
           name={icon}
           size={22}
-          color={isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.text}
+          color={
+            isGradientEliteTheme(theme)
+              ? theme.colors.buttonText
+              : isCleanSlateTheme(theme)
+              ? theme.colors.primary
+              : theme.colors.text
+          }
         />
       </View>
       <View style={styles.mediaActionBody}>
@@ -8139,12 +8086,24 @@ function MediaScreen({
         style={[
           styles.mediaActionChevronWrap,
           {
-            backgroundColor: theme.colors.cardAlt,
-            borderColor: theme.colors.border,
+            backgroundColor: isGradientEliteTheme(theme)
+              ? theme.colors.buttonBackground
+              : theme.colors.cardAlt,
+            borderColor: isGradientEliteTheme(theme)
+              ? theme.colors.buttonBackground
+              : theme.colors.border,
           },
         ]}
       >
-        <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={
+            isGradientEliteTheme(theme)
+              ? theme.colors.buttonText
+              : theme.colors.text
+          }
+        />
       </View>
     </Pressable>
   );
@@ -14192,8 +14151,9 @@ const handleEnableNotifications = async () => {
   };
 
   const openMediaScreen = () => {
+    console.log('OPEN_MEDIA_SCREEN_CALLED');
     setActiveTab('media');
-    setScreenMode('tabs');
+    setScreenMode('media');
     setSelectedRecruitingSport(null);
     setSelectedRecruitingSportId('');
     setSelectedRecruitingPlayer(null);
@@ -14206,6 +14166,7 @@ const handleEnableNotifications = async () => {
     setEmbeddedUrl('');
     setSelectedAthlete(null);
     setSelectedStory(null);
+    console.log('MEDIA_SCREEN_STATE_SET');
   };
 
   const handleBottomNavChange = (tab: TabKey) => {
@@ -14494,7 +14455,7 @@ const handleEnableNotifications = async () => {
       return {
         ...fallbackItem,
         active:
-          screenMode === 'tabs' &&
+          (screenMode === 'tabs' || screenMode === 'media') &&
           Boolean(fallbackItem.activeTabKey) &&
           activeTab === fallbackItem.activeTabKey,
       } satisfies BottomNavRenderItem;
@@ -14518,7 +14479,9 @@ const handleEnableNotifications = async () => {
       case 'broadcast_audio':
       case 'broadcast_video':
       case 'media':
-        active = screenMode === 'tabs' && activeTab === 'media';
+        active =
+          (screenMode === 'tabs' || screenMode === 'media') &&
+          activeTab === 'media';
         onPress = openMediaScreen;
         break;
       case 'all_schedules':
@@ -14854,6 +14817,28 @@ if (showPreroll && prerollConfig) {
         variant={scheduleScreenVariant}
         accentColor={scheduleScreenAccentColor}
         sportFilter={scheduleScreenSportFilter}
+        theme={resolvedTheme}
+      />
+    );
+  } else if (screenMode === 'media') {
+    console.log('MEDIA_SCREEN_RENDERING');
+    mainContent = (
+      <MediaScreen
+        onOpenEmbedded={openEmbedded}
+        onOpenExternal={openExternalUrl}
+        onOpenSchedule={openScheduleScreen}
+        onToggleAudio={toggleAudio}
+        watchUrl={schoolConfig.watchUrl}
+        listenUrl={schoolConfig.listenUrl}
+        scheduleUrl={schoolConfig.scheduleUrl}
+        mainSiteUrl={schoolConfig.mainSiteUrl}
+        displayName={appDisplayName}
+        mascotName={schoolConfig.mascotName}
+        schoolLogoUrl={schoolConfig.logoUrl}
+        isAudioPlaying={isPlaying}
+        liveStatus={liveStatus}
+        themeMode={appThemeMode}
+        scheduleAvailable={eventsLoading || allEvents.length > 0}
         theme={resolvedTheme}
       />
     );
