@@ -132,6 +132,18 @@ function isGradientEliteTheme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'gradient_elite';
 }
 
+function isSchoolPrideTheme(theme: AthleticOSResolvedTheme) {
+  return theme.meta.themeKey === 'school_pride';
+}
+
+const SCHOOL_PRIDE_BACKGROUND = '#F7F7F4';
+const SCHOOL_PRIDE_SURFACE = '#FFFFFF';
+const SCHOOL_PRIDE_SOFT_SURFACE = '#F2EEE7';
+const SCHOOL_PRIDE_TEXT = '#111111';
+const SCHOOL_PRIDE_MUTED_TEXT = '#4B5563';
+const SCHOOL_PRIDE_BORDER = 'rgba(17,17,17,0.12)';
+const SCHOOL_PRIDE_DRAMA = '#171717';
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -478,9 +490,101 @@ function resolveHeroQuickActionIcon(
   }
 }
 
+function normalizeComparableColor(value?: string) {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function getSchoolPrideDepthColor(theme: AthleticOSResolvedTheme) {
+  const primary = normalizeComparableColor(theme.colors.primary);
+  const secondary = normalizeComparableColor(theme.colors.secondary);
+  const accent = normalizeComparableColor(theme.colors.accent);
+
+  if (secondary && secondary !== primary) {
+    return theme.colors.secondary;
+  }
+
+  if (
+    accent &&
+    accent !== primary &&
+    accent !== secondary &&
+    accent !== normalizeComparableColor(theme.colors.text)
+  ) {
+    return theme.colors.accent;
+  }
+
+  return theme.colors.primary;
+}
+
+function getSchoolPrideBackgroundColor() {
+  return SCHOOL_PRIDE_BACKGROUND;
+}
+
+function getSchoolPrideSurfaceColor() {
+  return SCHOOL_PRIDE_SURFACE;
+}
+
+function getSchoolPrideSoftSurfaceColor() {
+  return SCHOOL_PRIDE_SOFT_SURFACE;
+}
+
+function getSchoolPrideTextColor() {
+  return SCHOOL_PRIDE_TEXT;
+}
+
+function getSchoolPrideMutedTextColor() {
+  return SCHOOL_PRIDE_MUTED_TEXT;
+}
+
+function getSchoolPrideTextOnPrimaryColor() {
+  return BRAND.white;
+}
+
+function getSchoolPrideTextOnImageColor() {
+  return BRAND.white;
+}
+
+function getSchoolPrideLightTextColor() {
+  return '#FFFFFF';
+}
+
+function getSchoolPrideBorderColor() {
+  return SCHOOL_PRIDE_BORDER;
+}
+
+function getSchoolPrideDramaColor() {
+  return SCHOOL_PRIDE_DRAMA;
+}
+
+function getSchoolPrideStoryOverlayColors() {
+  return [
+    'rgba(17,17,17,0.04)',
+    'rgba(17,17,17,0.24)',
+    'rgba(17,17,17,0.68)',
+    'rgba(17,17,17,0.88)',
+  ];
+}
+
+function getSchoolPrideSportEmoji(sportKey?: string, fallbackLabel?: string) {
+  const normalized = `${sportKey || ''} ${fallbackLabel || ''}`.toLowerCase();
+  if (normalized.includes('football')) return '🏈';
+  if (normalized.includes('basketball')) return '🏀';
+  if (normalized.includes('baseball')) return '⚾';
+  if (normalized.includes('soccer')) return '⚽';
+  if (normalized.includes('volleyball')) return '🏐';
+  if (normalized.includes('softball')) return '🥎';
+  if (normalized.includes('golf')) return '⛳';
+  if (normalized.includes('tennis')) return '🎾';
+  if (normalized.includes('track') || normalized.includes('cross country')) return '🏃';
+  return '🎽';
+}
+
 function getThemeHeroAccentColor(theme: AthleticOSResolvedTheme) {
   if (isGamedayTheme(theme)) {
     return theme.colors.secondary;
+  }
+
+  if (isSchoolPrideTheme(theme)) {
+    return getSchoolPrideDepthColor(theme);
   }
 
   if (isPower5Theme(theme)) {
@@ -591,6 +695,14 @@ function getThemeHeroGradient(theme: AthleticOSResolvedTheme) {
     return [theme.colors.primary, theme.colors.secondary];
   }
 
+  if (isSchoolPrideTheme(theme)) {
+    return [
+      getSchoolPrideSurfaceColor(),
+      getSchoolPrideSurfaceColor(),
+      withAlpha(theme.colors.primary, '10'),
+    ];
+  }
+
   if (isGradientEliteTheme(theme)) {
     return [theme.colors.primary, theme.colors.secondary];
   }
@@ -621,6 +733,15 @@ function getThemeDarkHeroGradient(theme: AthleticOSResolvedTheme) {
 
   if (isPower5Theme(theme)) {
     return [theme.colors.primary, theme.colors.secondary];
+  }
+
+  if (isSchoolPrideTheme(theme)) {
+    const tertiary = getSchoolPrideDepthColor(theme);
+    return [
+      getSchoolPrideSurfaceColor(),
+      getSchoolPrideSoftSurfaceColor(),
+      withAlpha(tertiary, '12'),
+    ];
   }
 
   if (isGradientEliteTheme(theme)) {
@@ -659,6 +780,14 @@ function getThemeBackdropGradient(theme: AthleticOSResolvedTheme) {
     ];
   }
 
+  if (isSchoolPrideTheme(theme)) {
+    return [
+      getSchoolPrideBackgroundColor(),
+      getSchoolPrideBackgroundColor(),
+      getSchoolPrideBackgroundColor(),
+    ];
+  }
+
   if (isGradientEliteTheme(theme)) {
     return [theme.colors.primary, '#000000'];
   }
@@ -683,6 +812,10 @@ function getThemeBaseBackgroundColor(theme: AthleticOSResolvedTheme) {
     return '#000000';
   }
 
+  if (isSchoolPrideTheme(theme)) {
+    return getSchoolPrideBackgroundColor();
+  }
+
   if (isGamedayTheme(theme)) {
     return theme.colors.primary;
   }
@@ -701,6 +834,22 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
       shadowOpacity: 0.18,
       shadowRadius: 16,
       shadowOffset: { width: 0, height: 6 },
+      elevation: 4,
+    };
+  }
+
+  if (isSchoolPrideTheme(theme)) {
+    return {
+      backgroundColor: getSchoolPrideSurfaceColor(),
+      borderWidth: 1,
+      borderColor: getSchoolPrideBorderColor(),
+      borderTopWidth: 10,
+      borderTopColor: withAlpha(theme.colors.primary, 'E6'),
+      borderRadius: 6,
+      shadowColor: 'rgba(17,17,17,0.08)',
+      shadowOpacity: 0.08,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
       elevation: 4,
     };
   }
@@ -751,6 +900,21 @@ function getThemeCompactInnerHeroStyle(theme: AthleticOSResolvedTheme): ViewStyl
       shadowOpacity: 0.16,
       shadowOffset: { width: 0, height: 4 },
       elevation: 3,
+    };
+  }
+
+  if (isSchoolPrideTheme(theme)) {
+    return {
+      marginTop: 2,
+      marginBottom: 10,
+      borderRadius: 6,
+      paddingTop: 10,
+      paddingBottom: 14,
+      paddingHorizontal: 14,
+      shadowRadius: 8,
+      shadowOpacity: 0.05,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
     };
   }
 
@@ -808,6 +972,22 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 4 },
       elevation: 4,
+    };
+  }
+
+  if (isSchoolPrideTheme(theme)) {
+    return {
+      backgroundColor: getSchoolPrideSurfaceColor(),
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: getSchoolPrideBorderColor(),
+      borderTopWidth: 8,
+      borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+      shadowColor: 'rgba(17,17,17,0.08)',
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 2,
     };
   }
 
@@ -881,6 +1061,22 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 4 },
       elevation: 4,
+    };
+  }
+
+  if (isSchoolPrideTheme(theme)) {
+    return {
+      backgroundColor: getSchoolPrideSurfaceColor(),
+      borderColor: getSchoolPrideBorderColor(),
+      borderWidth: 1,
+      borderTopWidth: 8,
+      borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+      borderRadius: 6,
+      shadowColor: 'rgba(17,17,17,0.08)',
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 2,
     };
   }
 
@@ -959,6 +1155,23 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
     };
   }
 
+  if (isSchoolPrideTheme(theme)) {
+    const tertiary = getSchoolPrideDepthColor(theme);
+    return {
+      backgroundColor: getSchoolPrideSoftSurfaceColor(),
+      borderColor: getSchoolPrideBorderColor(),
+      borderWidth: 1,
+      borderTopWidth: 6,
+      borderTopColor: withAlpha(tertiary, 'A8'),
+      borderRadius: 6,
+      shadowColor: 'rgba(17,17,17,0.06)',
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 1,
+    };
+  }
+
   if (isGradientEliteTheme(theme)) {
     return {
       backgroundColor: '#0A0A0A',
@@ -1007,6 +1220,14 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
 }
 
 function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
+  if (isSchoolPrideTheme(theme)) {
+    return [
+      getSchoolPrideSoftSurfaceColor(),
+      getSchoolPrideSurfaceColor(),
+      getSchoolPrideSurfaceColor(),
+    ];
+  }
+
   if (isLightAppTheme(theme)) {
     return [theme.colors.surface, theme.colors.cardAlt];
   }
@@ -1015,6 +1236,21 @@ function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
 }
 
 function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (isSchoolPrideTheme(theme)) {
+    const tertiary = getSchoolPrideDepthColor(theme);
+    return {
+      backgroundColor: theme.colors.primary,
+      borderWidth: 1,
+      borderColor: withAlpha(tertiary, '76'),
+      borderRadius: 4,
+      shadowColor: withAlpha(theme.colors.primary, '18'),
+      shadowOpacity: 0.08,
+      shadowRadius: 5,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    };
+  }
+
   if (!isLightAppTheme(theme)) {
     return null;
   }
@@ -1040,6 +1276,20 @@ function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle |
 }
 
 function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
+  if (isSchoolPrideTheme(theme)) {
+    return {
+      backgroundColor: getSchoolPrideSurfaceColor(),
+      borderColor: getSchoolPrideBorderColor(),
+      borderWidth: 1,
+      borderRadius: 6,
+      shadowColor: 'rgba(17,17,17,0.06)',
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    };
+  }
+
   if (!isLightAppTheme(theme)) {
     return null;
   }
@@ -2549,6 +2799,80 @@ function TopIcon({
   sizeVariant?: 'regular' | 'compact' | 'dense';
   theme?: AthleticOSResolvedTheme;
 }) {
+  if (isSchoolPrideTheme(theme)) {
+    const isCompact = sizeVariant === 'compact';
+    const isDense = sizeVariant === 'dense';
+    const tertiary = getSchoolPrideDepthColor(theme);
+
+    return (
+      <Pressable
+        style={[
+          styles.topIconWrap,
+          containerStyle,
+          {
+            backgroundColor: getSchoolPrideSurfaceColor(),
+            borderWidth: 1,
+            borderColor: withAlpha(theme.colors.primary, '16'),
+            borderTopWidth: 7,
+            borderTopColor: withAlpha(theme.colors.primary, 'E0'),
+            borderRadius: 6,
+            paddingVertical: isDense ? 8 : isCompact ? 9 : 11,
+            paddingHorizontal: isDense ? 4 : isCompact ? 6 : 8,
+            minHeight: isDense ? 66 : isCompact ? 74 : 82,
+            shadowColor: withAlpha(theme.colors.primary, '10'),
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 2,
+          },
+        ]}
+        onPress={onPress}
+      >
+        <LinearGradient
+          colors={getThemeTopIconGradient(theme)}
+          style={[
+            styles.topIconCircle,
+            {
+              backgroundColor: getSchoolPrideSoftSurfaceColor(),
+              borderColor: withAlpha(tertiary, '54'),
+              borderRadius: 8,
+              marginBottom: 6,
+              width: isDense ? 34 : isCompact ? 38 : 42,
+              height: isDense ? 34 : isCompact ? 38 : 42,
+              shadowColor: withAlpha(theme.colors.primary, '10'),
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 1,
+            },
+          ]}
+        >
+          <Ionicons
+            name={icon}
+            size={isDense ? 15 : isCompact ? 16 : 18}
+            color={theme.colors.primary}
+          />
+        </LinearGradient>
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.topIconLabel,
+            {
+              color: theme.colors.text,
+              fontSize: isDense ? 8 : isCompact ? 9 : 10,
+              fontWeight: '900',
+              letterSpacing: isDense ? 0.22 : isCompact ? 0.28 : 0.38,
+              lineHeight: isDense ? 10 : isCompact ? 11 : 12,
+              textTransform: 'uppercase',
+            },
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  }
+
   if (isGamedayTheme(theme)) {
     const isCompact = sizeVariant === 'compact';
     const isDense = sizeVariant === 'dense';
@@ -2718,7 +3042,7 @@ function TopIcon({
           style={[
             styles.topIconLabel,
             {
-              color: theme.colors.text,
+              color: theme.colors.primary,
               fontSize: isModernTheme(theme)
                 ? isDense
                   ? 8
@@ -2799,6 +3123,90 @@ function SectionHeader({
   containerStyle?: ViewStyle;
   theme?: AthleticOSResolvedTheme;
 }) {
+  if (isSchoolPrideTheme(theme)) {
+    const tertiary = getSchoolPrideDepthColor(theme);
+
+    return (
+      <View
+        style={[
+          styles.sectionHeader,
+          {
+            marginTop: 26,
+            marginBottom: 14,
+            paddingBottom: 2,
+            alignItems: 'flex-end',
+          },
+          containerStyle,
+        ]}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View
+            style={{
+              width: 64,
+              height: 8,
+              backgroundColor: theme.colors.primary,
+              marginBottom: 10,
+              borderRadius: 2,
+            }}
+          />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: theme.colors.primary,
+                  fontSize: 20,
+                  fontWeight: '900',
+                  letterSpacing: 0.9,
+                  textTransform: 'uppercase',
+                  flex: 1,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {title}
+            </Text>
+            {actionLabel && onAction ? (
+              <Pressable
+                onPress={onAction}
+                style={{
+                  backgroundColor: getSchoolPrideSurfaceColor(),
+                  borderWidth: 1,
+                  borderColor: withAlpha(tertiary, '44'),
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 6,
+                }}
+              >
+                <Text
+                  style={[
+                    styles.sectionAction,
+                    {
+                      color: theme.colors.primary,
+                      fontSize: 11,
+                      fontWeight: '900',
+                      letterSpacing: 0.55,
+                      textTransform: 'uppercase',
+                    },
+                  ]}
+                >
+                  {actionLabel}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   if (isGamedayTheme(theme)) {
     const actionBackground = withAlpha(theme.colors.primary, '18');
     const actionTextColor = getGamedayReadableTextColor(theme, actionBackground);
@@ -3390,8 +3798,216 @@ function NewsCard({
 }) {
   const sportLabel = item.sportLabel?.trim() || 'Athletics';
   const isCleanSlate = isCleanSlateTheme(theme);
+  const isSchoolPride = isSchoolPrideTheme(theme);
 
   if (featured) {
+    if (isSchoolPride) {
+      if (item.image) {
+        return (
+          <Pressable
+            style={[
+              styles.featuredStoryCard,
+              getThemeSurfaceCardStyle(theme),
+              {
+                overflow: 'hidden',
+                borderRadius: 6,
+                minHeight: 0,
+              },
+            ]}
+            onPress={onPress}
+          >
+            <View style={{ position: 'relative', height: 248 }}>
+              <RemoteImage
+                uri={item.image}
+                style={[styles.featuredStoryImage, { height: 248 }]}
+                contentFit="cover"
+                mode="story"
+                label={item.title}
+                theme={theme}
+              />
+              <LinearGradient
+                colors={getSchoolPrideStoryOverlayColors()}
+                locations={[0, 0.42, 0.78, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={[styles.featuredStoryOverlay, { height: 248 }]}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: 12,
+                  backgroundColor: withAlpha(theme.colors.primary, 'EA'),
+                }}
+              />
+              <View style={[styles.featuredStoryContent, { bottom: 18 }]}>
+                <View
+                  style={[
+                    styles.featuredPill,
+                    getThemeEditorialPillStyle(theme),
+                    { marginBottom: 10, borderRadius: 6, alignSelf: 'flex-start' },
+                  ]}
+                >
+                  <Text style={[styles.featuredPillText, { color: BRAND.white }]}>
+                    {sportLabel}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.featuredStoryMeta,
+                    {
+                      color: withAlpha(getSchoolPrideTextOnImageColor(), 'E2'),
+                      fontSize: 11,
+                      letterSpacing: 0.55,
+                      textTransform: 'uppercase',
+                      marginBottom: 8,
+                    },
+                  ]}
+                >
+                  {item.date || 'Latest News'}
+                </Text>
+                <Text
+                  style={[
+                    styles.featuredStoryTitle,
+                    {
+                      color: getSchoolPrideTextOnImageColor(),
+                      fontSize: 30,
+                      lineHeight: 34,
+                      fontWeight: '900',
+                      letterSpacing: 0.08,
+                      marginBottom: 10,
+                    },
+                  ]}
+                  numberOfLines={3}
+                >
+                  {item.title}
+                </Text>
+                {item.summary?.trim() || item.description?.trim() ? (
+                  <Text
+                    style={[
+                      styles.newsCardMeta,
+                      {
+                        color: withAlpha(getSchoolPrideTextOnImageColor(), 'E0'),
+                        fontSize: 14,
+                        lineHeight: 20,
+                      },
+                    ]}
+                    numberOfLines={3}
+                  >
+                    {item.summary?.trim() || item.description?.trim()}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </Pressable>
+        );
+      }
+
+      return (
+        <Pressable
+          style={[
+            styles.featuredStoryCard,
+            getThemeSurfaceCardStyle(theme),
+            {
+              overflow: 'hidden',
+              borderRadius: 6,
+              minHeight: 0,
+            },
+          ]}
+          onPress={onPress}
+        >
+          <View style={{ position: 'relative' }}>
+            <LinearGradient
+              colors={[
+                getSchoolPrideSurfaceColor(),
+                withAlpha(theme.colors.primary, '22'),
+                withAlpha(getSchoolPrideDepthColor(theme), '14'),
+              ]}
+              style={[styles.featuredStoryImage, { height: 248 }]}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 12,
+                backgroundColor: withAlpha(theme.colors.primary, 'EA'),
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                left: 16,
+                bottom: 16,
+              }}
+            >
+              <View
+                style={[
+                  styles.featuredPill,
+                  getThemeEditorialPillStyle(theme),
+                  { marginBottom: 0, borderRadius: 6 },
+                ]}
+              >
+                <Text style={[styles.featuredPillText, { color: BRAND.white }]}>
+                  {sportLabel}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 }}>
+            <Text
+              style={[
+                styles.featuredStoryMeta,
+                {
+                  color: getSchoolPrideMutedTextColor(),
+                  fontSize: 11,
+                  letterSpacing: 0.55,
+                  textTransform: 'uppercase',
+                  marginBottom: 8,
+                },
+              ]}
+            >
+              {item.date || 'Latest News'}
+            </Text>
+            <Text
+              style={[
+                styles.featuredStoryTitle,
+                {
+                  color: getSchoolPrideTextColor(),
+                  fontSize: 30,
+                  lineHeight: 34,
+                  fontWeight: '900',
+                  letterSpacing: 0.08,
+                  marginBottom: 10,
+                },
+              ]}
+              numberOfLines={3}
+            >
+              {item.title}
+            </Text>
+            {item.summary?.trim() || item.description?.trim() ? (
+              <Text
+                style={[
+                  styles.newsCardMeta,
+                  {
+                    color: getSchoolPrideMutedTextColor(),
+                    fontSize: 14,
+                    lineHeight: 20,
+                  },
+                ]}
+                numberOfLines={3}
+              >
+                {item.summary?.trim() || item.description?.trim()}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+      );
+    }
+
     if (isCleanSlate) {
       return (
         <Pressable
@@ -3539,6 +4155,161 @@ function NewsCard({
           <Text style={[styles.featuredStoryMeta, { color: theme.colors.mutedText }]}>
             {item.date || 'Latest News'}
           </Text>
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (isSchoolPride) {
+    return (
+      <Pressable
+        style={[
+          styles.newsCard,
+          getThemeSurfaceCardStyle(theme),
+          {
+            overflow: 'hidden',
+            borderRadius: 6,
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            padding: 0,
+          },
+        ]}
+        onPress={onPress}
+      >
+        <View style={{ position: 'relative' }}>
+          {item.image ? (
+            <>
+              <RemoteImage
+                uri={item.image}
+                style={{ width: '100%', height: 138 }}
+                contentFit="cover"
+                mode="story"
+                label={item.title}
+                theme={theme}
+              />
+              <LinearGradient
+                colors={getSchoolPrideStoryOverlayColors()}
+                locations={[0, 0.48, 0.82, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </>
+          ) : (
+            <View
+              style={{
+                width: '100%',
+                height: 138,
+                backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                borderBottomWidth: 1,
+                borderBottomColor: getSchoolPrideBorderColor(),
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Ionicons name="newspaper-outline" size={22} color={theme.colors.primary} />
+            </View>
+          )}
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 8,
+              backgroundColor: withAlpha(theme.colors.primary, 'DA'),
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              left: 14,
+              bottom: 12,
+            }}
+          >
+            <View
+              style={[
+                styles.featuredPill,
+                getThemeEditorialPillStyle(theme),
+                { marginBottom: 0, borderRadius: 6 },
+              ]}
+            >
+              <Text style={[styles.featuredPillText, { color: BRAND.white }]}>
+                {sportLabel}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View style={[styles.newsCardBody, { padding: 16 }]}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 7,
+              gap: 10,
+            }}
+          >
+            <Text
+              style={[
+                styles.newsCardMeta,
+                {
+                  color: theme.colors.mutedText,
+                  letterSpacing: 0.35,
+                  textTransform: 'uppercase',
+                  flex: 1,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {item.date || 'Latest'}
+            </Text>
+            <View
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 6,
+                backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                borderWidth: 1,
+                borderColor: getSchoolPrideBorderColor(),
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
+            </View>
+          </View>
+          <Text
+            style={[
+              styles.newsCardTitle,
+              {
+                color: theme.colors.text,
+                fontWeight: '900',
+                lineHeight: 24,
+                marginBottom: 8,
+              },
+            ]}
+            numberOfLines={2}
+          >
+            {item.title}
+          </Text>
+          {(item.summary?.trim() || item.description?.trim()) ? (
+            <Text
+              style={[
+                styles.newsCardMeta,
+                {
+                  color: theme.colors.mutedText,
+                  fontSize: 13,
+                  lineHeight: 18,
+                  textTransform: 'none',
+                  letterSpacing: 0,
+                },
+              ]}
+              numberOfLines={2}
+            >
+              {item.summary?.trim() || item.description?.trim()}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
     );
@@ -3718,6 +4489,7 @@ function StoryDetailScreen({
   const sportName = item.sportLabel?.trim() || 'Athletics';
   const isGameday = isGamedayTheme(theme);
   const isGradientElite = isGradientEliteTheme(theme);
+  const isSchoolPride = isSchoolPrideTheme(theme);
   const storyCropPresentation = getStoryCropPresentation(item);
   const shouldUseStoryCrop = Boolean(item.featuredImageUrl?.trim() && storyCropPresentation);
   const resolvedStoryImageSource = shouldUseStoryCrop
@@ -3798,6 +4570,14 @@ function StoryDetailScreen({
         style={[
           styles.storyDetailHero,
           getThemeHeroShellStyle(theme),
+          isSchoolPride
+            ? {
+                paddingTop: 12,
+                paddingBottom: 16,
+                paddingHorizontal: 18,
+                borderRadius: 6,
+              }
+            : null,
           isGradientElite
             ? {
                 paddingTop: 12,
@@ -3812,6 +4592,14 @@ function StoryDetailScreen({
         <Pressable
           style={[
             styles.storyDetailBackButton,
+            isSchoolPride
+              ? {
+                  marginBottom: 14,
+                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                  borderRadius: 4,
+                }
+              : null,
             isGradientElite ? { marginBottom: 16, paddingVertical: 7 } : null,
             isCleanSlateTheme(theme)
               ? {
@@ -3825,12 +4613,24 @@ function StoryDetailScreen({
           <Ionicons
             name="arrow-back"
             size={20}
-            color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+            color={
+              isSchoolPride
+                ? theme.colors.primary
+                : isCleanSlateTheme(theme)
+                ? theme.colors.text
+                : BRAND.white
+            }
           />
           <Text
             style={[
               styles.backButtonText,
-              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+              {
+                color: isSchoolPride
+                  ? theme.colors.primary
+                  : isCleanSlateTheme(theme)
+                  ? theme.colors.text
+                  : BRAND.white,
+              },
             ]}
           >
             Back
@@ -3848,7 +4648,13 @@ function StoryDetailScreen({
               style={[
                 styles.storyDetailKicker,
                 isGradientElite ? { marginBottom: 5 } : null,
-                { color: isCleanSlateTheme(theme) ? theme.colors.accent : BRAND.lightGray },
+                {
+                  color: isSchoolPride
+                    ? getSchoolPrideDepthColor(theme)
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.accent
+                    : BRAND.lightGray,
+                },
               ]}
             >
               {sportName}
@@ -3859,7 +4665,13 @@ function StoryDetailScreen({
               style={[
                 styles.storyDetailDate,
                 isGradientElite ? { marginBottom: 2 } : null,
-                { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.8)' },
+                {
+                  color: isSchoolPride
+                    ? theme.colors.mutedText
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.mutedText
+                    : 'rgba(217,223,234,0.8)',
+                },
               ]}
             >
               {item.date}
@@ -3871,7 +4683,13 @@ function StoryDetailScreen({
               isGradientElite
                 ? { fontSize: 29, lineHeight: 34, marginTop: 6 }
                 : null,
-              { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
+              {
+                color: isSchoolPride
+                  ? theme.colors.text
+                  : isCleanSlateTheme(theme)
+                  ? theme.colors.text
+                  : BRAND.white,
+              },
             ]}
           >
             {item.title}
@@ -3934,6 +4752,189 @@ function StoryCarouselCard({
   const isCleanSlate = isCleanSlateTheme(theme);
   const isModern = isModernTheme(theme);
   const isGameday = isGamedayTheme(theme);
+  const isSchoolPride = isSchoolPrideTheme(theme);
+
+  if (isSchoolPride) {
+    if (item.image) {
+      return (
+        <Pressable
+          style={[
+            styles.storyCarouselCard,
+            getThemeSurfaceCardStyle(theme),
+            {
+              backgroundColor: theme.colors.card,
+              borderRadius: 6,
+              overflow: 'hidden',
+              height: undefined,
+              minHeight: 158,
+            },
+          ]}
+          onPress={onPress}
+        >
+          <View style={{ position: 'relative', height: 158 }}>
+            <View
+              style={[
+                styles.modernCardAccentBar,
+                { backgroundColor: withAlpha(theme.colors.secondary, 'D0') },
+              ]}
+            />
+            <RemoteImage
+              uri={item.image}
+              style={[styles.storyCarouselImage, { height: 158 }]}
+              contentFit="cover"
+              mode="story"
+              label={item.title}
+              theme={theme}
+            />
+            <LinearGradient
+              colors={getSchoolPrideStoryOverlayColors()}
+              locations={[0, 0.45, 0.8, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={[styles.storyCarouselOverlay, { height: 158 }]}
+            />
+            <View style={styles.storyCarouselContent}>
+              <View style={styles.storyCarouselMetaRow}>
+                <View
+                  style={[
+                    styles.featuredPill,
+                    getThemeEditorialPillStyle(theme),
+                    { borderRadius: 6 },
+                  ]}
+                >
+                  <Text style={[styles.featuredPillText, { color: BRAND.white }]}>
+                    {sportLabel}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.storyCarouselMeta,
+                    {
+                      color: withAlpha(getSchoolPrideTextOnImageColor(), 'E2'),
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.4,
+                    },
+                  ]}
+                >
+                  {item.date || 'Latest News'}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.storyCarouselTitle,
+                  {
+                    color: getSchoolPrideTextOnImageColor(),
+                    fontWeight: '900',
+                    fontSize: 21,
+                    lineHeight: 26,
+                  },
+                ]}
+                numberOfLines={3}
+              >
+                {item.title}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      );
+    }
+
+    return (
+        <Pressable
+          style={[
+            styles.storyCarouselCard,
+            getThemeSurfaceCardStyle(theme),
+            {
+              backgroundColor: theme.colors.card,
+              borderRadius: 6,
+              overflow: 'hidden',
+              height: undefined,
+            },
+          ]}
+          onPress={onPress}
+        >
+        <View
+          style={[
+            styles.modernCardAccentBar,
+            { backgroundColor: withAlpha(theme.colors.secondary, 'D0') },
+          ]}
+        />
+        <LinearGradient
+          colors={[
+            theme.colors.surface,
+            withAlpha(theme.colors.primary, '24'),
+            withAlpha(theme.colors.secondary, '16'),
+          ]}
+          style={[styles.storyCarouselImage, { height: 158 }]}
+        />
+        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 }}>
+          <View
+            style={[
+              styles.storyCarouselMetaRow,
+              { marginBottom: 8, alignItems: 'center', justifyContent: 'space-between' },
+            ]}
+          >
+            <View
+              style={[
+                styles.featuredPill,
+                getThemeEditorialPillStyle(theme),
+                { borderRadius: 6 },
+              ]}
+            >
+              <Text style={[styles.featuredPillText, { color: BRAND.white }]}>
+                {sportLabel}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.storyCarouselMeta,
+                {
+                  color: getSchoolPrideMutedTextColor(),
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.4,
+                },
+              ]}
+            >
+              {item.date || 'Latest News'}
+            </Text>
+          </View>
+
+          <Text
+            style={[
+              styles.storyCarouselTitle,
+              {
+                color: getSchoolPrideTextColor(),
+                fontWeight: '900',
+                fontSize: 21,
+                lineHeight: 26,
+              },
+            ]}
+            numberOfLines={3}
+          >
+            {item.title}
+          </Text>
+          {(item.summary?.trim() || item.description?.trim()) ? (
+            <Text
+              style={[
+                styles.storyCarouselMeta,
+                {
+                  color: getSchoolPrideMutedTextColor(),
+                  fontSize: 13,
+                  lineHeight: 18,
+                  marginTop: 8,
+                  textTransform: 'none',
+                  letterSpacing: 0,
+                },
+              ]}
+              numberOfLines={2}
+            >
+              {item.summary?.trim() || item.description?.trim()}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  }
 
   if (isCleanSlate) {
     return (
@@ -4561,6 +5562,139 @@ function PromotionCard({
     </Pressable>
   ) : null;
 
+  if (isSchoolPrideTheme(theme)) {
+    const schoolPrideDepthColor = getSchoolPrideDepthColor(theme);
+    const schoolPrideSponsorBug = hasPromotionSponsor ? (
+      <View pointerEvents="none" style={[styles.promotionSponsorBugWrap, { top: 12, right: 12 }]}>
+        <View
+          style={[
+            styles.promotionSponsorBugPlate,
+            {
+              backgroundColor: 'rgba(255,255,255,0.96)',
+              borderColor: withAlpha(schoolPrideDepthColor, '28'),
+              borderRadius: 5,
+            },
+          ]}
+        >
+          <RemoteImage
+            uri={sponsorLogo}
+            style={styles.promotionSponsorBugLogo}
+            contentFit="contain"
+            mode="sponsor"
+            label={sponsorName}
+            theme={theme}
+          />
+        </View>
+      </View>
+    ) : null;
+
+    const schoolPrideBody = (
+      <>
+        <View style={styles.promotionHeroMediaWrap}>
+          {promotion.image_url ? (
+            <RemoteImage
+              uri={promotion.image_url}
+              style={{ width: '100%', aspectRatio: MEDIA_FEATURE_ASPECT_RATIO }}
+              contentFit="cover"
+              mode="content"
+              label={promotion.title?.trim() || 'Promotion'}
+              theme={theme}
+            />
+          ) : (
+            <LinearGradient
+              colors={[
+                theme.colors.surface,
+                withAlpha(theme.colors.primary, '12'),
+                withAlpha(schoolPrideDepthColor, '10'),
+              ]}
+              style={{ width: '100%', aspectRatio: MEDIA_FEATURE_ASPECT_RATIO }}
+            />
+          )}
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 9,
+              backgroundColor: withAlpha(theme.colors.primary, 'EA'),
+            }}
+          />
+          {schoolPrideSponsorBug}
+        </View>
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 }}>
+          <View
+            style={[
+              styles.promotionPill,
+              getThemeEditorialPillStyle(theme),
+              { marginBottom: 10 },
+            ]}
+          >
+            <Text style={[styles.promotionPillText, { color: BRAND.white, opacity: 1 }]}>
+              Featured
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.promotionCardTitle,
+              { color: getSchoolPrideTextColor(), fontSize: 28, lineHeight: 33 },
+            ]}
+            numberOfLines={3}
+          >
+            {promotion.title?.trim() || 'Promotion'}
+          </Text>
+          {promotion.subtitle?.trim() ? (
+            <Text
+              style={[
+                styles.promotionCardSubtitle,
+                { color: getSchoolPrideMutedTextColor(), marginTop: 8 },
+              ]}
+              numberOfLines={3}
+            >
+              {promotion.subtitle.trim()}
+            </Text>
+          ) : null}
+          {promotion.cta_text?.trim() ? (
+            <View
+              style={[
+                styles.promotionCardButton,
+                {
+                  marginTop: 14,
+                  backgroundColor: theme.colors.primary,
+                  borderColor: withAlpha(schoolPrideDepthColor, '34'),
+                  borderRadius: 4,
+                },
+              ]}
+            >
+              <Text style={[styles.promotionCardButtonText, { color: getSchoolPrideLightTextColor() }]}>
+                {promotion.cta_text.trim()}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={getSchoolPrideLightTextColor()} />
+            </View>
+          ) : null}
+        </View>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <Pressable
+          style={[styles.promotionCard, getThemeSurfaceCardStyle(theme), { minHeight: 0, borderRadius: 6 }]}
+          onPress={onPress}
+        >
+          {schoolPrideBody}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View style={[styles.promotionCard, getThemeSurfaceCardStyle(theme), { minHeight: 0, borderRadius: 6 }]}>
+        {schoolPrideBody}
+      </View>
+    );
+  }
+
   if (isCleanSlateTheme(theme)) {
     const cleanBody = (
       <>
@@ -4931,6 +6065,180 @@ function AthleteOfWeekCard({
       stats: item.stats,
     });
   }, [item]);
+
+  if (isSchoolPrideTheme(theme)) {
+    const schoolPrideDepthColor = getSchoolPrideDepthColor(theme);
+    const schoolPrideHeroText = imageUrl
+      ? getSchoolPrideTextOnImageColor()
+      : getSchoolPrideTextColor();
+    const schoolPrideHeroMutedText = imageUrl
+      ? withAlpha(getSchoolPrideTextOnImageColor(), 'E0')
+      : getSchoolPrideMutedTextColor();
+    const sponsorBadge =
+      sponsorAvailable ? (
+        <Pressable
+          disabled={!sponsorHasLink || !onSponsorPress}
+          onPress={onSponsorPress}
+          style={[
+            styles.aotwSponsorBadge,
+            {
+              backgroundColor: 'rgba(255,255,255,0.96)',
+              borderColor: withAlpha(schoolPrideDepthColor, '28'),
+              borderRadius: 5,
+              maxWidth: '54%',
+            },
+          ]}
+        >
+          {sponsorLogo ? (
+            <RemoteImage
+              uri={sponsorLogo}
+              style={styles.aotwSponsorLogo}
+              contentFit="contain"
+              mode="sponsor"
+              label={sponsorName}
+              theme={theme}
+            />
+          ) : sponsorName ? (
+            <Text style={[styles.aotwSponsorName, { color: getSchoolPrideTextColor() }]} numberOfLines={1}>
+              {sponsorName}
+            </Text>
+          ) : null}
+        </Pressable>
+      ) : null;
+
+    const cardBody = (
+      <>
+        <View style={[styles.aotwHeroMediaWrap, { backgroundColor: theme.colors.cardAlt, aspectRatio: 1.68 }]}>
+          {imageUrl ? (
+            <View style={styles.aotwHeroMedia}>
+              <RemoteImage
+                uri={imageUrl}
+                style={styles.aotwHeroMedia}
+                contentFit={usingHeadshotFallback ? 'contain' : 'cover'}
+                mode="athlete"
+                label={item.athleteName}
+                theme={theme}
+              />
+              <LinearGradient
+                colors={['rgba(0,0,0,0.00)', 'rgba(0,0,0,0.54)']}
+                style={styles.aotwHeroOverlay}
+              />
+            </View>
+          ) : null}
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 9,
+              backgroundColor: withAlpha(theme.colors.primary, 'EA'),
+            }}
+          />
+          <View style={styles.aotwHeroTopRow}>
+            <View
+              style={[
+                styles.promotionPill,
+                getThemeEditorialPillStyle(theme),
+                { marginBottom: 0 },
+              ]}
+            >
+              <Text style={[styles.promotionPillText, { color: BRAND.white, opacity: 1 }]}>
+                Athlete of the Week
+              </Text>
+            </View>
+            {sponsorBadge}
+          </View>
+          <View style={styles.aotwHeroTextWrap}>
+            {item.sportName?.trim() ? (
+              <Text style={[styles.aotwHeroKicker, { color: schoolPrideHeroMutedText }]} numberOfLines={1}>
+                {item.sportName.trim()}
+              </Text>
+            ) : null}
+            {item.athleteName ? (
+              <Text style={[styles.aotwHeroName, { color: schoolPrideHeroText }]} numberOfLines={2}>
+                {item.athleteName}
+              </Text>
+            ) : null}
+            {athleteMetaLine ? (
+              <Text style={[styles.aotwHeroMeta, { color: schoolPrideHeroMutedText }]} numberOfLines={1}>
+                {athleteMetaLine}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={[styles.aotwBodyWrap, { paddingTop: 12, paddingBottom: 14 }]}>
+          {awardLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekTitle,
+                {
+                  color: getSchoolPrideTextColor(),
+                  fontSize: 24,
+                  lineHeight: 29,
+                  marginBottom: 0,
+                },
+              ]}
+              numberOfLines={2}
+            >
+              {awardLine}
+            </Text>
+          ) : null}
+          {athleteSecondaryLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekSubtitle,
+                { color: getSchoolPrideMutedTextColor(), marginTop: 6 },
+              ]}
+              numberOfLines={1}
+            >
+              {athleteSecondaryLine}
+            </Text>
+          ) : null}
+          {subtitle ? (
+            <Text
+              style={[
+                styles.athleteOfWeekSubtitle,
+                { color: getSchoolPrideMutedTextColor(), marginTop: 8 },
+              ]}
+              numberOfLines={3}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+          {statsLine ? (
+            <Text
+              style={[
+                styles.athleteOfWeekStats,
+                { color: getSchoolPrideMutedTextColor(), marginTop: 8 },
+              ]}
+              numberOfLines={2}
+            >
+              {statsLine}
+            </Text>
+          ) : null}
+        </View>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <Pressable
+          style={[styles.athleteOfWeekCard, getThemeSurfaceCardStyle(theme), { minHeight: 0, borderRadius: 6 }]}
+          onPress={onPress}
+        >
+          {cardBody}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View style={[styles.athleteOfWeekCard, getThemeSurfaceCardStyle(theme), { minHeight: 0, borderRadius: 6 }]}>
+        {cardBody}
+      </View>
+    );
+  }
 
   if (isModernTheme(theme)) {
     const sponsorBadge =
@@ -5508,27 +6816,97 @@ function AthleteOfWeekDetailScreen({
         colors={getThemeDarkHeroGradient(theme)}
         style={[
           styles.sportHeader,
+          isSchoolPrideTheme(theme)
+            ? {
+                paddingTop: 12,
+                paddingBottom: 16,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isCleanSlateTheme(theme) || isGamedayTheme(theme)
             ? getThemeHeroShellStyle(theme)
             : null,
           isGamedayTheme(theme) ? getThemeCompactInnerHeroStyle(theme) : null,
         ]}
       >
+        {isSchoolPrideTheme(theme) ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 10,
+              backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+            }}
+          />
+        ) : null}
         <Pressable
           style={[
             styles.backButton,
+            isSchoolPrideTheme(theme)
+              ? {
+                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                  borderRadius: 4,
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? { backgroundColor: theme.colors.cardAlt, borderColor: theme.colors.border }
               : null,
           ]}
           onPress={onBack}
         >
-          <Ionicons name="arrow-back" size={20} color={isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white} />
-          <Text style={[styles.backButtonText, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Back</Text>
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={isSchoolPrideTheme(theme) ? theme.colors.primary : isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white}
+          />
+          <Text
+            style={[
+              styles.backButtonText,
+              {
+                color: isSchoolPrideTheme(theme)
+                  ? theme.colors.primary
+                  : isCleanSlateTheme(theme)
+                  ? theme.colors.text
+                  : BRAND.white,
+              },
+            ]}
+          >
+            Back
+          </Text>
         </Pressable>
-        <Text style={[styles.sportHeaderTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Athlete of the Week</Text>
+        <Text
+          style={[
+            styles.sportHeaderTitle,
+            {
+              color: isSchoolPrideTheme(theme)
+                ? getSchoolPrideTextColor()
+                : isCleanSlateTheme(theme)
+                ? theme.colors.text
+                : BRAND.white,
+            },
+          ]}
+        >
+          Athlete of the Week
+        </Text>
         {item.awardWeekLabel ? (
-          <Text style={[styles.sportHeaderSub, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>{item.awardWeekLabel}</Text>
+          <Text
+            style={[
+              styles.sportHeaderSub,
+              {
+                color: isSchoolPrideTheme(theme)
+                  ? getSchoolPrideMutedTextColor()
+                  : isCleanSlateTheme(theme)
+                  ? theme.colors.mutedText
+                  : BRAND.lightGray,
+              },
+            ]}
+          >
+            {item.awardWeekLabel}
+          </Text>
         ) : null}
       </LinearGradient>
 
@@ -5547,6 +6925,15 @@ function AthleteOfWeekDetailScreen({
         <View
           style={[
             styles.aotwDetailCard,
+            isSchoolPrideTheme(theme)
+              ? {
+                  backgroundColor: theme.colors.card,
+                  borderColor: withAlpha(theme.colors.primary, '14'),
+                  borderTopWidth: 8,
+                  borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                  borderRadius: 6,
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? {
                   backgroundColor: theme.colors.card,
@@ -5556,45 +6943,97 @@ function AthleteOfWeekDetailScreen({
             getThemeSurfaceCardStyle(theme),
           ]}
         >
-          <Text style={[styles.aotwDetailName, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>{item.athleteName}</Text>
+          <Text
+            style={[
+              styles.aotwDetailName,
+              {
+                color: isSchoolPrideTheme(theme)
+                  ? getSchoolPrideTextColor()
+                  : isCleanSlateTheme(theme)
+                  ? theme.colors.text
+                  : BRAND.white,
+              },
+            ]}
+          >
+            {item.athleteName}
+          </Text>
 
           {item.sportName ? (
-            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>{item.sportName}</Text>
+            <Text
+              style={[
+                styles.aotwDetailMeta,
+                {
+                  color: isSchoolPrideTheme(theme)
+                    ? getSchoolPrideMutedTextColor()
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.mutedText
+                    : BRAND.lightGray,
+                },
+              ]}
+            >
+              {item.sportName}
+            </Text>
           ) : null}
 
           {item.classYear ? (
-            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Class Year: {item.classYear}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isSchoolPrideTheme(theme) ? getSchoolPrideMutedTextColor() : isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Class Year: {item.classYear}</Text>
           ) : null}
 
           {item.position ? (
-            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Position: {item.position}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isSchoolPrideTheme(theme) ? getSchoolPrideMutedTextColor() : isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Position: {item.position}</Text>
           ) : null}
 
           {item.awardWeekLabel ? (
-            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Week: {item.awardWeekLabel}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isSchoolPrideTheme(theme) ? getSchoolPrideMutedTextColor() : isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Week: {item.awardWeekLabel}</Text>
           ) : null}
 
           {item.awardDate ? (
-            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>
+            <Text style={[styles.aotwDetailMeta, { color: isSchoolPrideTheme(theme) ? getSchoolPrideMutedTextColor() : isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>
               Award Date: {formatDate(item.awardDate)}
             </Text>
           ) : null}
 
           {item.opponent ? (
-            <Text style={[styles.aotwDetailMeta, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Opponent: {item.opponent}</Text>
+            <Text style={[styles.aotwDetailMeta, { color: isSchoolPrideTheme(theme) ? getSchoolPrideMutedTextColor() : isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>Opponent: {item.opponent}</Text>
           ) : null}
 
           {item.summary ? (
             <View style={styles.aotwDetailSection}>
-              <Text style={[styles.aotwDetailSectionTitle, { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Summary</Text>
-              <Text style={[styles.aotwDetailBody, { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>{item.summary}</Text>
+              <Text style={[styles.aotwDetailSectionTitle, { color: isSchoolPrideTheme(theme) ? getSchoolPrideTextColor() : isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white }]}>Summary</Text>
+              <Text style={[styles.aotwDetailBody, { color: isSchoolPrideTheme(theme) ? getSchoolPrideMutedTextColor() : isCleanSlateTheme(theme) ? theme.colors.mutedText : BRAND.lightGray }]}>{item.summary}</Text>
             </View>
           ) : null}
 
           {item.stats ? (
             <View style={styles.aotwDetailSection}>
-              <Text style={styles.aotwDetailSectionTitle}>Stats</Text>
-              <Text style={styles.aotwDetailBody}>{item.stats}</Text>
+              <Text
+                style={[
+                  styles.aotwDetailSectionTitle,
+                  {
+                    color: isSchoolPrideTheme(theme)
+                      ? getSchoolPrideTextColor()
+                      : isCleanSlateTheme(theme)
+                      ? theme.colors.text
+                      : BRAND.white,
+                  },
+                ]}
+              >
+                Stats
+              </Text>
+              <Text
+                style={[
+                  styles.aotwDetailBody,
+                  {
+                    color: isSchoolPrideTheme(theme)
+                      ? getSchoolPrideMutedTextColor()
+                      : isCleanSlateTheme(theme)
+                      ? theme.colors.mutedText
+                      : BRAND.lightGray,
+                  },
+                ]}
+              >
+                {item.stats}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -5617,6 +7056,8 @@ function EventCard({
   const normalized = normalizeScheduleItem(item);
   const isModern = isModernTheme(theme);
   const isGameday = isGamedayTheme(theme);
+  const isSchoolPride = isSchoolPrideTheme(theme);
+  const schoolPrideDepthColor = isSchoolPride ? getSchoolPrideDepthColor(theme) : '';
 
   const resultLabel =
     normalized.result === 'W' || normalized.result === 'L'
@@ -5637,6 +7078,22 @@ function EventCard({
           borderColor: theme.colors.border,
         },
         getThemeCardShellStyle(theme),
+        isSchoolPride
+          ? {
+              backgroundColor: getSchoolPrideSurfaceColor(),
+              borderColor: getSchoolPrideBorderColor(),
+              borderTopWidth: 10,
+              borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+              borderRadius: 6,
+              paddingTop: 22,
+              paddingBottom: 16,
+              shadowColor: 'rgba(17,17,17,0.08)',
+              shadowOpacity: 0.08,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 5 },
+              elevation: 3,
+            }
+          : null,
         isModern
           ? {
               borderColor: withAlpha(theme.colors.primary, '16'),
@@ -5661,13 +7118,15 @@ function EventCard({
       ]}
       onPress={onPress}
     >
-      {isModern || isGameday ? (
+      {isModern || isGameday || isSchoolPride ? (
         <View
           style={[
             styles.modernCardAccentBar,
             {
               backgroundColor: isGameday
                 ? withAlpha(theme.colors.primary, 'D8')
+                : isSchoolPride
+                ? withAlpha(theme.colors.primary, 'DA')
                 : withAlpha(theme.colors.primary, 'CC'),
             },
           ]}
@@ -5680,8 +7139,12 @@ function EventCard({
               style={[
                 styles.eventSportLine,
                 {
-                  color: isCleanSlateTheme(theme) ? theme.colors.primary : theme.colors.pillBackground,
-                  ...(isModern
+                  color: isSchoolPride
+                    ? schoolPrideDepthColor
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.primary
+                    : theme.colors.pillBackground,
+                  ...(isModern || isSchoolPride
                     ? {
                         fontSize: 11,
                         letterSpacing: 0.75,
@@ -5719,8 +7182,12 @@ function EventCard({
                   styles.eventMeta,
                   {
                     color:
-                      isModern || isGameday ? theme.colors.primary : theme.colors.text,
-                    fontWeight: isModern || isGameday ? '800' : '700',
+                      isSchoolPride
+                        ? theme.colors.secondary
+                        : isModern || isGameday
+                        ? theme.colors.primary
+                        : theme.colors.text,
+                    fontWeight: isModern || isGameday || isSchoolPride ? '800' : '700',
                   },
                 ]}
               >
@@ -5745,6 +7212,15 @@ function EventCard({
               <View
                 style={[
                   styles.eventLogoPlate,
+                  isSchoolPride
+                    ? {
+                        backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                        borderWidth: 1,
+                        borderColor: getSchoolPrideBorderColor(),
+                        borderRadius: 8,
+                        marginTop: -8,
+                      }
+                    : null,
                   isModern
                     ? {
                         backgroundColor: withAlpha(theme.colors.primary, '08'),
@@ -5773,6 +7249,56 @@ function EventCard({
               </View>
             ) : null}
           </View>
+          {isSchoolPride ? (
+            <View
+              style={{
+                marginTop: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: withAlpha(theme.colors.primary, '0D'),
+                  borderWidth: 1,
+                  borderColor: getSchoolPrideBorderColor(),
+                  borderRadius: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  minWidth: 108,
+                }}
+              >
+                <Text
+                  style={[
+                    styles.eventMeta,
+                    {
+                      color: getSchoolPrideDepthColor(theme),
+                      fontWeight: '900',
+                      marginBottom: showTime && normalized.timeLabel ? 2 : 0,
+                    },
+                  ]}
+                >
+                  {normalized.displayDate}
+                </Text>
+                {showTime && normalized.timeLabel ? (
+                  <Text style={[styles.eventMetaSecondary, { color: theme.colors.mutedText }]}>
+                    {normalized.timeLabel}
+                  </Text>
+                ) : null}
+              </View>
+              <View
+                style={{
+                  backgroundColor: theme.colors.primary,
+                  borderRadius: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                }}
+              >
+                <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
+              </View>
+            </View>
+          ) : null}
         </>
       ) : (
         <>
@@ -5781,8 +7307,8 @@ function EventCard({
               style={[
                 styles.eventSportLine,
                 {
-                  color: theme.colors.pillBackground,
-                  ...(isModern
+                  color: isSchoolPride ? schoolPrideDepthColor : theme.colors.pillBackground,
+                  ...(isModern || isSchoolPride
                     ? {
                         fontSize: 11,
                         letterSpacing: 0.75,
@@ -5841,18 +7367,53 @@ function EventCard({
             </Text>
           </View>
 
-          <Text
-            style={[
-              styles.eventMeta,
-              {
-                color:
-                  isModern || isGameday ? theme.colors.primary : theme.colors.text,
-                fontWeight: isModern || isGameday ? '800' : '700',
-              },
-            ]}
-          >
-            {normalized.displayDate}
-          </Text>
+          {isSchoolPride ? (
+            <View
+              style={{
+                marginTop: 12,
+                alignSelf: 'flex-start',
+                backgroundColor: withAlpha(theme.colors.primary, '0D'),
+                borderWidth: 1,
+                borderColor: getSchoolPrideBorderColor(),
+                borderRadius: 6,
+                paddingHorizontal: 10,
+                paddingVertical: 8,
+              }}
+            >
+              <Text
+                style={[
+                  styles.eventMeta,
+                  {
+                    color: schoolPrideDepthColor,
+                    fontWeight: '900',
+                    marginBottom: normalized.timeLabel ? 2 : 0,
+                  },
+                ]}
+              >
+                {normalized.displayDate}
+              </Text>
+              {normalized.timeLabel ? (
+                <Text style={[styles.eventMetaSecondary, { color: theme.colors.mutedText }]}>
+                  {normalized.timeLabel}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <Text
+              style={[
+                styles.eventMeta,
+                {
+                  color:
+                    isModern || isGameday
+                      ? theme.colors.primary
+                      : theme.colors.text,
+                  fontWeight: isModern || isGameday ? '800' : '700',
+                },
+              ]}
+            >
+              {normalized.displayDate}
+            </Text>
+          )}
         </>
       )}
     </Pressable>
@@ -6124,7 +7685,9 @@ function HomeScreen({
 }) {
   const isModernHome = isModernTheme(theme);
   const isGamedayHome = isGamedayTheme(theme);
+  const isSchoolPrideHome = isSchoolPrideTheme(theme);
   const isTrueCleanSlateHome = isCleanSlateTheme(theme) && !isModernHome;
+  const schoolPrideDepthColor = isSchoolPrideHome ? getSchoolPrideDepthColor(theme) : '';
   const hasWatchUrl = hasResolvedUrl(schoolConfig.watchUrl);
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
   const hasScheduleUrl = scheduleAvailable;
@@ -6684,6 +8247,12 @@ function HomeScreen({
           styles.liveCoverageSponsorBadge,
           isGradientEliteTheme(theme)
             ? styles.liveCoverageSponsorBadgeGradientElite
+            : isSchoolPrideTheme(theme)
+            ? {
+                backgroundColor: 'rgba(255,255,255,0.96)',
+                borderColor: withAlpha(schoolPrideDepthColor, '28'),
+                borderRadius: 5,
+              }
             : isModernTheme(theme)
             ? {
                 backgroundColor: withAlpha(theme.colors.primary, '08'),
@@ -6747,7 +8316,9 @@ function HomeScreen({
               style={[
                 styles.liveCoverageSponsorBadgeEyebrow,
                 {
-                  color: isModernTheme(theme)
+                  color: isSchoolPrideTheme(theme)
+                    ? schoolPrideDepthColor
+                    : isModernTheme(theme)
                     ? theme.colors.primary
                     : theme.colors.mutedText,
                 },
@@ -6785,7 +8356,15 @@ function HomeScreen({
       </View>
     ) : null;
     const statusAccentColor = theme.colors.primary || theme.colors.accent;
-    const statusPillPalette = isLightAppTheme(theme)
+    const statusPillPalette = isSchoolPrideTheme(theme)
+      ? {
+          backgroundColor: withAlpha(BRAND.black, statusPillIsLive ? 'D6' : 'C6'),
+          borderColor: withAlpha(schoolPrideDepthColor, statusPillIsLive ? '88' : '54'),
+          textColor: BRAND.white,
+          iconColor: BRAND.white,
+          pulseColor: schoolPrideDepthColor,
+        }
+      : isLightAppTheme(theme)
       ? {
           backgroundColor: withAlpha(
             statusAccentColor,
@@ -6833,14 +8412,13 @@ function HomeScreen({
       : isLightColor(theme.colors.primary, 0.72)
       ? theme.colors.secondary
       : theme.colors.primary;
-    const gamedayStatusPalette = {
+  const gamedayStatusPalette = {
       backgroundColor: withAlpha(theme.colors.primary, '18'),
       borderColor: withAlpha(theme.colors.accent, statusPillIsLive ? '5E' : '44'),
       textColor: getGamedayReadableTextColor(theme, withAlpha(theme.colors.primary, '18')),
       iconColor: getGamedayReadableTextColor(theme, withAlpha(theme.colors.primary, '18')),
       pulseColor: theme.colors.accent,
     };
-
     return (
       <Pressable
         key="live_coverage"
@@ -6855,6 +8433,22 @@ function HomeScreen({
                 : theme.colors.border,
           },
           getThemeCardShellStyle(theme),
+                isSchoolPrideTheme(theme)
+                  ? {
+                      borderRadius: 6,
+                      backgroundColor: getSchoolPrideDramaColor(),
+                      borderColor: withAlpha(theme.colors.primary, statusPillIsLive ? '4E' : '2E'),
+                      borderTopWidth: 8,
+                      borderTopColor: withAlpha(theme.colors.primary, 'EA'),
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      shadowColor: withAlpha(theme.colors.primary, '18'),
+                      shadowOpacity: 0.1,
+                      shadowRadius: 12,
+                      shadowOffset: { width: 0, height: 5 },
+                      elevation: 4,
+                    }
+                  : null,
                 isGradientEliteTheme(theme)
                   ? {
                       borderRadius: 20,
@@ -7047,6 +8641,14 @@ function HomeScreen({
               <Text
                 style={[
                   styles.liveNowEyebrow,
+                  isSchoolPrideTheme(theme)
+                  ? {
+                      color: schoolPrideDepthColor,
+                      fontSize: 10,
+                      letterSpacing: 1.15,
+                      marginBottom: 5,
+                    }
+                    : null,
                   isModernTheme(theme)
                     ? {
                         color: theme.colors.primary,
@@ -7074,6 +8676,16 @@ function HomeScreen({
               <Text
                 style={[
                   styles.liveNowTitle,
+                isSchoolPrideTheme(theme)
+                  ? {
+                      color: BRAND.white,
+                      fontSize: 26,
+                      lineHeight: 28,
+                      marginBottom: 6,
+                      fontWeight: '900',
+                      letterSpacing: 0.2,
+                    }
+                    : null,
                   isModernTheme(theme)
                     ? {
                         color: theme.colors.text,
@@ -7100,6 +8712,13 @@ function HomeScreen({
             <Text
               style={[
                 styles.liveNowText,
+                isSchoolPrideTheme(theme)
+                  ? {
+                      color: withAlpha(BRAND.white, 'CC'),
+                      fontSize: 13,
+                      lineHeight: 18,
+                    }
+                  : null,
                 isModernTheme(theme)
                   ? {
                       color: theme.colors.mutedText,
@@ -7130,6 +8749,18 @@ function HomeScreen({
           <View
             style={[
               styles.liveNowCTA,
+              isSchoolPrideTheme(theme)
+                ? {
+                    alignSelf: 'flex-start',
+                    backgroundColor: withAlpha(theme.colors.primary, '18'),
+                    borderWidth: 1,
+                    borderColor: withAlpha(schoolPrideDepthColor, '48'),
+                    borderRadius: 4,
+                    paddingHorizontal: 13,
+                    paddingVertical: 9,
+                    marginTop: 12,
+                  }
+                : null,
               isModernTheme(theme)
                 ? {
                     alignSelf: 'flex-start',
@@ -7159,6 +8790,15 @@ function HomeScreen({
             <Text
               style={[
                 styles.liveNowCTAText,
+                isSchoolPrideTheme(theme)
+                  ? {
+                      color: BRAND.white,
+                      fontSize: 11,
+                      letterSpacing: 0.55,
+                      textTransform: 'uppercase',
+                      fontWeight: '900',
+                    }
+                  : null,
                 isModernTheme(theme)
                   ? {
                       color: theme.colors.primary,
@@ -7196,6 +8836,8 @@ function HomeScreen({
               color={
                 isModernTheme(theme)
                   ? theme.colors.primary
+                  : isSchoolPrideTheme(theme)
+                  ? BRAND.white
                   : isGamedayHome
                   ? gamedayLiveCtaTextColor
                   : isCleanSlateTheme(theme)
@@ -7270,6 +8912,65 @@ function HomeScreen({
   }
 
   function renderStoriesModule(title: string) {
+    if (isSchoolPrideHome) {
+      const featuredStory = storyCarouselItems[0];
+      const leadSupportingStory = storyCarouselItems[1];
+      const supportingStories = storyCarouselItems.slice(2, 4);
+
+      return (
+        <React.Fragment key="stories">
+          <OptionalSectionHeader
+            title={title}
+            actionLabel={hasMainSiteUrl ? 'Website' : undefined}
+            onAction={
+              hasMainSiteUrl
+                ? () => onOpenEmbedded('Website', schoolConfig.mainSiteUrl)
+                : undefined
+            }
+            theme={theme}
+          />
+          {newsLoading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={theme.colors.primary} />
+            </View>
+          ) : !featuredStory ? (
+            <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No news stories found.</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 14 }}>
+              <NewsCard
+                item={featuredStory}
+                featured
+                theme={theme}
+                onPress={() => onOpenStoryDetail(featuredStory)}
+              />
+              {leadSupportingStory ? (
+                <StoryCarouselCard
+                  item={leadSupportingStory}
+                  theme={theme}
+                  onPress={() => onOpenStoryDetail(leadSupportingStory)}
+                />
+              ) : null}
+              {supportingStories.length > 0 ? (
+                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'stretch' }}>
+                  {supportingStories.map((item, index) => (
+                    <View key={`${item.link}-${item.title}-${index}`} style={{ flex: 1 }}>
+                      <NewsCard
+                        item={item}
+                        theme={theme}
+                        onPress={() => onOpenStoryDetail(item)}
+                      />
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          )}
+        </React.Fragment>
+      );
+    }
+
     return (
       <React.Fragment key="stories">
         <OptionalSectionHeader
@@ -7373,6 +9074,7 @@ function HomeScreen({
   }
 
   function renderRecentResultsModule(title: string) {
+    const schoolPrideRecentResults = isSchoolPrideHome ? visibleRecentEvents.slice(0, 3) : [];
     return (
       <React.Fragment key="recent_results">
       <OptionalSectionHeader title={title} theme={theme} />
@@ -7388,6 +9090,18 @@ function HomeScreen({
           <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
             Pull down to refresh and check again.
           </Text>
+        </View>
+      ) : isSchoolPrideHome ? (
+        <View style={{ gap: 12 }}>
+          {schoolPrideRecentResults.map((item) => (
+            <EventCard
+              key={item.id}
+              item={item}
+              showTime={false}
+              theme={theme}
+              onPress={() => onOpenSchedule()}
+            />
+          ))}
         </View>
       ) : (
         <ScrollView
@@ -7411,6 +9125,9 @@ function HomeScreen({
   }
 
   function renderUpcomingGamesModule(title: string) {
+    const schoolPrideUpcomingEvents = isSchoolPrideHome
+      ? visibleUpcomingEvents.slice(0, 4)
+      : [];
     return (
       <React.Fragment key="upcoming_games">
       <OptionalSectionHeader
@@ -7431,6 +9148,17 @@ function HomeScreen({
           <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
             Pull down to refresh and check again.
           </Text>
+        </View>
+      ) : isSchoolPrideHome ? (
+        <View style={{ gap: 12 }}>
+          {schoolPrideUpcomingEvents.map((item) => (
+            <EventCard
+              key={item.id}
+              item={item}
+              theme={theme}
+              onPress={() => onOpenSchedule()}
+            />
+          ))}
         </View>
       ) : (
         <ScrollView
@@ -7521,17 +9249,26 @@ function HomeScreen({
 
     const card = (
       <>
-        <View style={styles.sponsorTextWrap}>
+        <View
+          style={[
+            styles.sponsorTextWrap,
+            isSchoolPrideTheme(theme)
+              ? { flex: 1, justifyContent: 'center', paddingRight: 12 }
+              : null,
+          ]}
+        >
           <Text
             style={[
               styles.sponsorEyebrow,
-              {
-                color: isCleanSlateTheme(theme)
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideMutedTextColor() }
+                : {
+                  color: isCleanSlateTheme(theme)
                   ? theme.colors.mutedText
                   : isGamedayTheme(theme)
                   ? withAlpha(theme.colors.text, 'B8')
                   : '#F5D7DD',
-              },
+                },
             ]}
           >
             Presented by
@@ -7539,12 +9276,14 @@ function HomeScreen({
           <Text
             style={[
               styles.sponsorTitle,
-              {
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideTextColor() }
+                : {
                 color:
                   isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
-              },
+                },
             ]}
           >
             {sponsorCardTitle}
@@ -7552,13 +9291,15 @@ function HomeScreen({
           <Text
             style={[
               styles.sponsorText,
-              {
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideMutedTextColor() }
+                : {
                 color: isCleanSlateTheme(theme)
                   ? theme.colors.mutedText
                   : isGamedayTheme(theme)
                   ? withAlpha(theme.colors.text, 'C8')
                   : '#F3F4F6',
-              },
+                },
             ]}
           >
             Premium sponsor placement for the AthleticOS app experience.
@@ -7566,14 +9307,33 @@ function HomeScreen({
         </View>
 
         {sponsorPlacement?.sponsor_logo_url ? (
-          <RemoteImage
-            uri={sponsorPlacement.sponsor_logo_url}
-            style={styles.sponsorLogo}
-            contentFit="contain"
-            mode="sponsor"
-            label={sponsorCardTitle}
-            theme={theme}
-          />
+          <View
+            style={
+              isSchoolPrideTheme(theme)
+                ? {
+                    width: 124,
+                    height: 82,
+                    borderRadius: 8,
+                    backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                    borderWidth: 1,
+                    borderColor: getSchoolPrideBorderColor(),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                  }
+                : null
+            }
+          >
+            <RemoteImage
+              uri={sponsorPlacement.sponsor_logo_url}
+              style={styles.sponsorLogo}
+              contentFit="contain"
+              mode="sponsor"
+              label={sponsorCardTitle}
+              theme={theme}
+            />
+          </View>
         ) : null}
       </>
     );
@@ -7583,13 +9343,41 @@ function HomeScreen({
         <OptionalSectionHeader title={title} theme={theme} />
         {hasSponsorCardLink ? (
           <Pressable
-            style={[styles.sponsorCard, getThemeSoftCardStyle(theme)]}
+            style={[
+              styles.sponsorCard,
+              getThemeSoftCardStyle(theme),
+              isSchoolPrideTheme(theme)
+                ? {
+                    backgroundColor: getSchoolPrideSurfaceColor(),
+                    borderColor: getSchoolPrideBorderColor(),
+                    borderTopWidth: 8,
+                    borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                    borderRadius: 6,
+                  }
+                : null,
+            ]}
             onPress={() => onOpenEmbedded(sponsorCardTitle, sponsorCardLink)}
           >
             {card}
           </Pressable>
         ) : (
-          <View style={[styles.sponsorCard, getThemeSoftCardStyle(theme)]}>{card}</View>
+          <View
+            style={[
+              styles.sponsorCard,
+              getThemeSoftCardStyle(theme),
+              isSchoolPrideTheme(theme)
+                ? {
+                    backgroundColor: getSchoolPrideSurfaceColor(),
+                    borderColor: getSchoolPrideBorderColor(),
+                    borderTopWidth: 8,
+                    borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                    borderRadius: 6,
+                  }
+                : null,
+            ]}
+          >
+            {card}
+          </View>
         )}
       </React.Fragment>
     );
@@ -7612,42 +9400,48 @@ function HomeScreen({
       <>
         <View style={styles.sponsorTextWrap}>
           <Text
-            style={[
-              styles.sponsorEyebrow,
-              {
+              style={[
+                styles.sponsorEyebrow,
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideMutedTextColor() }
+                : {
                 color: isCleanSlateTheme(theme)
                   ? theme.colors.mutedText
                   : isGamedayTheme(theme)
                   ? withAlpha(theme.colors.text, 'B8')
                   : '#F5D7DD',
-              },
+                },
             ]}
           >
             {title}
           </Text>
           <Text
-            style={[
-              styles.sponsorTitle,
-              {
+              style={[
+                styles.sponsorTitle,
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideTextColor() }
+                : {
                 color:
                   isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
-              },
+                },
             ]}
           >
             {presentingTitle}
           </Text>
           <Text
-            style={[
-              styles.sponsorText,
-              {
+              style={[
+                styles.sponsorText,
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideMutedTextColor() }
+                : {
                 color: isCleanSlateTheme(theme)
                   ? theme.colors.mutedText
                   : isGamedayTheme(theme)
                   ? withAlpha(theme.colors.text, 'C8')
                   : '#F3F4F6',
-              },
+                },
             ]}
           >
             Official presenting sponsor for the AthleticOS app experience.
@@ -7683,7 +9477,7 @@ function HomeScreen({
     );
   }
 
-  function renderSponsorCarouselModule(title: string) {
+  function renderSponsorCarouselModule(_title: string) {
     if (sponsorCarouselPlacements.length === 0) {
       console.log('[APPOS SPONSOR DEBUG][carousel-skipped]', {
         placements: sponsorCarouselPlacements,
@@ -7691,16 +9485,24 @@ function HomeScreen({
       return null;
     }
 
+    const displayTitle = 'Supporting Sponsors';
+
     return (
       <React.Fragment key="sponsor_carousel">
         <OptionalSectionHeader
-          title={title}
+          title={displayTitle}
           containerStyle={styles.sectionHeaderTightTop}
           theme={theme}
         />
         <View
           style={[
             styles.sponsorCarouselViewport,
+            isSchoolPrideTheme(theme)
+              ? {
+                  borderColor: getSchoolPrideBorderColor(),
+                  backgroundColor: 'transparent',
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? {
                   borderColor: theme.colors.border,
@@ -7730,9 +9532,47 @@ function HomeScreen({
               }
 
               const card = (
-                <View style={styles.sponsorCarouselCardContent}>
+                <View
+                  style={[
+                    styles.sponsorCarouselCardContent,
+                    isSchoolPrideTheme(theme)
+                      ? {
+                          alignItems: 'stretch',
+                          justifyContent: 'center',
+                        }
+                      : null,
+                  ]}
+                >
+                  {isSchoolPrideTheme(theme) ? (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        height: 8,
+                        backgroundColor: withAlpha(theme.colors.primary, 'DE'),
+                      }}
+                    />
+                  ) : null}
                   {hasSponsorLogo ? (
-                    <View style={styles.sponsorCarouselLogoWrap}>
+                    <View
+                      style={[
+                        styles.sponsorCarouselLogoWrap,
+                        isSchoolPrideTheme(theme)
+                          ? {
+                              backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                              borderColor: getSchoolPrideBorderColor(),
+                              borderWidth: 1,
+                              borderRadius: 8,
+                              paddingHorizontal: 12,
+                              paddingVertical: 10,
+                              minHeight: 84,
+                              justifyContent: 'center',
+                            }
+                          : null,
+                      ]}
+                    >
                       <RemoteImage
                         uri={sponsorLogo}
                         style={styles.sponsorCarouselLogo}
@@ -7744,15 +9584,30 @@ function HomeScreen({
                     </View>
                   ) : null}
                   {sponsorName ? (
-                    <Text
-                      style={[
-                        styles.sponsorCarouselName,
-                        { color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {sponsorName}
-                    </Text>
+                    !isSchoolPrideTheme(theme) || !hasSponsorLogo ? (
+                      <Text
+                        style={[
+                          styles.sponsorCarouselName,
+                          {
+                            color: isSchoolPrideTheme(theme)
+                              ? getSchoolPrideTextColor()
+                              : isCleanSlateTheme(theme)
+                              ? theme.colors.text
+                              : BRAND.white,
+                            ...(isSchoolPrideTheme(theme)
+                              ? {
+                                  fontSize: 18,
+                                  lineHeight: 22,
+                                  fontWeight: '900' as const,
+                                }
+                              : null),
+                          },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {sponsorName}
+                      </Text>
+                    ) : null
                   ) : null}
                 </View>
               );
@@ -7763,6 +9618,16 @@ function HomeScreen({
                   style={[
                     styles.sponsorCarouselCard,
                     getThemeSoftCardStyle(theme),
+                    isSchoolPrideTheme(theme)
+                      ? {
+                          backgroundColor: getSchoolPrideSurfaceColor(),
+                          borderColor: getSchoolPrideBorderColor(),
+                          borderTopWidth: 8,
+                          borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                          borderRadius: 6,
+                          minHeight: 188,
+                        }
+                      : null,
                     index === sponsorCarouselLoopPlacements.length - 1
                       ? styles.sponsorCarouselCardNoGap
                       : null,
@@ -7777,6 +9642,16 @@ function HomeScreen({
                   style={[
                     styles.sponsorCarouselCard,
                     getThemeSoftCardStyle(theme),
+                    isSchoolPrideTheme(theme)
+                      ? {
+                          backgroundColor: getSchoolPrideSurfaceColor(),
+                          borderColor: getSchoolPrideBorderColor(),
+                          borderTopWidth: 8,
+                          borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                          borderRadius: 6,
+                          minHeight: 188,
+                        }
+                      : null,
                     index === sponsorCarouselLoopPlacements.length - 1
                       ? styles.sponsorCarouselCardNoGap
                       : null,
@@ -8135,6 +10010,15 @@ function HomeScreen({
         end={{ x: 1, y: 1 }}
         style={[
           styles.homeHeader,
+          isSchoolPrideHome
+            ? {
+                paddingTop: 0,
+                paddingHorizontal: 18,
+                paddingBottom: 18,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           getThemeHeroShellStyle(theme),
           isModernTheme(theme)
             ? {
@@ -8157,6 +10041,20 @@ function HomeScreen({
             : null,
         ]}
       >
+        {isSchoolPrideHome ? (
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 96,
+                backgroundColor: withAlpha(theme.colors.primary, 'EB'),
+              }}
+            />
+          </>
+        ) : null}
         {isTrueCleanSlateHome ? (
           <View
             style={{
@@ -8202,12 +10100,14 @@ function HomeScreen({
         <View
           style={[
             styles.headerTopRow,
+            isSchoolPrideHome ? { marginBottom: 18, alignItems: 'flex-start', paddingTop: 28 } : null,
             isModernTheme(theme) ? { marginBottom: 4 } : null,
           ]}
         >
           <View
             style={[
               styles.headerLeft,
+              isSchoolPrideHome ? { alignItems: 'flex-start', paddingRight: 12, width: '100%' } : null,
               isModernTheme(theme) ? { paddingRight: 8 } : null,
             ]}
           >
@@ -8215,6 +10115,17 @@ function HomeScreen({
               <View
                 style={[
                   styles.teamLogoBox,
+                  isSchoolPrideHome
+                    ? {
+                        width: 98,
+                        height: 98,
+                        borderRadius: 6,
+                        marginRight: 18,
+                        backgroundColor: getSchoolPrideSurfaceColor(),
+                        borderWidth: 1,
+                        borderColor: getSchoolPrideBorderColor(),
+                      }
+                    : null,
                   isModernTheme(theme)
                     ? {
                         width: 92,
@@ -8244,6 +10155,7 @@ function HomeScreen({
                   uri={schoolConfig.logoUrl}
                   style={[
                     styles.headerTeamLogo,
+                    isSchoolPrideHome ? { width: 74, height: 74 } : null,
                     isModernTheme(theme) ? { width: 76, height: 76 } : null,
                     isTrueCleanSlateHome ? { width: 36, height: 36 } : null,
                   ]}
@@ -8256,12 +10168,40 @@ function HomeScreen({
             ) : null}
 
             <View style={styles.headerTitleWrap}>
+              {isSchoolPrideHome && hasSchoolLogo ? (
+                <RemoteImage
+                  uri={schoolConfig.logoUrl}
+                  style={{
+                    position: 'absolute',
+                    right: -54,
+                    top: -24,
+                    width: 150,
+                    height: 150,
+                    opacity: 0.08,
+                  }}
+                  contentFit="contain"
+                  mode="logo"
+                  label={schoolConfig.displayName}
+                  theme={theme}
+                />
+              ) : null}
               <Text
                 style={[
                   styles.appTitle,
                   {
-              color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
-              ...(isModernTheme(theme)
+              color: isSchoolPrideHome
+                ? theme.colors.text
+                : isCleanSlateTheme(theme)
+                ? theme.colors.text
+                : BRAND.white,
+              ...(isSchoolPrideHome
+                      ? {
+                          fontSize: 38,
+                          lineHeight: 42,
+                          letterSpacing: 0.16,
+                          fontWeight: '900' as const,
+                        }
+                      : isModernTheme(theme)
                       ? { fontSize: 24, letterSpacing: 0.02, fontWeight: '900' as const }
                       : isCleanSlateTheme(theme)
                       ? { fontSize: 20, letterSpacing: 0, fontWeight: '800' as const }
@@ -8276,8 +10216,22 @@ function HomeScreen({
               <Text
                 style={[
                   styles.appSubtitle,
-                  { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(217,223,234,0.78)' },
-                  isModernTheme(theme)
+                  {
+                    color: isSchoolPrideHome
+                      ? theme.colors.mutedText
+                      : isCleanSlateTheme(theme)
+                      ? theme.colors.mutedText
+                      : 'rgba(217,223,234,0.78)',
+                  },
+                  isSchoolPrideHome
+                    ? {
+                        fontSize: 12,
+                        marginTop: 6,
+                        fontWeight: '800' as const,
+                        letterSpacing: 0.62,
+                        textTransform: 'uppercase' as const,
+                      }
+                    : isModernTheme(theme)
                     ? {
                         fontSize: 11,
                         marginTop: 2,
@@ -8297,8 +10251,21 @@ function HomeScreen({
                 <Text
                   style={[
                   styles.heroSponsorInlineText,
-                  { color: isCleanSlateTheme(theme) ? theme.colors.mutedText : 'rgba(255,255,255,0.72)' },
-                  isModernTheme(theme)
+                  {
+                    color: isSchoolPrideHome
+                      ? withAlpha(theme.colors.text, 'A6')
+                      : isCleanSlateTheme(theme)
+                      ? theme.colors.mutedText
+                      : 'rgba(255,255,255,0.72)',
+                  },
+                  isSchoolPrideHome
+                    ? {
+                        fontSize: 10,
+                        marginTop: 8,
+                        letterSpacing: 0.42,
+                        textTransform: 'uppercase' as const,
+                      }
+                    : isModernTheme(theme)
                     ? {
                         fontSize: 9,
                         marginTop: 4,
@@ -8322,6 +10289,19 @@ function HomeScreen({
               <Pressable
                 style={[
                   styles.heroSponsorLogoWrap,
+                  isSchoolPrideHome
+                    ? {
+                      backgroundColor: getSchoolPrideSurfaceColor(),
+                      borderWidth: 1,
+                      borderColor: getSchoolPrideBorderColor(),
+                      borderRadius: 6,
+                      paddingHorizontal: 12,
+                      paddingVertical: 4,
+                      position: 'absolute',
+                      right: 0,
+                      top: -8,
+                    }
+                    : null,
                   isTrueCleanSlateHome
                     ? {
                         backgroundColor: theme.colors.card,
@@ -8349,6 +10329,19 @@ function HomeScreen({
               <View
                 style={[
                   styles.heroSponsorLogoWrap,
+                  isSchoolPrideHome
+                    ? {
+                        backgroundColor: getSchoolPrideSurfaceColor(),
+                        borderWidth: 1,
+                        borderColor: getSchoolPrideBorderColor(),
+                        borderRadius: 6,
+                        paddingHorizontal: 12,
+                        paddingVertical: 4,
+                        position: 'absolute',
+                        right: 0,
+                        top: -8,
+                      }
+                    : null,
                   isTrueCleanSlateHome
                     ? {
                         backgroundColor: theme.colors.card,
@@ -8374,6 +10367,20 @@ function HomeScreen({
             <View
               style={[
                 styles.heroSponsorLogoWrap,
+                isSchoolPrideHome
+                  ? {
+                      backgroundColor: getSchoolPrideSurfaceColor(),
+                      borderWidth: 1,
+                      borderColor: getSchoolPrideBorderColor(),
+                      borderRadius: 6,
+                      paddingHorizontal: 12,
+                      paddingVertical: 4,
+                      minWidth: 92,
+                      position: 'absolute',
+                      right: 0,
+                      top: -8,
+                    }
+                  : null,
                 isTrueCleanSlateHome
                   ? {
                       backgroundColor: theme.colors.card,
@@ -8390,7 +10397,11 @@ function HomeScreen({
                 style={[
                   styles.heroSponsorInlineText,
                   {
-                    color: isCleanSlateTheme(theme) ? theme.colors.text : BRAND.white,
+                    color: isSchoolPrideHome
+                      ? theme.colors.text
+                      : isCleanSlateTheme(theme)
+                      ? theme.colors.text
+                      : BRAND.white,
                     marginTop: 0,
                     textAlign: 'center',
                   },
@@ -8409,6 +10420,18 @@ function HomeScreen({
             heroActionCount >= 3 ? styles.heroButtonRowCompact : null,
             heroActionCount === 1 ? styles.heroButtonRowSingle : null,
             shouldScrollHeroActions ? styles.heroButtonRowScrollable : null,
+            isSchoolPrideHome
+              ? {
+                  marginTop: 0,
+                  paddingTop: 0,
+                  borderTopWidth: 0,
+                  gap: 12,
+                  alignItems: 'stretch',
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  justifyContent: 'space-between',
+                }
+              : null,
             isModernTheme(theme)
               ? {
                   marginTop: 8,
@@ -8447,31 +10470,127 @@ function HomeScreen({
               ))}
             </ScrollView>
           ) : (
-            resolvedHeroQuickActions.map((action) => (
-              <TopIcon
-                key={action.key}
-                label={action.label}
-                icon={action.icon}
-                theme={theme}
-                onPress={action.onPress}
-                containerStyle={heroActionItemStyle}
-                sizeVariant={heroActionSizeVariant}
-              />
-            ))
+            resolvedHeroQuickActions.map((action, index) =>
+              isSchoolPrideHome ? (
+                <Pressable
+                  key={action.key}
+                  onPress={action.onPress}
+                  style={{
+                    width:
+                      index === 0 && resolvedHeroQuickActions.length > 2
+                        ? '100%'
+                        : resolvedHeroQuickActions.length === 1
+                        ? '100%'
+                        : '48%',
+                    backgroundColor: getSchoolPrideSurfaceColor(),
+                    borderWidth: 1,
+                    borderColor: getSchoolPrideBorderColor(),
+                    borderTopWidth: 8,
+                    borderTopColor: withAlpha(
+                      index === 0 ? theme.colors.primary : schoolPrideDepthColor,
+                      'D8'
+                    ),
+                    borderRadius: 6,
+                    paddingHorizontal: 14,
+                    paddingVertical: index === 0 ? 16 : 14,
+                    minHeight: index === 0 ? 98 : 88,
+                    shadowColor: 'rgba(17,17,17,0.06)',
+                    shadowOpacity: 0.05,
+                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 3 },
+                    elevation: 2,
+                    flexDirection: index === 0 ? 'row' : 'column',
+                    alignItems: index === 0 ? 'center' : 'flex-start',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: index === 0 ? 54 : 42,
+                      height: index === 0 ? 54 : 42,
+                      borderRadius: 8,
+                      backgroundColor: withAlpha(theme.colors.primary, '0F'),
+                      borderWidth: 1,
+                      borderColor: withAlpha(
+                        index === 0 ? schoolPrideDepthColor : theme.colors.primary,
+                        '28'
+                      ),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: index === 0 ? 0 : 12,
+                      marginRight: index === 0 ? 14 : 0,
+                    }}
+                  >
+                    <Ionicons
+                      name={action.icon}
+                      size={index === 0 ? 24 : 20}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.primary,
+                        fontSize: index === 0 ? 18 : 13,
+                        lineHeight: index === 0 ? 22 : 16,
+                        fontWeight: '900',
+                        letterSpacing: index === 0 ? 0.2 : 0.35,
+                        textTransform: index === 0 ? 'none' : 'uppercase',
+                      }}
+                      numberOfLines={2}
+                    >
+                      {action.label}
+                    </Text>
+                  </View>
+                  {index === 0 ? (
+                    <View
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 6,
+                        backgroundColor: theme.colors.primary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: 12,
+                      }}
+                    >
+                      <Ionicons name="chevron-forward" size={16} color={BRAND.white} />
+                    </View>
+                  ) : null}
+                </Pressable>
+              ) : (
+                <TopIcon
+                  key={action.key}
+                  label={action.label}
+                  icon={action.icon}
+                  theme={theme}
+                  onPress={action.onPress}
+                  containerStyle={heroActionItemStyle}
+                  sizeVariant={heroActionSizeVariant}
+                />
+              )
+            )
           )}
         </View>
       </LinearGradient>
       )}
 
-      {isPower5Theme(theme) || isGradientEliteTheme(theme) ? (
+      {isPower5Theme(theme) || isGradientEliteTheme(theme) || isSchoolPrideHome ? (
         <View
           style={[
             styles.power5HomeModuleShell,
             {
               backgroundColor: isPower5Theme(theme)
                 ? '#000000'
+                : isSchoolPrideHome
+                ? getSchoolPrideBackgroundColor()
                 : '#000000',
             },
+            isSchoolPrideHome
+              ? {
+                  paddingTop: 8,
+                }
+              : null,
           ]}
         >
           {isGradientEliteTheme(theme) ? (
@@ -8523,16 +10642,27 @@ function TeamsScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      <LinearGradient
-        colors={getThemeBackdropGradient(theme)}
-        style={styles.teamsScreenBackdrop}
-        pointerEvents="none"
-      />
+      {!isSchoolPrideTheme(theme) ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
       <LinearGradient
         colors={getThemeHeroGradient(theme)}
         style={[
           styles.teamsHubHero,
           getThemeHeroShellStyle(theme),
+          isSchoolPrideTheme(theme)
+            ? {
+                paddingTop: 18,
+                paddingBottom: 20,
+                paddingHorizontal: 18,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isCleanSlateTheme(theme)
             ? {
                 marginTop: 0,
@@ -8544,27 +10674,45 @@ function TeamsScreen({
             : null,
         ]}
       >
-        <View
-          style={[
-            styles.teamsHubAccentRail,
-            { backgroundColor: theme.colors.primary },
-            isGamedayTheme(theme)
-              ? {
-                  width: 10,
-                  borderTopRightRadius: 4,
-                  borderBottomRightRadius: 4,
-                  top: 14,
-                  bottom: 14,
-                }
-              : null,
-          ]}
-        />
+        {isSchoolPrideTheme(theme) ? (
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 14,
+                backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+              }}
+            />
+          </>
+        ) : (
+          <View
+            style={[
+              styles.teamsHubAccentRail,
+              { backgroundColor: theme.colors.primary },
+              isGamedayTheme(theme)
+                ? {
+                    width: 10,
+                    borderTopRightRadius: 4,
+                    borderBottomRightRadius: 4,
+                    top: 14,
+                    bottom: 14,
+                  }
+                : null,
+            ]}
+          />
+        )}
 
         {hasResolvedUrl(schoolLogoUrl) ? (
           <RemoteImage
             uri={schoolLogoUrl}
             style={[
               styles.teamsHubLogo,
+              isSchoolPrideTheme(theme)
+                ? { top: 18, right: 18, width: 92, height: 92, opacity: 0.98 }
+                : null,
               isGamedayTheme(theme) ? { top: 12, right: 14, width: 88, height: 88 } : null,
               getModernInnerHeaderLogoStyle(theme),
             ]}
@@ -8575,17 +10723,69 @@ function TeamsScreen({
           />
         ) : null}
 
-        <View style={[styles.teamsHubContent, isGamedayTheme(theme) ? { maxWidth: '76%' } : null]}>
-          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>Teams</Text>
-          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
+        <View
+          style={[
+            styles.teamsHubContent,
+            isSchoolPrideTheme(theme) ? { maxWidth: '68%' } : null,
+            isGamedayTheme(theme) ? { maxWidth: '76%' } : null,
+          ]}
+        >
+          <Text
+            style={[
+              styles.teamsHubEyebrow,
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideMutedTextColor(), letterSpacing: 0.8 }
+                : { color: theme.colors.mutedText },
+            ]}
+          >
+            Teams
+          </Text>
+          <Text
+            style={[
+              styles.teamsHubTitle,
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideTextColor(), fontSize: 30, lineHeight: 34, fontWeight: '900' }
+                : { color: theme.colors.text },
+            ]}
+          >
+            {heroSchoolName}
+          </Text>
           {heroMascot ? (
-            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
+            <Text
+              style={[
+                styles.teamsHubMascot,
+                isSchoolPrideTheme(theme)
+                  ? { color: getSchoolPrideTextColor(), marginTop: 2 }
+                  : { color: theme.colors.text },
+              ]}
+            >
+              {heroMascot}
+            </Text>
           ) : null}
-          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>{heroText}</Text>
+          <Text
+            style={[
+              styles.teamsHubText,
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideMutedTextColor(), marginTop: 8, lineHeight: 19 }
+                : { color: theme.colors.mutedText },
+            ]}
+          >
+            {heroText}
+          </Text>
         </View>
       </LinearGradient>
 
-      <View style={styles.teamsListPremium}>
+      <View
+        style={[
+          styles.teamsListPremium,
+          isSchoolPrideTheme(theme)
+            ? {
+                flexDirection: 'column',
+                gap: 12,
+              }
+            : null,
+        ]}
+      >
         {SPORTS.map((sport) => (
           <Pressable
             key={sport.key}
@@ -8596,6 +10796,21 @@ function TeamsScreen({
                 borderColor: theme.colors.border,
               },
               getThemeCardShellStyle(theme),
+              isSchoolPrideTheme(theme)
+                ? {
+                    borderRadius: 6,
+                    borderColor: getSchoolPrideBorderColor(),
+                    borderTopWidth: 10,
+                    borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    width: '100%',
+                    minHeight: 102,
+                    justifyContent: 'space-between',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }
+                : null,
               isCleanSlateTheme(theme)
                 ? {
                     borderRadius: 5,
@@ -8612,19 +10827,67 @@ function TeamsScreen({
                 style={[
                   styles.teamDirectoryAccent,
                   {
-                    backgroundColor: theme.colors.primary,
-                    width: isCleanSlateTheme(theme) ? 4 : 4,
-                    marginRight: isCleanSlateTheme(theme) ? 9 : 14,
+                    backgroundColor: isSchoolPrideTheme(theme)
+                      ? withAlpha(theme.colors.primary, 'D8')
+                      : theme.colors.primary,
+                    width: isSchoolPrideTheme(theme) ? 44 : isCleanSlateTheme(theme) ? 4 : 4,
+                    height: isSchoolPrideTheme(theme) ? 8 : undefined,
+                    borderRadius: isSchoolPrideTheme(theme) ? 3 : undefined,
+                    marginRight: isSchoolPrideTheme(theme) ? 0 : isCleanSlateTheme(theme) ? 9 : 14,
+                    marginBottom: isSchoolPrideTheme(theme) ? 12 : 0,
                   },
                 ]}
               />
             ) : null}
-            <View style={styles.teamDirectoryContent}>
-              <Text style={[styles.teamDirectoryTitle, { color: theme.colors.text }]}>
+            <View
+              style={[
+                styles.teamDirectoryContent,
+                isSchoolPrideTheme(theme) ? { flex: 1, paddingRight: 12 } : null,
+              ]}
+            >
+              {isSchoolPrideTheme(theme) ? (
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                    borderWidth: 1,
+                    borderColor: getSchoolPrideBorderColor(),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text style={{ fontSize: 18, lineHeight: 20 }}>
+                    {getSchoolPrideSportEmoji(sport.key, sport.label)}
+                  </Text>
+                </View>
+              ) : null}
+              <Text
+                style={[
+                  styles.teamDirectoryTitle,
+                  isSchoolPrideTheme(theme)
+                    ? {
+                        color: getSchoolPrideTextColor(),
+                        fontSize: 18,
+                        lineHeight: 22,
+                        fontWeight: '900',
+                      }
+                    : { color: theme.colors.text },
+                ]}
+              >
                 {sport.shortLabel || sport.label}
               </Text>
-              <Text style={[styles.teamDirectorySub, { color: theme.colors.mutedText }]}>
-                Open team page
+              <Text
+                style={[
+                  styles.teamDirectorySub,
+                  isSchoolPrideTheme(theme)
+                    ? { color: getSchoolPrideMutedTextColor(), lineHeight: 16, marginTop: 4, fontSize: 12 }
+                    : { color: theme.colors.mutedText },
+                ]}
+              >
+                {isSchoolPrideTheme(theme) ? 'Team page, schedule, roster, and coverage' : 'Open team page'}
               </Text>
             </View>
             <View
@@ -8633,25 +10896,50 @@ function TeamsScreen({
                 {
                   backgroundColor: isGradientEliteTheme(theme)
                     ? theme.colors.primary
+                    : isSchoolPrideTheme(theme)
+                    ? withAlpha(theme.colors.primary, '0E')
                     : theme.colors.cardAlt,
                   borderColor: isGradientEliteTheme(theme)
                     ? theme.colors.primary
+                    : isSchoolPrideTheme(theme)
+                    ? getSchoolPrideBorderColor()
                     : theme.colors.border,
-                  borderRadius: isCleanSlateTheme(theme) ? 5 : undefined,
+                  borderRadius: isSchoolPrideTheme(theme)
+                    ? 6
+                    : isCleanSlateTheme(theme)
+                    ? 5
+                    : undefined,
+                  paddingHorizontal: isSchoolPrideTheme(theme) ? 10 : undefined,
+                  minWidth: isSchoolPrideTheme(theme) ? 82 : undefined,
                 },
               ]}
             >
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={
-                  isGradientEliteTheme(theme)
-                    ? '#FFFFFF'
-                    : isCleanSlateTheme(theme)
-                    ? theme.colors.primary
-                    : theme.colors.text
-                }
-              />
+              {isSchoolPrideTheme(theme) ? (
+                <Text
+                  style={{
+                    color: theme.colors.primary,
+                    fontSize: 10,
+                    lineHeight: 13,
+                    fontWeight: '900',
+                    letterSpacing: 0.45,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Open
+                </Text>
+              ) : (
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={
+                    isGradientEliteTheme(theme)
+                      ? '#FFFFFF'
+                      : isCleanSlateTheme(theme)
+                      ? theme.colors.primary
+                      : theme.colors.text
+                  }
+                />
+              )}
             </View>
           </Pressable>
         ))}
@@ -8713,6 +11001,7 @@ function MediaScreen({
   const hasListenUrl = hasResolvedUrl(listenUrl);
   const hasScheduleUrl = scheduleAvailable;
   const hasMainSiteUrl = hasResolvedUrl(mainSiteUrl);
+  const isSchoolPride = isSchoolPrideTheme(theme);
   const hasActions = hasAppOsMediaActions
     ? mediaActions.length > 0
     : hasWatchUrl || hasListenUrl || hasScheduleUrl || hasMainSiteUrl;
@@ -8756,9 +11045,13 @@ function MediaScreen({
           {
             backgroundColor: isGradientEliteTheme(theme)
               ? theme.colors.buttonBackground
+              : isSchoolPride
+              ? withAlpha(theme.colors.primary, '0E')
               : theme.colors.cardAlt,
             borderColor: isGradientEliteTheme(theme)
               ? theme.colors.buttonBackground
+              : isSchoolPride
+              ? withAlpha(theme.colors.primary, '18')
               : theme.colors.border,
           },
         ]}
@@ -8769,6 +11062,8 @@ function MediaScreen({
           color={
             isGradientEliteTheme(theme)
               ? theme.colors.buttonText
+              : isSchoolPride
+              ? theme.colors.primary
               : isCleanSlateTheme(theme)
               ? theme.colors.primary
               : theme.colors.text
@@ -8776,8 +11071,26 @@ function MediaScreen({
         />
       </View>
       <View style={styles.mediaActionBody}>
-        <Text style={[styles.mediaActionTitle, { color: theme.colors.text }]}>{title}</Text>
-        <Text style={[styles.mediaActionText, { color: theme.colors.mutedText }]}>{subtitle}</Text>
+        <Text
+          style={[
+            styles.mediaActionTitle,
+            { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
+          ]}
+        >
+          {title}
+        </Text>
+        <Text
+          style={[
+            styles.mediaActionText,
+            {
+              color: isSchoolPride
+                ? getSchoolPrideMutedTextColor()
+                : theme.colors.mutedText,
+            },
+          ]}
+        >
+          {subtitle}
+        </Text>
         {sponsorName || sponsorLogoUrl ? (
           <View
             pointerEvents="none"
@@ -8788,6 +11101,12 @@ function MediaScreen({
                     backgroundColor: theme.colors.cardAlt,
                     borderColor: withAlpha(theme.colors.primary, '4D'),
                     borderRadius: 14,
+                  }
+                : isSchoolPride
+                ? {
+                    backgroundColor: 'rgba(255,255,255,0.96)',
+                    borderColor: withAlpha(theme.colors.primary, '16'),
+                    borderRadius: 6,
                   }
                 : isModernTheme(theme)
                 ? {
@@ -8812,7 +11131,9 @@ function MediaScreen({
                 styles.mediaActionSponsorEyebrow,
                 {
                   color:
-                    isGradientEliteTheme(theme) || isModernTheme(theme)
+                    isSchoolPride
+                      ? theme.colors.primary
+                    : isGradientEliteTheme(theme) || isModernTheme(theme)
                       ? theme.colors.primary
                       : theme.colors.mutedText,
                 },
@@ -8833,7 +11154,10 @@ function MediaScreen({
               ) : null}
               {sponsorName ? (
                 <Text
-                  style={[styles.mediaActionSponsorName, { color: theme.colors.text }]}
+                  style={[
+                    styles.mediaActionSponsorName,
+                    { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
+                  ]}
                   numberOfLines={2}
                 >
                   {sponsorName}
@@ -8849,9 +11173,13 @@ function MediaScreen({
           {
             backgroundColor: isGradientEliteTheme(theme)
               ? theme.colors.buttonBackground
+              : isSchoolPride
+              ? withAlpha(theme.colors.primary, '0E')
               : theme.colors.cardAlt,
             borderColor: isGradientEliteTheme(theme)
               ? theme.colors.buttonBackground
+              : isSchoolPride
+              ? withAlpha(theme.colors.primary, '18')
               : theme.colors.border,
           },
         ]}
@@ -8862,6 +11190,8 @@ function MediaScreen({
           color={
             isGradientEliteTheme(theme)
               ? theme.colors.buttonText
+              : isSchoolPride
+              ? theme.colors.primary
               : theme.colors.text
           }
         />
@@ -8877,11 +11207,13 @@ function MediaScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      <LinearGradient
-        colors={getThemeBackdropGradient(theme)}
-        style={styles.teamsScreenBackdrop}
-        pointerEvents="none"
-      />
+      {!isSchoolPrideTheme(theme) ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
 
       <LinearGradient
         colors={getThemeHeroGradient(theme)}
@@ -8938,13 +11270,18 @@ function MediaScreen({
             isGamedayTheme(theme) ? { maxWidth: '76%' } : null,
           ]}
         >
-          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>
+          <Text
+            style={[
+              styles.teamsHubEyebrow,
+              { color: isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText },
+            ]}
+          >
             Watch + Listen
           </Text>
           <Text
             style={[
               styles.teamsHubTitle,
-              { color: theme.colors.text },
+              { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
               isModernTheme(theme)
                 ? { fontSize: 24, lineHeight: 28, marginBottom: 1 }
                 : null,
@@ -8956,7 +11293,7 @@ function MediaScreen({
             <Text
               style={[
                 styles.teamsHubMascot,
-                { color: theme.colors.text },
+                { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
                 isModernTheme(theme) ? { marginTop: 1 } : null,
               ]}
             >
@@ -8966,7 +11303,7 @@ function MediaScreen({
           <Text
             style={[
               styles.teamsHubText,
-              { color: theme.colors.mutedText },
+              { color: isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText },
               isModernTheme(theme) ? { marginTop: 6, lineHeight: 18 } : null,
             ]}
           >
@@ -8986,7 +11323,12 @@ function MediaScreen({
             getThemeCardShellStyle(theme),
           ]}
         >
-          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+          <Text
+            style={[
+              styles.emptyTitle,
+              { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
+            ]}
+          >
             No media links are available.
           </Text>
         </View>
@@ -9390,6 +11732,15 @@ function ScheduleScreen({
           styles.scheduleHero,
           getThemeHeroShellStyle(theme),
           getThemeCompactInnerHeroStyle(theme),
+          isSchoolPrideTheme(theme)
+            ? {
+                overflow: 'hidden',
+                borderRadius: 6,
+                marginBottom: 14,
+                paddingTop: 12,
+                paddingBottom: 16,
+              }
+            : null,
           isCleanSlateTheme(theme)
             ? {
                 marginTop: 0,
@@ -9401,9 +11752,34 @@ function ScheduleScreen({
             : null,
         ]}
       >
+        {isSchoolPrideTheme(theme) ? (
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 10,
+                backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+              }}
+            />
+          </>
+        ) : null}
         <Pressable
           style={[
             styles.backButton,
+            isSchoolPrideTheme(theme)
+              ? {
+                  marginBottom: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                  borderWidth: 1,
+                  borderColor: withAlpha(theme.colors.primary, '1A'),
+                  borderRadius: 4,
+                }
+              : null,
             isModernTheme(theme)
               ? {
                   marginBottom: 10,
@@ -9438,7 +11814,9 @@ function ScheduleScreen({
             name="arrow-back"
             size={20}
             color={
-              isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+              isSchoolPrideTheme(theme)
+                ? theme.colors.primary
+                : isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
                 ? theme.colors.text
                 : BRAND.white
             }
@@ -9448,7 +11826,9 @@ function ScheduleScreen({
               styles.backButtonText,
               {
                 color:
-                  isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPrideTheme(theme)
+                    ? theme.colors.primary
+                    : isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
               },
@@ -9481,16 +11861,22 @@ function ScheduleScreen({
           </View>
         ) : null}
 
-        <Text
-          style={[
-            styles.scheduleHeroTitle,
-            {
-              color:
-                isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+          <Text
+            style={[
+              styles.scheduleHeroTitle,
+              {
+                color:
+                  isSchoolPrideTheme(theme)
+                    ? getSchoolPrideTextColor()
+                    : isCleanSlateTheme(theme) ||
+                      isModernTheme(theme) ||
+                      isGamedayTheme(theme)
                   ? theme.colors.text
                   : BRAND.white,
             },
-            isModernTheme(theme)
+            isSchoolPrideTheme(theme)
+              ? { fontSize: 24, lineHeight: 28, fontWeight: '900' as const, letterSpacing: 0.2 }
+              : isModernTheme(theme)
               ? { fontSize: 22, lineHeight: 26, fontWeight: '800' as const }
               : null,
           ]}
@@ -9503,11 +11889,23 @@ function ScheduleScreen({
               styles.scheduleHeroSub,
               {
                 color:
-                  isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPrideTheme(theme)
+                    ? getSchoolPrideMutedTextColor()
+                    : isCleanSlateTheme(theme) ||
+                      isModernTheme(theme) ||
+                      isGamedayTheme(theme)
                     ? theme.colors.mutedText
                     : BRAND.lightGray,
               },
-              isModernTheme(theme)
+              isSchoolPrideTheme(theme)
+                ? {
+                    fontSize: 11,
+                    marginTop: 3,
+                    fontWeight: '800' as const,
+                    letterSpacing: 0.5,
+                    textTransform: 'uppercase' as const,
+                  }
+                : isModernTheme(theme)
                 ? {
                     fontSize: 11,
                     marginTop: 2,
@@ -9545,6 +11943,17 @@ function ScheduleScreen({
                 key={item.id}
                 style={[
                   styles.teamScheduleCard,
+                  isSchoolPrideTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.card,
+                        borderColor: withAlpha(theme.colors.primary, '16'),
+                        borderTopWidth: 8,
+                        borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                        borderRadius: 6,
+                        paddingHorizontal: 13,
+                        paddingVertical: 12,
+                      }
+                    : null,
                   isCleanSlateTheme(theme)
                     ? {
                         backgroundColor: theme.colors.card,
@@ -9566,6 +11975,13 @@ function ScheduleScreen({
                     <View
                       style={[
                         styles.teamScheduleLogoPlate,
+                        isSchoolPrideTheme(theme)
+                          ? {
+                              backgroundColor: withAlpha(theme.colors.background, 'D0'),
+                              borderColor: withAlpha(theme.colors.secondary, '44'),
+                              borderRadius: 6,
+                            }
+                          : null,
                         isCleanSlateTheme(theme)
                           ? {
                               backgroundColor: theme.colors.surface,
@@ -9597,6 +12013,12 @@ function ScheduleScreen({
                     style={[
                       styles.scheduleSportTag,
                       styles.teamScheduleSportTag,
+                        isSchoolPrideTheme(theme)
+                          ? {
+                            backgroundColor: theme.colors.primary,
+                            borderRadius: 4,
+                          }
+                        : null,
                       isCleanSlateTheme(theme)
                         ? { backgroundColor: theme.colors.primary, borderRadius: 4 }
                         : isGradientEliteTheme(theme)
@@ -9621,6 +12043,9 @@ function ScheduleScreen({
                   <Text
                     style={[
                       styles.teamScheduleMatchup,
+                      isSchoolPrideTheme(theme)
+                        ? { color: theme.colors.text, fontSize: 19, lineHeight: 22, fontWeight: '900' }
+                        : null,
                       isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                         ? { color: theme.colors.text, fontSize: 18, lineHeight: 21 }
                         : null,
@@ -9634,6 +12059,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleStatus,
+                        isSchoolPrideTheme(theme)
+                          ? { color: theme.colors.secondary, fontWeight: '800' }
+                          : null,
                         isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                           ? { color: theme.colors.primary }
                           : null,
@@ -9644,7 +12072,14 @@ function ScheduleScreen({
                   ) : null}
 
                   {item.hasScore && item.teamScore && item.opponentScore ? (
-                    <Text style={styles.scoreText}>
+                    <Text
+                      style={[
+                        styles.scoreText,
+                        isSchoolPrideTheme(theme)
+                          ? { color: getSchoolPrideTextColor() }
+                          : null,
+                      ]}
+                    >
                       {item.result} {item.teamScore} - {item.opponentScore}
                     </Text>
                   ) : null}
@@ -9653,6 +12088,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleLocation,
+                        isSchoolPrideTheme(theme)
+                          ? { color: theme.colors.mutedText }
+                          : null,
                         isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                           ? { color: theme.colors.mutedText }
                           : null,
@@ -9668,6 +12106,9 @@ function ScheduleScreen({
                   <Text
                     style={[
                       styles.teamScheduleDate,
+                      isSchoolPrideTheme(theme)
+                        ? { color: getSchoolPrideDepthColor(theme), fontWeight: '900' }
+                        : null,
                       isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                         ? { color: theme.colors.text }
                         : null,
@@ -9679,6 +12120,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleTime,
+                        isSchoolPrideTheme(theme)
+                          ? { color: theme.colors.mutedText }
+                          : null,
                         isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                           ? { color: theme.colors.mutedText }
                           : null,
@@ -9697,6 +12141,17 @@ function ScheduleScreen({
                   key={item.id}
                   style={[
                     styles.teamScheduleCard,
+                  isSchoolPrideTheme(theme)
+                    ? {
+                        backgroundColor: theme.colors.card,
+                          borderColor: withAlpha(theme.colors.primary, '16'),
+                          borderTopWidth: 8,
+                          borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                          borderRadius: 6,
+                          paddingHorizontal: 13,
+                          paddingVertical: 12,
+                        }
+                      : null,
                     isCleanSlateTheme(theme)
                       ? {
                           backgroundColor: theme.colors.card,
@@ -9735,10 +12190,17 @@ function ScheduleScreen({
                   <View style={styles.teamScheduleLogoColumn}>
                     {item.opponentLogoUrl ? (
                       <View
-                        style={[
-                          styles.teamScheduleLogoPlate,
-                          isCleanSlateTheme(theme)
-                            ? {
+                      style={[
+                        styles.teamScheduleLogoPlate,
+                        isSchoolPrideTheme(theme)
+                          ? {
+                              backgroundColor: withAlpha(theme.colors.background, 'D0'),
+                              borderColor: withAlpha(theme.colors.secondary, '44'),
+                              borderRadius: 6,
+                            }
+                          : null,
+                        isCleanSlateTheme(theme)
+                          ? {
                                 backgroundColor: theme.colors.surface,
                                 borderColor: theme.colors.border,
                                 borderRadius: 5,
@@ -9768,6 +12230,12 @@ function ScheduleScreen({
                     style={[
                       styles.scheduleSportTag,
                       styles.teamScheduleSportTag,
+                      isSchoolPrideTheme(theme)
+                        ? {
+                            backgroundColor: theme.colors.primary,
+                            borderRadius: 4,
+                          }
+                        : null,
                       isCleanSlateTheme(theme)
                         ? { backgroundColor: theme.colors.primary, borderRadius: 4 }
                         : isGradientEliteTheme(theme)
@@ -9792,6 +12260,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleMatchup,
+                        isSchoolPrideTheme(theme)
+                          ? { color: theme.colors.text, fontSize: 19, lineHeight: 22, fontWeight: '900' }
+                          : null,
                         isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                           ? { color: theme.colors.text, fontSize: 18, lineHeight: 21 }
                           : null,
@@ -9805,6 +12276,9 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleStatus,
+                          isSchoolPrideTheme(theme)
+                            ? { color: theme.colors.secondary, fontWeight: '800' }
+                            : null,
                           isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                             ? { color: theme.colors.primary }
                             : null,
@@ -9815,7 +12289,14 @@ function ScheduleScreen({
                     ) : null}
 
                     {item.hasScore && item.teamScore && item.opponentScore ? (
-                      <Text style={styles.teamScheduleScore}>
+                      <Text
+                        style={[
+                          styles.teamScheduleScore,
+                          isSchoolPrideTheme(theme)
+                            ? { color: getSchoolPrideTextColor() }
+                            : null,
+                        ]}
+                      >
                         {item.result} {item.teamScore} - {item.opponentScore}
                       </Text>
                     ) : null}
@@ -9824,6 +12305,9 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleLocation,
+                          isSchoolPrideTheme(theme)
+                            ? { color: theme.colors.mutedText }
+                            : null,
                           isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                             ? { color: theme.colors.mutedText }
                             : null,
@@ -9839,6 +12323,9 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleDate,
+                        isSchoolPrideTheme(theme)
+                          ? { color: getSchoolPrideDepthColor(theme), fontWeight: '900' }
+                          : null,
                         isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                           ? { color: theme.colors.text }
                           : null,
@@ -9850,6 +12337,9 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleTime,
+                          isSchoolPrideTheme(theme)
+                            ? { color: theme.colors.mutedText }
+                            : null,
                           isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                             ? { color: theme.colors.mutedText }
                             : null,
@@ -11671,12 +14161,45 @@ function SportDetailScreen({
           styles.sportHeader,
           getThemeHeroShellStyle(theme),
           getThemeCompactInnerHeroStyle(theme),
+          isSchoolPrideTheme(theme)
+            ? {
+                paddingTop: 12,
+                paddingBottom: 16,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isModernTheme(theme) ? { paddingBottom: 12 } : null,
         ]}
       >
+        {isSchoolPrideTheme(theme) ? (
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 10,
+                backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+              }}
+            />
+          </>
+        ) : null}
         <Pressable
           style={[
             styles.backButton,
+            isSchoolPrideTheme(theme)
+              ? {
+                  marginBottom: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                  borderWidth: 1,
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                  borderRadius: 4,
+                }
+              : null,
             isModernTheme(theme)
               ? {
                   marginBottom: 10,
@@ -11711,7 +14234,9 @@ function SportDetailScreen({
             name="arrow-back"
             size={20}
             color={
-              isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+              isSchoolPrideTheme(theme)
+                ? theme.colors.primary
+                : isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
                 ? theme.colors.text
                 : BRAND.white
             }
@@ -11721,7 +14246,9 @@ function SportDetailScreen({
               styles.backButtonText,
               {
                 color:
-                  isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPrideTheme(theme)
+                    ? theme.colors.primary
+                    : isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
               },
@@ -11743,7 +14270,9 @@ function SportDetailScreen({
               styles.sportHeaderTitle,
               {
                 color:
-                  isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPrideTheme(theme)
+                    ? theme.colors.text
+                    : isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
               },
@@ -11780,7 +14309,9 @@ function SportDetailScreen({
               styles.sportHeaderSub,
               {
                 color:
-                  isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPrideTheme(theme)
+                    ? theme.colors.mutedText
+                    : isCleanSlateTheme(theme) || isModernTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.mutedText
                     : BRAND.lightGray,
               },
@@ -11952,6 +14483,18 @@ function SportDetailScreen({
       ) : visibleEvents.length === 0 ? (
         <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
           <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No upcoming games found.</Text>
+          <Text
+            style={[
+              styles.emptyText,
+              {
+                color: isSchoolPrideTheme(theme)
+                  ? getSchoolPrideMutedTextColor()
+                  : theme.colors.mutedText,
+              },
+            ]}
+          >
+            Check back soon for the next game on the schedule.
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -11974,6 +14517,17 @@ function SportDetailScreen({
                 key={item.id}
                 style={[
                   styles.teamGameCard,
+                  isSchoolPrideTheme(theme)
+                    ? {
+                        backgroundColor: getSchoolPrideSurfaceColor(),
+                        borderColor: getSchoolPrideBorderColor(),
+                        borderTopWidth: 8,
+                        borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                        borderRadius: 6,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                      }
+                    : null,
                   isGamedayTheme(theme)
                     ? {
                         backgroundColor: withAlpha(theme.colors.secondary, 'EC'),
@@ -12024,6 +14578,8 @@ function SportDetailScreen({
                         {
                           color: isGamedayTheme(theme)
                             ? theme.colors.primary
+                            : isSchoolPrideTheme(theme)
+                            ? getSchoolPrideDepthColor(theme)
                             : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                             ? theme.colors.primary
                             : BRAND.lightGray,
@@ -12041,6 +14597,8 @@ function SportDetailScreen({
                           {
                             color: isGamedayTheme(theme)
                               ? theme.colors.mutedText
+                              : isSchoolPrideTheme(theme)
+                              ? theme.colors.mutedText
                               : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                               ? theme.colors.mutedText
                               : BRAND.gray,
@@ -12057,6 +14615,7 @@ function SportDetailScreen({
                         {
                           color:
                             isGamedayTheme(theme) ||
+                            isSchoolPrideTheme(theme) ||
                             isCleanSlateTheme(theme) ||
                             isGradientEliteTheme(theme)
                               ? theme.colors.text
@@ -12077,6 +14636,7 @@ function SportDetailScreen({
                             {
                               color:
                                 isGamedayTheme(theme) ||
+                                isSchoolPrideTheme(theme) ||
                                 isCleanSlateTheme(theme) ||
                                 isGradientEliteTheme(theme)
                                   ? theme.colors.text
@@ -12092,6 +14652,7 @@ function SportDetailScreen({
                             {
                               color:
                                 isGamedayTheme(theme) ||
+                                isSchoolPrideTheme(theme) ||
                                 isCleanSlateTheme(theme) ||
                                 isGradientEliteTheme(theme)
                                   ? theme.colors.mutedText
@@ -12107,6 +14668,7 @@ function SportDetailScreen({
                             {
                               color:
                                 isGamedayTheme(theme) ||
+                                isSchoolPrideTheme(theme) ||
                                 isCleanSlateTheme(theme) ||
                                 isGradientEliteTheme(theme)
                                   ? theme.colors.text
@@ -12126,6 +14688,7 @@ function SportDetailScreen({
                         {
                           color:
                             isGamedayTheme(theme) ||
+                            isSchoolPrideTheme(theme) ||
                             isCleanSlateTheme(theme) ||
                             isGradientEliteTheme(theme)
                               ? theme.colors.text
@@ -12143,6 +14706,8 @@ function SportDetailScreen({
                           styles.teamGameVenue,
                           {
                             color: isGamedayTheme(theme)
+                              ? theme.colors.mutedText
+                              : isSchoolPrideTheme(theme)
                               ? theme.colors.mutedText
                               : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                               ? theme.colors.mutedText
@@ -12166,6 +14731,12 @@ function SportDetailScreen({
                               backgroundColor: withAlpha(theme.colors.primary, '18'),
                               borderColor: withAlpha(theme.colors.primary, '34'),
                               borderRadius: 10,
+                            }
+                          : isSchoolPrideTheme(theme)
+                          ? {
+                              backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                              borderColor: getSchoolPrideBorderColor(),
+                              borderRadius: 6,
                             }
                           : null,
                         isGradientEliteTheme(theme)
@@ -12208,6 +14779,18 @@ function SportDetailScreen({
       ) : newsItems.length === 0 ? (
         <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
           <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No team news found.</Text>
+          <Text
+            style={[
+              styles.emptyText,
+              {
+                color: isSchoolPrideTheme(theme)
+                  ? getSchoolPrideMutedTextColor()
+                  : theme.colors.mutedText,
+              },
+            ]}
+          >
+            New stories and features will show up here as they publish.
+          </Text>
         </View>
       ) : (
         <View style={styles.newsList}>
@@ -12248,6 +14831,7 @@ function NewsListScreen({
     schoolDisplayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
     'Athletics';
   const heroMascot = mascotName?.trim() || '';
+  const isSchoolPride = isSchoolPrideTheme(theme);
 
   return (
     <ScrollView
@@ -12257,11 +14841,13 @@ function NewsListScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      <LinearGradient
-        colors={getThemeBackdropGradient(theme)}
-        style={styles.teamsScreenBackdrop}
-        pointerEvents="none"
-      />
+      {!isSchoolPride ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
 
       <LinearGradient
         colors={getThemeHeroGradient(theme)}
@@ -12269,6 +14855,15 @@ function NewsListScreen({
           styles.teamsHubHero,
           getThemeHeroShellStyle(theme),
           getThemeCompactInnerHeroStyle(theme),
+          isSchoolPrideTheme(theme)
+            ? {
+                paddingTop: 18,
+                paddingBottom: 20,
+                paddingHorizontal: 18,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isModernTheme(theme)
             ? {
                 paddingTop: 12,
@@ -12278,27 +14873,45 @@ function NewsListScreen({
             : null,
         ]}
       >
-        <View
-          style={[
-            styles.teamsHubAccentRail,
-            { backgroundColor: getThemeHeroAccentColor(theme) },
-            isGamedayTheme(theme)
-              ? {
-                  width: 10,
-                  borderTopRightRadius: 4,
-                  borderBottomRightRadius: 4,
-                  top: 14,
-                  bottom: 14,
-                }
-              : null,
-          ]}
-        />
+        {isSchoolPrideTheme(theme) ? (
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 14,
+                backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+              }}
+            />
+          </>
+        ) : (
+          <View
+            style={[
+              styles.teamsHubAccentRail,
+              { backgroundColor: getThemeHeroAccentColor(theme) },
+              isGamedayTheme(theme)
+                ? {
+                    width: 10,
+                    borderTopRightRadius: 4,
+                    borderBottomRightRadius: 4,
+                    top: 14,
+                    bottom: 14,
+                  }
+                : null,
+            ]}
+          />
+        )}
 
         {hasResolvedUrl(schoolLogoUrl) ? (
           <RemoteImage
             uri={schoolLogoUrl}
             style={[
               styles.teamsHubLogo,
+              isSchoolPrideTheme(theme)
+                ? { top: 18, right: 18, width: 92, height: 92, opacity: 0.98 }
+                : null,
               isModernTheme(theme) ? { top: 12, right: 14 } : null,
               isGamedayTheme(theme) ? { top: 12, right: 14, width: 88, height: 88 } : null,
               getModernInnerHeaderLogoStyle(theme),
@@ -12310,17 +14923,61 @@ function NewsListScreen({
           />
         ) : null}
 
-        <View style={[styles.teamsHubContent, isGamedayTheme(theme) ? { maxWidth: '76%' } : null]}>
-          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>
+        <View
+          style={[
+            styles.teamsHubContent,
+            isSchoolPrideTheme(theme) ? { maxWidth: '74%' } : null,
+            isGamedayTheme(theme) ? { maxWidth: '76%' } : null,
+          ]}
+        >
+          <Text
+            style={[
+              styles.teamsHubEyebrow,
+              { color: isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText },
+            ]}
+          >
             Latest News
           </Text>
-          <Text style={[styles.teamsHubTitle, { color: theme.colors.text }]}>{heroSchoolName}</Text>
-          {heroMascot ? (
-            <Text style={[styles.teamsHubMascot, { color: theme.colors.text }]}>{heroMascot}</Text>
-          ) : null}
-          <Text style={[styles.teamsHubText, { color: theme.colors.mutedText }]}>
-            School-wide athletics stories, features, and updates in one native feed.
+          <Text
+            style={[
+              styles.teamsHubTitle,
+              isSchoolPrideTheme(theme)
+                ? { color: getSchoolPrideTextColor(), fontSize: 32, lineHeight: 36, fontWeight: '900' }
+                : { color: theme.colors.text },
+            ]}
+          >
+            {heroSchoolName}
           </Text>
+          {heroMascot ? (
+            <Text
+              style={[
+                styles.teamsHubMascot,
+                { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
+              ]}
+            >
+              {heroMascot}
+            </Text>
+          ) : null}
+          {isSchoolPride ? (
+            <Text
+              style={[
+                styles.teamsHubText,
+                { color: getSchoolPrideMutedTextColor(), marginTop: 6, lineHeight: 20, fontSize: 14 },
+              ]}
+            >
+              School-wide athletics stories, features, and updates in one native feed.
+            </Text>
+          ) : null}
+          {!isSchoolPride ? (
+            <Text
+              style={[
+                styles.teamsHubText,
+                { color: theme.colors.mutedText },
+              ]}
+            >
+              School-wide athletics stories, features, and updates in one native feed.
+            </Text>
+          ) : null}
         </View>
       </LinearGradient>
 
@@ -12348,7 +15005,142 @@ function NewsListScreen({
         </View>
       ) : (
         <View style={styles.newsArchiveList}>
-          {newsItems.map((item) => {
+          {isSchoolPrideTheme(theme) && newsItems[0] ? (
+            <View style={{ gap: 14 }}>
+              <NewsCard
+                item={newsItems[0]}
+                featured
+                theme={theme}
+                onPress={() => onOpenStoryDetail(newsItems[0])}
+              />
+              <View style={{ gap: 12 }}>
+                {newsItems.slice(1).map((item) => {
+                  const sportLabel = item.sportLabel?.trim() || 'Athletics';
+                  const summary = item.summary?.trim() || item.description?.trim() || '';
+
+                  return (
+                    <Pressable
+                      key={`${item.link}-${item.title}`}
+                      style={[
+                        styles.newsArchiveCard,
+                        getThemeCardShellStyle(theme),
+                        {
+                          backgroundColor: getSchoolPrideSurfaceColor(),
+                          borderColor: getSchoolPrideBorderColor(),
+                          borderTopWidth: 8,
+                          borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                          borderRadius: 6,
+                          flexDirection: 'row',
+                          padding: 0,
+                          overflow: 'hidden',
+                        },
+                      ]}
+                      onPress={() => onOpenStoryDetail(item)}
+                    >
+                      {item.image ? (
+                        <View style={{ width: 142, minHeight: 176, position: 'relative' }}>
+                          <RemoteImage
+                            uri={item.image}
+                            style={{ width: 142, minHeight: 176 }}
+                            contentFit="cover"
+                            mode="story"
+                            label={item.title}
+                            theme={theme}
+                          />
+                          <LinearGradient
+                            colors={getSchoolPrideStoryOverlayColors()}
+                            locations={[0, 0.5, 0.82, 1]}
+                            start={{ x: 0.5, y: 0 }}
+                            end={{ x: 0.5, y: 1 }}
+                            style={StyleSheet.absoluteFillObject}
+                          />
+                        </View>
+                      ) : (
+                        <View
+                          style={{
+                            width: 142,
+                            minHeight: 176,
+                            backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRightWidth: 1,
+                            borderRightColor: getSchoolPrideBorderColor(),
+                          }}
+                        >
+                          <Ionicons name="newspaper-outline" size={24} color={theme.colors.primary} />
+                        </View>
+                      )}
+                      <View style={{ flex: 1, padding: 16, justifyContent: 'center' }}>
+                        <View style={styles.newsArchiveMetaRow}>
+                          <View
+                            style={[
+                              styles.featuredPill,
+                              getThemeEditorialPillStyle(theme),
+                            ]}
+                          >
+                            <Text style={[styles.featuredPillText, { color: BRAND.white }]}>
+                              {sportLabel}
+                            </Text>
+                          </View>
+                          <Text
+                            style={[
+                              styles.newsArchiveDate,
+                              { color: getSchoolPrideMutedTextColor() },
+                            ]}
+                          >
+                            {item.date || 'Latest'}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.newsArchiveTitle,
+                            { color: getSchoolPrideTextColor(), marginBottom: summary ? 8 : 0, lineHeight: 25 },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {item.title}
+                        </Text>
+                        {summary ? (
+                          <Text
+                            style={[styles.newsArchiveSummary, { color: getSchoolPrideMutedTextColor() }]}
+                            numberOfLines={2}
+                          >
+                            {summary}
+                          </Text>
+                        ) : null}
+                        <View
+                          style={{
+                            marginTop: 12,
+                            alignSelf: 'flex-start',
+                            backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                            borderWidth: 1,
+                            borderColor: getSchoolPrideBorderColor(),
+                            borderRadius: 6,
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: theme.colors.primary,
+                              fontSize: 11,
+                              lineHeight: 13,
+                              fontWeight: '900',
+                              letterSpacing: 0.4,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Read Story
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : (
+          newsItems.map((item) => {
             const sportLabel = item.sportLabel?.trim() || 'Athletics';
             const summary = item.summary?.trim() || item.description?.trim() || '';
 
@@ -12362,10 +15154,18 @@ function NewsListScreen({
                     borderColor: theme.colors.border,
                   },
                   getThemeCardShellStyle(theme),
+                  isSchoolPrideTheme(theme)
+                    ? {
+                        borderRadius: 6,
+                        borderColor: withAlpha(theme.colors.primary, '16'),
+                        borderTopWidth: 8,
+                        borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                      }
+                    : null,
                 ]}
                 onPress={() => onOpenStoryDetail(item)}
               >
-                {!isGamedayTheme(theme) ? (
+                {!isGamedayTheme(theme) && !isSchoolPrideTheme(theme) ? (
                   <View
                     style={[
                       styles.newsArchiveAccent,
@@ -12404,7 +15204,9 @@ function NewsListScreen({
                     <View
                       style={[
                         styles.featuredPill,
-                        isCleanSlateTheme(theme)
+                        isSchoolPrideTheme(theme)
+                          ? getThemeEditorialPillStyle(theme)
+                          : isCleanSlateTheme(theme)
                           ? getThemeEditorialPillStyle(theme)
                           : { backgroundColor: theme.colors.pillBackground },
                       ]}
@@ -12449,15 +15251,21 @@ function NewsListScreen({
                     backgroundColor: isGradientEliteTheme(theme) ? '#0A0A0A' : theme.colors.cardAlt,
                     borderColor: isGradientEliteTheme(theme)
                       ? 'rgba(255,255,255,0.14)'
+                      : isSchoolPrideTheme(theme)
+                      ? withAlpha(theme.colors.primary, '16')
                       : theme.colors.border,
                   },
                 ]}
                 >
-                  <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={isSchoolPrideTheme(theme) ? theme.colors.primary : theme.colors.text}
+                  />
                 </View>
               </Pressable>
             );
-          })}
+          }))}
         </View>
       )}
     </ScrollView>
@@ -12637,6 +15445,7 @@ function TicketsScreen({
 }) {
   const isLightMode = themeMode === 'light';
   const hasTicketsUrl = hasResolvedUrl(ticketsUrl);
+  const isSchoolPride = isSchoolPrideTheme(theme);
 
   return (
     <ScrollView
@@ -12660,7 +15469,9 @@ function TicketsScreen({
       ) : null}
       <LinearGradient
         colors={
-          isCleanSlateTheme(theme)
+          isSchoolPride
+            ? getThemeHeroGradient(theme)
+          : isCleanSlateTheme(theme)
             ? [theme.colors.surface, theme.colors.surface, theme.colors.surface]
           : isGamedayTheme(theme)
             ? [
@@ -12673,18 +15484,38 @@ function TicketsScreen({
         }
         style={[
           styles.tabHero,
+          isSchoolPride
+            ? {
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isCleanSlateTheme(theme) || isGamedayTheme(theme)
             ? getThemeHeroShellStyle(theme)
             : null,
           isGamedayTheme(theme) ? getThemeCompactInnerHeroStyle(theme) : null,
         ]}
       >
+        {isSchoolPride ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 10,
+              backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+            }}
+          />
+        ) : null}
         <Text
           style={[
             styles.tabHeroEyebrow,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
+                isSchoolPride
+                  ? theme.colors.mutedText
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
             },
@@ -12697,7 +15528,9 @@ function TicketsScreen({
             styles.tabHeroTitle,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
+                isSchoolPride
+                  ? theme.colors.text
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                   ? theme.colors.text
                   : BRAND.white,
             },
@@ -12710,7 +15543,9 @@ function TicketsScreen({
             styles.tabHeroText,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
+                isSchoolPride
+                  ? theme.colors.mutedText
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
             },
@@ -12729,6 +15564,14 @@ function TicketsScreen({
                   backgroundColor: withAlpha(theme.colors.secondary, 'EA'),
                   borderColor: withAlpha(theme.colors.primary, '42'),
                   borderRadius: 14,
+                }
+              : isSchoolPride
+              ? {
+                  backgroundColor: getSchoolPrideSurfaceColor(),
+                  borderColor: getSchoolPrideBorderColor(),
+                  borderTopWidth: 8,
+                  borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                  borderRadius: 6,
                 }
               : isGradientEliteTheme(theme)
               ? {
@@ -12749,7 +15592,9 @@ function TicketsScreen({
             name="ticket-outline"
             size={28}
             color={
-              isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
+              isSchoolPride
+                ? theme.colors.primary
+              : isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                 ? theme.colors.primary
                 : BRAND.white
             }
@@ -12760,7 +15605,9 @@ function TicketsScreen({
                 styles.watchCardTitle,
                 {
                   color:
-                    isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
+                    isSchoolPride
+                      ? getSchoolPrideTextColor()
+                    : isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                       ? theme.colors.text
                       : BRAND.white,
                 },
@@ -12773,7 +15620,9 @@ function TicketsScreen({
                 styles.watchCardText,
                 {
                   color:
-                    isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
+                    isSchoolPride
+                      ? getSchoolPrideMutedTextColor()
+                    : isCleanSlateTheme(theme) || isGamedayTheme(theme) || isGradientEliteTheme(theme)
                       ? theme.colors.mutedText
                       : BRAND.lightGray,
                 },
@@ -12805,6 +15654,7 @@ function MoreListRow({
   trailing?: React.ReactNode;
   theme?: AthleticOSResolvedTheme;
 }) {
+  const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <Pressable
       style={[
@@ -12814,6 +15664,15 @@ function MoreListRow({
               backgroundColor: withAlpha(theme.colors.secondary, 'EA'),
               borderColor: withAlpha(theme.colors.primary, '42'),
               borderRadius: 14,
+            }
+          : null,
+        isSchoolPride
+          ? {
+              backgroundColor: getSchoolPrideSurfaceColor(),
+              borderColor: getSchoolPrideBorderColor(),
+              borderTopWidth: 8,
+              borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+              borderRadius: 6,
             }
           : null,
         isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
@@ -12834,7 +15693,9 @@ function MoreListRow({
             styles.teamListTitle,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isSchoolPride
+                  ? getSchoolPrideTextColor()
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.text
                   : isGradientEliteTheme(theme)
                     ? theme.colors.primary
@@ -12850,7 +15711,9 @@ function MoreListRow({
               styles.teamListSub,
               {
                 color:
-                  isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPride
+                    ? getSchoolPrideMutedTextColor()
+                  : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.mutedText
                     : isGradientEliteTheme(theme)
                       ? withAlpha(theme.colors.text, 'B8')
@@ -12867,7 +15730,9 @@ function MoreListRow({
           name="chevron-forward"
           size={22}
           color={
-            isCleanSlateTheme(theme) || isGamedayTheme(theme)
+            isSchoolPride
+              ? theme.colors.primary
+            : isCleanSlateTheme(theme) || isGamedayTheme(theme)
               ? theme.colors.text
               : isGradientEliteTheme(theme)
                 ? theme.colors.primary
@@ -12910,6 +15775,7 @@ function MoreScreen({
     displayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
     'More';
   const heroMascot = mascotName?.trim() || '';
+  const isSchoolPride = isSchoolPrideTheme(theme);
   const renderSettingRow = (
     key: string,
     title: string,
@@ -12926,6 +15792,14 @@ function MoreScreen({
               backgroundColor: withAlpha(theme.colors.secondary, 'EA'),
               borderColor: withAlpha(theme.colors.primary, '42'),
               borderRadius: 14,
+            }
+          : isSchoolPride
+          ? {
+              backgroundColor: getSchoolPrideSurfaceColor(),
+              borderColor: getSchoolPrideBorderColor(),
+              borderTopWidth: 6,
+              borderTopColor: withAlpha(theme.colors.primary, 'D6'),
+              borderRadius: 6,
             }
           : {
               backgroundColor: isGradientEliteTheme(theme) ? '#050505' : theme.colors.card,
@@ -12954,11 +15828,13 @@ function MoreScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      <LinearGradient
-        colors={getThemeBackdropGradient(theme)}
-        style={styles.teamsScreenBackdrop}
-        pointerEvents="none"
-      />
+      {!isSchoolPride ? (
+        <LinearGradient
+          colors={getThemeBackdropGradient(theme)}
+          style={styles.teamsScreenBackdrop}
+          pointerEvents="none"
+        />
+      ) : null}
 
       <LinearGradient
         colors={getThemeHeroGradient(theme)}
@@ -12966,6 +15842,15 @@ function MoreScreen({
           styles.teamsHubHero,
           getThemeHeroShellStyle(theme),
           getThemeCompactInnerHeroStyle(theme),
+          isSchoolPride
+            ? {
+                paddingTop: 14,
+                paddingBottom: 16,
+                paddingHorizontal: 18,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isModernTheme(theme)
             ? {
                 paddingTop: 12,
@@ -12975,27 +15860,41 @@ function MoreScreen({
             : null,
         ]}
       >
-        <View
-          style={[
-            styles.teamsHubAccentRail,
-            { backgroundColor: getThemeHeroAccentColor(theme) },
-            isGamedayTheme(theme)
-              ? {
-                  width: 10,
-                  borderTopRightRadius: 4,
-                  borderBottomRightRadius: 4,
-                  top: 14,
-                  bottom: 14,
-                }
-              : null,
-          ]}
-        />
+        {isSchoolPride ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 10,
+              backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+            }}
+          />
+        ) : (
+          <View
+            style={[
+              styles.teamsHubAccentRail,
+              { backgroundColor: getThemeHeroAccentColor(theme) },
+              isGamedayTheme(theme)
+                ? {
+                    width: 10,
+                    borderTopRightRadius: 4,
+                    borderBottomRightRadius: 4,
+                    top: 14,
+                    bottom: 14,
+                  }
+                : null,
+            ]}
+          />
+        )}
 
         {hasResolvedUrl(schoolLogoUrl) ? (
           <RemoteImage
             uri={schoolLogoUrl}
             style={[
               styles.teamsHubLogo,
+              isSchoolPride ? { top: 18, right: 18, width: 92, height: 92 } : null,
               isModernTheme(theme) ? { top: 12, right: 14 } : null,
               isGamedayTheme(theme) ? { top: 12, right: 14, width: 88, height: 88 } : null,
               getModernInnerHeaderLogoStyle(theme),
@@ -13010,15 +15909,23 @@ function MoreScreen({
         <View
           style={[
             styles.teamsHubContent,
+            isSchoolPride ? { maxWidth: '74%' } : null,
             isModernTheme(theme) ? { maxWidth: '78%' } : null,
             isGamedayTheme(theme) ? { maxWidth: '76%' } : null,
           ]}
         >
-          <Text style={[styles.teamsHubEyebrow, { color: theme.colors.mutedText }]}>More</Text>
+          <Text
+            style={[
+              styles.teamsHubEyebrow,
+              { color: isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText },
+            ]}
+          >
+            More
+          </Text>
           <Text
             style={[
               styles.teamsHubTitle,
-              { color: theme.colors.text },
+              { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
               isModernTheme(theme)
                 ? { fontSize: 24, lineHeight: 28, marginBottom: 1 }
                 : null,
@@ -13030,7 +15937,7 @@ function MoreScreen({
             <Text
               style={[
                 styles.teamsHubMascot,
-                { color: theme.colors.text },
+                { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
                 isModernTheme(theme) ? { marginTop: 1 } : null,
               ]}
             >
@@ -13040,7 +15947,7 @@ function MoreScreen({
           <Text
             style={[
               styles.teamsHubText,
-              { color: theme.colors.mutedText },
+              { color: isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText },
               isModernTheme(theme) ? { marginTop: 6, lineHeight: 18 } : null,
             ]}
           >
@@ -13050,7 +15957,12 @@ function MoreScreen({
       </LinearGradient>
 
       <View style={styles.moreTabContent}>
-        <Text style={[styles.moreSectionLabel, { color: theme.colors.mutedText }]}>
+        <Text
+          style={[
+            styles.moreSectionLabel,
+            { color: isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText },
+          ]}
+        >
           My Teams
         </Text>
         <Pressable
@@ -13064,6 +15976,15 @@ function MoreScreen({
                 : theme.colors.border,
             },
             getThemeCardShellStyle(theme),
+            isSchoolPride
+              ? {
+                  backgroundColor: getSchoolPrideSurfaceColor(),
+                  borderRadius: 6,
+                  borderColor: getSchoolPrideBorderColor(),
+                  borderTopWidth: 8,
+                  borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                }
+              : null,
             isGradientEliteTheme(theme)
               ? {
                   backgroundColor: '#FFFFFF',
@@ -13073,7 +15994,7 @@ function MoreScreen({
           ]}
           onPress={onOpenManageTeams}
         >
-          {!isGamedayTheme(theme) ? (
+          {!isGamedayTheme(theme) && !isSchoolPride ? (
             <View
               style={[
                 styles.teamDirectoryAccent,
@@ -13109,9 +16030,11 @@ function MoreScreen({
             style={[
               styles.teamDirectoryChevronWrap,
               {
-                backgroundColor: isGradientEliteTheme(theme) ? '#FFFFFF' : theme.colors.cardAlt,
+                backgroundColor: isGradientEliteTheme(theme) ? '#FFFFFF' : isSchoolPride ? getSchoolPrideSoftSurfaceColor() : theme.colors.cardAlt,
                 borderColor: isGradientEliteTheme(theme)
                   ? 'rgba(255,255,255,0.22)'
+                  : isSchoolPride
+                  ? getSchoolPrideBorderColor()
                   : theme.colors.border,
               },
             ]}
@@ -13119,12 +16042,18 @@ function MoreScreen({
             <Ionicons
               name="chevron-forward"
               size={18}
-              color={isGradientEliteTheme(theme) ? theme.colors.primary : theme.colors.text}
+              color={isSchoolPride ? theme.colors.primary : isGradientEliteTheme(theme) ? theme.colors.primary : theme.colors.text}
             />
           </View>
         </Pressable>
 
-        <Text style={[styles.moreSectionLabel, styles.moreSectionTight, { color: theme.colors.mutedText }]}>
+        <Text
+          style={[
+            styles.moreSectionLabel,
+            styles.moreSectionTight,
+            { color: isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText },
+          ]}
+        >
           Settings
         </Text>
         <View
@@ -13136,6 +16065,15 @@ function MoreScreen({
                 ? 'rgba(255,255,255,0.18)'
                 : theme.colors.border,
             },
+            isSchoolPride
+              ? {
+                  backgroundColor: getSchoolPrideSoftSurfaceColor(),
+                  borderColor: getSchoolPrideBorderColor(),
+                  borderTopWidth: 6,
+                  borderTopColor: withAlpha(theme.colors.primary, 'A8'),
+                  borderRadius: 6,
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? {
                   borderRadius: 5,
@@ -13193,6 +16131,7 @@ function ManageTeamsScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
+  const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <ScrollView
       style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
@@ -13213,15 +16152,42 @@ function ManageTeamsScreen({
         colors={getThemeDarkHeroGradient(theme)}
         style={[
           styles.sportHeader,
+          isSchoolPride
+            ? {
+                paddingTop: 12,
+                paddingBottom: 16,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isCleanSlateTheme(theme) || isGamedayTheme(theme)
             ? getThemeHeroShellStyle(theme)
             : null,
           isGamedayTheme(theme) ? getThemeCompactInnerHeroStyle(theme) : null,
         ]}
       >
+        {isSchoolPride ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 10,
+              backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+            }}
+          />
+        ) : null}
         <Pressable
           style={[
             styles.backButton,
+            isSchoolPride
+              ? {
+                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                  borderRadius: 4,
+                }
+              : null,
             isGamedayTheme(theme)
               ? {
                   backgroundColor: withAlpha(theme.colors.primary, '18'),
@@ -13238,7 +16204,9 @@ function ManageTeamsScreen({
             name="arrow-back"
             size={20}
             color={
-              isCleanSlateTheme(theme) || isGamedayTheme(theme)
+              isSchoolPride
+                ? theme.colors.primary
+              : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                 ? theme.colors.text
                 : BRAND.white
             }
@@ -13248,7 +16216,9 @@ function ManageTeamsScreen({
               styles.backButtonText,
               {
                 color:
-                  isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPride
+                    ? theme.colors.primary
+                  : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
               },
@@ -13262,7 +16232,9 @@ function ManageTeamsScreen({
             styles.sportHeaderTitle,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isSchoolPride
+                  ? theme.colors.text
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.text
                   : BRAND.white,
             },
@@ -13275,7 +16247,9 @@ function ManageTeamsScreen({
             styles.sportHeaderSub,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isSchoolPride
+                  ? theme.colors.mutedText
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
             },
@@ -13304,6 +16278,14 @@ function ManageTeamsScreen({
                         borderColor: withAlpha(theme.colors.primary, '42'),
                         borderRadius: 14,
                       }
+                    : isSchoolPride
+                    ? {
+                        backgroundColor: getSchoolPrideSurfaceColor(),
+                        borderColor: getSchoolPrideBorderColor(),
+                        borderTopWidth: 8,
+                        borderTopColor: withAlpha(theme.colors.primary, 'DE'),
+                        borderRadius: 6,
+                      }
                     : null,
                   isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                     ? {
@@ -13321,7 +16303,9 @@ function ManageTeamsScreen({
                       styles.teamListTitle,
                       {
                         color:
-                          isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                          isSchoolPride
+                            ? getSchoolPrideTextColor()
+                          : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                             ? theme.colors.text
                             : isGradientEliteTheme(theme)
                               ? theme.colors.primary
@@ -13336,7 +16320,9 @@ function ManageTeamsScreen({
                       styles.teamListSub,
                       {
                         color:
-                          isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                          isSchoolPride
+                            ? getSchoolPrideMutedTextColor()
+                          : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                             ? theme.colors.mutedText
                             : isGradientEliteTheme(theme)
                               ? withAlpha(theme.colors.text, 'B8')
@@ -13356,6 +16342,11 @@ function ManageTeamsScreen({
                           backgroundColor: theme.colors.buttonBackground,
                           borderColor: isFollowing ? theme.colors.primary : theme.colors.border,
                         }
+                      : isSchoolPride
+                      ? {
+                          backgroundColor: isFollowing ? theme.colors.primary : getSchoolPrideSoftSurfaceColor(),
+                          borderColor: isFollowing ? theme.colors.primary : getSchoolPrideBorderColor(),
+                        }
                       : null,
                   ]}
                   onPress={() => onToggleFollowTeam(sport.id)}
@@ -13364,6 +16355,8 @@ function ManageTeamsScreen({
                     style={[
                       styles.inlineFollowButtonText,
                       isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
+                        ? { color: isFollowing ? theme.colors.buttonText : theme.colors.text }
+                        : isSchoolPride
                         ? { color: isFollowing ? theme.colors.buttonText : theme.colors.text }
                         : null,
                     ]}
@@ -13404,6 +16397,7 @@ function SettingsScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
+  const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <ScrollView
       style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
@@ -13424,15 +16418,42 @@ function SettingsScreen({
         colors={getThemeDarkHeroGradient(theme)}
         style={[
           styles.sportHeader,
+          isSchoolPride
+            ? {
+                paddingTop: 12,
+                paddingBottom: 16,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isCleanSlateTheme(theme) || isGamedayTheme(theme)
             ? getThemeHeroShellStyle(theme)
             : null,
           isGamedayTheme(theme) ? getThemeCompactInnerHeroStyle(theme) : null,
         ]}
       >
+        {isSchoolPride ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 10,
+              backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+            }}
+          />
+        ) : null}
         <Pressable
           style={[
             styles.backButton,
+            isSchoolPride
+              ? {
+                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                  borderRadius: 4,
+                }
+              : null,
             isGamedayTheme(theme)
               ? {
                   backgroundColor: withAlpha(theme.colors.primary, '18'),
@@ -13449,7 +16470,9 @@ function SettingsScreen({
             name="arrow-back"
             size={20}
             color={
-              isCleanSlateTheme(theme) || isGamedayTheme(theme)
+              isSchoolPride
+                ? theme.colors.primary
+              : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                 ? theme.colors.text
                 : BRAND.white
             }
@@ -13459,7 +16482,9 @@ function SettingsScreen({
               styles.backButtonText,
               {
                 color:
-                  isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPride
+                    ? theme.colors.primary
+                  : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
               },
@@ -13473,7 +16498,9 @@ function SettingsScreen({
             styles.sportHeaderTitle,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isSchoolPride
+                  ? theme.colors.text
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.text
                   : BRAND.white,
             },
@@ -13486,7 +16513,9 @@ function SettingsScreen({
             styles.sportHeaderSub,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isSchoolPride
+                  ? theme.colors.mutedText
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
             },
@@ -13511,6 +16540,8 @@ function SettingsScreen({
                     ? theme.colors.primary
                     : isGamedayTheme(theme)
                     ? theme.colors.secondary
+                    : isSchoolPride
+                    ? theme.colors.primary
                     : isCleanSlateTheme(theme)
                     ? theme.colors.primary
                     : BRAND.red,
@@ -13541,6 +16572,8 @@ function SettingsScreen({
                     ? theme.colors.primary
                     : isGamedayTheme(theme)
                     ? theme.colors.secondary
+                    : isSchoolPride
+                    ? theme.colors.primary
                     : isCleanSlateTheme(theme)
                     ? theme.colors.primary
                     : BRAND.red,
@@ -13565,6 +16598,8 @@ function SettingsScreen({
                     ? theme.colors.primary
                     : isGamedayTheme(theme)
                     ? theme.colors.secondary
+                    : isSchoolPride
+                    ? theme.colors.primary
                     : isCleanSlateTheme(theme)
                     ? theme.colors.primary
                     : BRAND.red,
@@ -13590,6 +16625,7 @@ function SavedEventsScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
+  const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <ScrollView
       style={[styles.screen, isLightMode ? styles.screenLight : null, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
@@ -13606,15 +16642,42 @@ function SavedEventsScreen({
         colors={getThemeDarkHeroGradient(theme)}
         style={[
           styles.sportHeader,
+          isSchoolPride
+            ? {
+                paddingTop: 12,
+                paddingBottom: 16,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }
+            : null,
           isCleanSlateTheme(theme) || isGamedayTheme(theme)
             ? getThemeHeroShellStyle(theme)
             : null,
           isGamedayTheme(theme) ? getThemeCompactInnerHeroStyle(theme) : null,
         ]}
       >
+        {isSchoolPride ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 10,
+              backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+            }}
+          />
+        ) : null}
         <Pressable
           style={[
             styles.backButton,
+            isSchoolPride
+              ? {
+                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                  borderColor: withAlpha(theme.colors.primary, '18'),
+                  borderRadius: 4,
+                }
+              : null,
             isGamedayTheme(theme)
               ? {
                   backgroundColor: withAlpha(theme.colors.primary, '18'),
@@ -13631,7 +16694,9 @@ function SavedEventsScreen({
             name="arrow-back"
             size={20}
             color={
-              isCleanSlateTheme(theme) || isGamedayTheme(theme)
+              isSchoolPride
+                ? theme.colors.primary
+              : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                 ? theme.colors.text
                 : BRAND.white
             }
@@ -13641,7 +16706,9 @@ function SavedEventsScreen({
               styles.backButtonText,
               {
                 color:
-                  isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                  isSchoolPride
+                    ? theme.colors.primary
+                  : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
               },
@@ -13655,7 +16722,9 @@ function SavedEventsScreen({
             styles.sportHeaderTitle,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isSchoolPride
+                  ? getSchoolPrideTextColor()
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.text
                   : BRAND.white,
             },
@@ -13668,7 +16737,9 @@ function SavedEventsScreen({
             styles.sportHeaderSub,
             {
               color:
-                isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                isSchoolPride
+                  ? getSchoolPrideMutedTextColor()
+                : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
             },
@@ -13700,7 +16771,9 @@ function BottomNav({
   const isModern = isModernTheme(theme);
   const isGameday = isGamedayTheme(theme);
   const isGradientElite = isGradientEliteTheme(theme);
+  const isSchoolPride = isSchoolPrideTheme(theme);
   const isCleanSlate = isCleanSlateTheme(theme) && !isModern;
+  const schoolPrideDepthColor = isSchoolPride ? getSchoolPrideDepthColor(theme) : '';
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const homeItem = items.find((item) => item.key === 'home');
   const homeActive = homeItem?.active ?? false;
@@ -13798,6 +16871,28 @@ function BottomNav({
               elevation: 0,
             }
           : null,
+        isSchoolPride
+          ? {
+              backgroundColor: getSchoolPrideSurfaceColor(),
+              borderTopWidth: 1,
+              borderTopColor: getSchoolPrideBorderColor(),
+              borderLeftWidth: 1,
+              borderRightWidth: 1,
+              borderLeftColor: getSchoolPrideBorderColor(),
+              borderRightColor: getSchoolPrideBorderColor(),
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              paddingTop: 8,
+              paddingBottom: 10,
+              minHeight: 64,
+              overflow: 'hidden',
+              shadowColor: 'rgba(17,17,17,0.08)',
+              shadowOpacity: 0.06,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: -2 },
+              elevation: 3,
+            }
+          : null,
         isCleanSlate
           ? {
               backgroundColor: theme.colors.surface,
@@ -13839,6 +16934,14 @@ function BottomNav({
           start={{ x: 1, y: 1 }}
           end={{ x: 0, y: 0 }}
           style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
+      ) : isSchoolPride ? (
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: getSchoolPrideSurfaceColor() },
+          ]}
           pointerEvents="none"
         />
       ) : null}
@@ -13940,6 +17043,25 @@ function BottomNav({
                               elevation: active ? 7 : 4,
                             }
                           : null,
+                        isSchoolPride
+                          ? {
+                              width: 64,
+                              height: 64,
+                              borderRadius: 10,
+                              backgroundColor: active
+                                ? theme.colors.primary
+                                : getSchoolPrideSurfaceColor(),
+                              borderWidth: 1.5,
+                              borderColor: active
+                                ? withAlpha(schoolPrideDepthColor, 'A0')
+                                : getSchoolPrideBorderColor(),
+                              shadowColor: withAlpha(theme.colors.primary, active ? '14' : '08'),
+                              shadowOpacity: active ? 0.08 : 0.03,
+                              shadowRadius: active ? 10 : 4,
+                              shadowOffset: { width: 0, height: 4 },
+                              elevation: active ? 3 : 1,
+                            }
+                          : null,
                         isCleanSlate
                           ? {
                               width: 46,
@@ -13987,7 +17109,7 @@ function BottomNav({
                         <Ionicons
                           name="radio-outline"
                           size={18}
-                          color={active ? theme.colors.primary : theme.colors.mutedText}
+                          color={active ? theme.colors.buttonText : theme.colors.primary}
                         />
                       )}
                     </View>
@@ -13996,13 +17118,18 @@ function BottomNav({
                 <Text
                   style={[
                     styles.asnTabLabel,
-                    {
-                      color: active
-                        ? isGameday
-                          ? theme.colors.secondary
-                          : theme.colors.primary
+                      {
+                        color: active
+                          ? isGameday
+                            ? theme.colors.secondary
+                            : isSchoolPride
+                            ? theme.colors.primary
+                            : theme.colors.primary
                         : withAlpha(theme.colors.text, '88'),
-                      fontWeight: active && (isModern || isGameday || isGradientElite) ? '800' : '700',
+                      fontWeight:
+                        active && (isModern || isGameday || isGradientElite || isSchoolPride)
+                          ? '800'
+                          : '700',
                     },
                   ]}
                 >
@@ -14027,6 +17154,20 @@ function BottomNav({
                       {
                         backgroundColor: theme.colors.accent,
                         width: 20,
+                        opacity: 1,
+                      },
+                    ]}
+                  />
+                ) : null}
+                {isSchoolPride && active ? (
+                  <View
+                    style={[
+                      styles.modernNavActiveIndicator,
+                      {
+                        backgroundColor: schoolPrideDepthColor,
+                        width: 26,
+                        height: 4,
+                        borderRadius: 2,
                         opacity: 1,
                       },
                     ]}
@@ -14061,6 +17202,30 @@ function BottomNav({
                     size={21}
                     color={active ? theme.colors.primary : withAlpha(theme.colors.text, '88')}
                   />
+                ) : isSchoolPride ? (
+                  <View
+                    style={{
+                      backgroundColor: active
+                        ? theme.colors.primary
+                        : getSchoolPrideSurfaceColor(),
+                      borderWidth: 1,
+                      borderColor: active
+                        ? withAlpha(schoolPrideDepthColor, 'A0')
+                        : getSchoolPrideBorderColor(),
+                      borderRadius: 10,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      marginBottom: 4,
+                      minWidth: 48,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name={item.icon!}
+                      size={20}
+                      color={active ? theme.colors.buttonText : theme.colors.primary}
+                    />
+                  </View>
                 ) : (
                   <Ionicons
                     name={item.icon!}
@@ -14077,7 +17242,10 @@ function BottomNav({
                           ? theme.colors.secondary
                           : theme.colors.primary
                         : withAlpha(theme.colors.text, '88'),
-                      fontWeight: active && (isModern || isGameday || isGradientElite) ? '800' : '700',
+                      fontWeight:
+                        active && (isModern || isGameday || isGradientElite || isSchoolPride)
+                          ? '800'
+                          : '700',
                     },
                   ]}
                 >
@@ -14591,21 +17759,21 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       ...(nextThemeConfig ?? {}),
       theme_key: nextThemeConfig?.theme_key?.trim() || 'sec_power5',
       primary_color:
-        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite'
+        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite' || nextThemeKey === 'school_pride'
           ? mergedSchoolConfig.primaryColor?.trim() ||
             nextThemeConfig?.primary_color?.trim()
           : nextThemeConfig?.primary_color?.trim() ||
             mergedSchoolConfig.primaryColor?.trim()) ||
         '',
       secondary_color:
-        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite'
+        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite' || nextThemeKey === 'school_pride'
           ? mergedSchoolConfig.secondaryColor?.trim() ||
             nextThemeConfig?.secondary_color?.trim()
           : nextThemeConfig?.secondary_color?.trim() ||
             mergedSchoolConfig.secondaryColor?.trim()) ||
         '',
       accent_color:
-        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite'
+        (nextThemeKey === 'sec_power5' || nextThemeKey === 'gradient_elite' || nextThemeKey === 'school_pride'
           ? mergedSchoolConfig.accentColor?.trim() ||
             mergedSchoolConfig.primaryColor?.trim() ||
             mergedSchoolConfig.secondaryColor?.trim() ||

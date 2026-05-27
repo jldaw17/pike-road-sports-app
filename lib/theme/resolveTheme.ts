@@ -6,6 +6,7 @@ import type {
 import { cleanSlateTheme } from './themes/cleanSlateTheme';
 import { modernTheme } from './themes/modernTheme';
 import { DEFAULT_THEME_COLORS, power5Theme } from './themes/power5Theme';
+import { schoolPrideTheme } from './themes/schoolPrideTheme';
 
 const ATHLETICOS_THEME_PRESETS: AthleticOSThemePreset[] = [
   power5Theme,
@@ -129,6 +130,7 @@ const ATHLETICOS_THEME_PRESETS: AthleticOSThemePreset[] = [
       newsStyle: 'feature_stack',
     },
   },
+  schoolPrideTheme,
   {
     key: 'gradient_elite',
     label: 'Gradient Elite',
@@ -452,6 +454,11 @@ function resolveThemeHeroTokens(
         heroStart: resolvedPrimary || '#2A4A8D',
         heroEnd: resolvedSecondary || '#172B57',
       };
+    case 'school_pride_gradient':
+      return {
+        heroStart: resolvedPrimary || '#171717',
+        heroEnd: resolvedSecondary || '#050505',
+      };
     default:
       return {
         heroStart: resolvedAccent || DEFAULT_THEME_COLORS.heroStart,
@@ -489,6 +496,11 @@ function resolveThemePillTokens(
     case 'elite_badge':
       return {
         pillBackground: resolvedPrimary || resolvedAccent || '#1A1A1A',
+        pillText: '#FFFFFF',
+      };
+    case 'school_pride_badge':
+      return {
+        pillBackground: resolvedPrimary || '#171717',
         pillText: '#FFFFFF',
       };
     default:
@@ -571,6 +583,8 @@ export function resolveAthleticOSTheme(
       ? 'transparent'
       : preset.key === 'sec_power5'
       ? mixHexColors('#F5F5F5', resolvedPrimary || resolvedAccent || '#FFFFFF', 0.32)
+      : preset.key === 'school_pride'
+      ? mixHexColors('#F5F5F5', resolvedPrimary || resolvedAccent || '#FFFFFF', 0.28)
       : preset.key === 'gradient_elite'
       ? mixHexColors('#F5F5F5', resolvedPrimary || resolvedAccent || '#FFFFFF', 0.38)
       : resolvedStyles.navStyle === 'light_nav'
