@@ -521,6 +521,7 @@ export type AthleticOSScheduleEvent = {
   id?: string | number;
   school_id?: string | number;
   sport_id?: string | number;
+  season_id?: string | number;
   home_team_id?: string | number;
   away_team_id?: string | number;
   homeTeamId?: string | number;
@@ -548,6 +549,14 @@ export type AthleticOSScheduleEvent = {
   location_state?: string;
   external_url?: string;
   url?: string;
+  [key: string]: unknown;
+};
+
+type AthleticOSSeason = {
+  id?: string | number;
+  school_id?: string | number;
+  sport_id?: string | number;
+  is_current?: boolean | null;
   [key: string]: unknown;
 };
 
@@ -621,6 +630,38 @@ const SPORT_LABEL_FALLBACKS: Record<string, string> = {
   'boys-cross-country': 'Boys Cross Country',
   'girls-cross-country': 'Girls Cross Country',
 };
+
+async function getCurrentSeasonIdsBySchoolId(
+  schoolId: string | number,
+  sportId?: string | number | null
+) {
+  try {
+    const seasonQuery = supabase
+      .from('seasons')
+      .select('id, school_id, sport_id, is_current')
+      .eq('school_id', schoolId)
+      .eq('is_current', true);
+
+    const { data, error } =
+      sportId === undefined || sportId === null || sportId === ''
+        ? await seasonQuery
+        : await seasonQuery.eq('sport_id', sportId);
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as AthleticOSSeason[])
+      .map((season) => pickFirstId(season, ['id']))
+      .filter(Boolean) as string[];
+  } catch (error) {
+    if (isMissingAppOSRelationError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
 
 function pickFirstString(
   record: Record<string, unknown>,
@@ -1437,7 +1478,9 @@ export async function getRosterBySchoolIdAndSportId(
 ) {
   await requireSchoolById(schoolId);
 
-  const { data: rosterData, error: rosterError } = await supabase
+  const currentSeasonIds = await getCurrentSeasonIdsBySchoolId(schoolId, sportId);
+
+  let rosterQuery = supabase
     .from('athlete_roster_entries')
     .select(
       `
@@ -1451,6 +1494,7 @@ export async function getRosterBySchoolIdAndSportId(
         bio,
         school_id,
         sport_id,
+        season_id,
         sort_order,
         sport_photo_url,
         active
@@ -1458,6 +1502,12 @@ export async function getRosterBySchoolIdAndSportId(
     )
     .eq('school_id', schoolId)
     .eq('sport_id', sportId);
+
+  if (currentSeasonIds.length > 0) {
+    rosterQuery = rosterQuery.in('season_id', currentSeasonIds);
+  }
+
+  const { data: rosterData, error: rosterError } = await rosterQuery;
 
   if (rosterError) {
     throw rosterError;
@@ -2311,11 +2361,19 @@ export async function getScheduleEventsBySchoolId(schoolId: string | number) {
     schoolId: String(schoolId),
   });
 
+  const currentSeasonIds = await getCurrentSeasonIdsBySchoolId(schoolId);
+
   // Assumption to verify: `schedule_events.school_id` references `schools.id`.
-  const { data, error } = await supabase
+  let scheduleQuery = supabase
     .from('schedule_events')
     .select('*')
     .eq('school_id', schoolId);
+
+  if (currentSeasonIds.length > 0) {
+    scheduleQuery = scheduleQuery.in('season_id', currentSeasonIds);
+  }
+
+  const { data, error } = await scheduleQuery;
 
   if (error) {
     throw error;
