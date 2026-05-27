@@ -146,6 +146,9 @@ module.exports = () => {
   };
 
   const resolvedProjectId = resolveEasProjectId(variantConfig);
+  const resolvedUpdatesUrl = resolvedProjectId
+    ? `https://u.expo.dev/${resolvedProjectId}`
+    : undefined;
 
   if (resolvedProjectId) {
     nextExtra.eas = {
@@ -160,6 +163,13 @@ module.exports = () => {
     scheme: variantConfig.scheme,
     icon: resolvedIcon,
     splash: NATIVE_SPLASH_CONFIG,
+    runtimeVersion: {
+      policy: 'appVersion',
+    },
+    updates: {
+      ...(baseExpoConfig.updates || {}),
+      ...(resolvedUpdatesUrl ? { url: resolvedUpdatesUrl } : {}),
+    },
     ios: {
       ...(baseExpoConfig.ios || {}),
       bundleIdentifier: variantConfig.iosBundleIdentifier,

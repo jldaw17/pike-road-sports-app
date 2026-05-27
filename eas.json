@@ -5,16 +5,20 @@
   },
   "build": {
     "development": {
+      "channel": "development",
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
+      "channel": "preview",
       "distribution": "internal"
     },
     "production": {
+      "channel": "production",
       "autoIncrement": true
     },
     "pike-road": {
+      "channel": "production",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "pike-road",
@@ -22,6 +26,7 @@
       }
     },
     "pellcity": {
+      "channel": "production",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "pellcity",
@@ -29,6 +34,7 @@
       }
     },
     "athleticos": {
+      "channel": "production",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "athleticos",
@@ -36,6 +42,7 @@
       }
     },
     "recruitos": {
+      "channel": "production",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "recruitos",
@@ -43,6 +50,7 @@
       }
     },
     "sylacauga": {
+      "channel": "production",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "sylacauga",
