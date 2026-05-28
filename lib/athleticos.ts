@@ -2242,13 +2242,20 @@ export async function getSportScheduleEventsBySchoolId(
   schoolId: string | number,
   sportKey: string
 ) {
-  const [events, sport] = await Promise.all([
-    getScheduleEventsBySchoolId(schoolId),
-    getSportBySchoolIdAndKey(schoolId, sportKey),
-  ]);
+  const sport = await getSportBySchoolIdAndKey(schoolId, sportKey);
 
   const matchedSportId = sport ? pickFirstId(sport, ['id']) : undefined;
   if (matchedSportId) {
+    const sportScopedEvents = await getScheduleEventsBySchoolIdAndSportId(
+      schoolId,
+      matchedSportId
+    );
+
+    if (sportScopedEvents.length > 0) {
+      return sportScopedEvents;
+    }
+
+    const events = await getScheduleEventsBySchoolId(schoolId);
     const exactMatches = events.filter((event) => {
       const eventSportId = pickFirstId(event, ['sport_id']);
       const nestedSportValue =
@@ -2285,6 +2292,7 @@ export async function getSportScheduleEventsBySchoolId(
     });
   }
 
+  const events = await getScheduleEventsBySchoolId(schoolId);
   return events.filter((event) => scheduleEventMatchesSport(event, sportKey, sport));
 }
 
@@ -2409,6 +2417,35 @@ export async function getScheduleEventsBySchoolId(schoolId: string | number) {
   );
 
   return sortedEvents;
+}
+
+async function getScheduleEventsBySchoolIdAndSportId(
+  schoolId: string | number,
+  sportId: string | number
+) {
+  await requireSchoolById(schoolId);
+
+  const currentSeasonIds = await getCurrentSeasonIdsBySchoolId(schoolId, sportId);
+
+  let scheduleQuery = supabase
+    .from('schedule_events')
+    .select('*')
+    .eq('school_id', schoolId)
+    .eq('sport_id', sportId);
+
+  if (currentSeasonIds.length > 0) {
+    scheduleQuery = scheduleQuery.in('season_id', currentSeasonIds);
+  }
+
+  const { data, error } = await scheduleQuery;
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as AthleticOSScheduleEvent[]).sort((a, b) => {
+    return getScheduleEventSortTimestamp(a) - getScheduleEventSortTimestamp(b);
+  });
 }
 
 export function mapStoryToHomeNewsItem(
@@ -2573,7 +2610,8 @@ export function mapScheduleEventToHomeEventItem(
   let resultLabel = null;
 
   if (isFinal && teamScore != null && opponentScore != null) {
-    resultLabel = teamScore > opponentScore ? 'W' : 'L';
+    resultLabel =
+      teamScore > opponentScore ? 'W' : teamScore < opponentScore ? 'L' : 'T';
   }
 
   const hasScore = homeScore !== undefined && awayScore !== undefined;

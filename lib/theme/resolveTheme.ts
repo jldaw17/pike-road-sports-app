@@ -6,6 +6,7 @@ import type {
 import { cleanSlateTheme } from './themes/cleanSlateTheme';
 import { modernTheme } from './themes/modernTheme';
 import { DEFAULT_THEME_COLORS, power5Theme } from './themes/power5Theme';
+import { premiumTheme } from './themes/premiumTheme';
 import { schoolPrideTheme } from './themes/schoolPrideTheme';
 
 const ATHLETICOS_THEME_PRESETS: AthleticOSThemePreset[] = [
@@ -130,6 +131,7 @@ const ATHLETICOS_THEME_PRESETS: AthleticOSThemePreset[] = [
       newsStyle: 'feature_stack',
     },
   },
+  premiumTheme,
   schoolPrideTheme,
   {
     key: 'gradient_elite',
@@ -272,6 +274,16 @@ function resolveThemeSurfaceTokens(
   resolvedAccent = ''
 ) {
   switch (surfaceStyle) {
+    case 'premium_surface':
+      return {
+        background: '#FFFFFF',
+        surface: '#FFFFFF',
+        card: '#FFFFFF',
+        cardAlt: '#F8FAFC',
+        border: '#E5E7EB',
+        text: '#111111',
+        mutedText: '#4B5563',
+      };
     case 'elite_surface': {
       const neutralBackground = '#000000';
       const neutralSurface = '#050505';
@@ -414,6 +426,11 @@ function resolveThemeHeroTokens(
   resolvedAccent: string
 ) {
   switch (heroStyle) {
+    case 'premium_app_bar':
+      return {
+        heroStart: '#FFFFFF',
+        heroEnd: '#FFFFFF',
+      };
     case 'modern_gradient':
       return {
         heroStart: '#FFFFFF',
@@ -473,6 +490,11 @@ function resolveThemePillTokens(
   resolvedAccent: string
 ) {
   switch (pillStyle) {
+    case 'premium_badge':
+      return {
+        pillBackground: '#F3F4F6',
+        pillText: '#111111',
+      };
     case 'modern_badge':
       return {
         pillBackground: resolvedPrimary || '#1F3B7A',
@@ -526,6 +548,8 @@ export function resolveAthleticOSTheme(
   const preset =
     ATHLETICOS_THEME_PRESETS.find((item) => item.key === themeKey) ??
     power5Theme;
+  const isLockedStyleTheme =
+    preset.key === 'clean_slate' || preset.key === 'modern' || preset.key === 'premium';
   const isLockedLightTheme =
     preset.key === 'clean_slate' || preset.key === 'modern';
 
@@ -535,7 +559,7 @@ export function resolveAthleticOSTheme(
     normalizeHexColor(config?.secondary_color) || preset.colors.secondary;
   const resolvedAccent =
     normalizeHexColor(config?.accent_color) || preset.colors.accent;
-  const resolvedStyles = isLockedLightTheme
+  const resolvedStyles = isLockedStyleTheme
     ? { ...preset.styles }
     : {
         backgroundStyle:
