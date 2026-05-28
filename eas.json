@@ -57,6 +57,14 @@
         "EXPO_PUBLIC_SCHOOL_SLUG": "sylacauga",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "8673888c-85fd-46b5-adae-d1c603e9acbd"
       }
+    },
+    "hoover": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "hoover",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "hoover"
+      }
     }
   },
   "submit": {

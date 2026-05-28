@@ -58,6 +58,14 @@ const VARIANT_CONFIGS = {
     icon: './assets/images/schools/sylacauga/app-icon.png',
     easProjectId: '8673888c-85fd-46b5-adae-d1c603e9acbd',
   },
+  hoover: {
+    schoolSlug: 'hoover',
+    name: 'Hoover Athletics',
+    slug: 'hoover-athletics',
+    scheme: 'hooverathletics',
+    iosBundleIdentifier: 'com.athleticos.hoover',
+    icon: './assets/images/icon.png',
+  },
 };
 
 function isLocalDevelopment() {
@@ -76,7 +84,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover.'
   );
 }
 

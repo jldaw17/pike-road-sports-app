@@ -10,6 +10,7 @@
     "start:pellcity": "APP_VARIANT=pellcity EXPO_PUBLIC_SCHOOL_SLUG=pellcity npx expo start --clear",
     "start:gamedayos": "APP_VARIANT=gamedayos EXPO_PUBLIC_SCHOOL_SLUG=gamedayos npx expo start --clear",
     "start:sylacauga": "APP_VARIANT=sylacauga EXPO_PUBLIC_SCHOOL_SLUG=sylacauga npx expo start --clear",
+    "start:hoover": "APP_VARIANT=hoover EXPO_PUBLIC_SCHOOL_SLUG=hoover npx expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
