@@ -3335,7 +3335,7 @@ function SectionHeader({
       promotion: '📣 Promotion',
       upcoming_games: '📅 Upcoming Games',
       next_game: '📅 Upcoming Games',
-      live_coverage: '📡 Live Coverage',
+      live_coverage: '📺 Live Coverage',
       sponsor_carousel: '🤝 Supporting Sponsors',
       supporting_sponsors: '🤝 Supporting Sponsors',
       sponsors: '🤝 Supporting Sponsors',
@@ -10152,6 +10152,8 @@ function HomeScreen({
                       }
                     : isGradientEliteTheme(theme)
                     ? { color: theme.colors.primary }
+                    : isPremiumTheme(theme)
+                    ? { color: theme.colors.primary }
                     : isModernTheme(theme)
                     ? { color: theme.colors.primary }
                     : { color: BRAND.red },
@@ -10340,6 +10342,8 @@ function HomeScreen({
                       letterSpacing: 0.8,
                       textTransform: 'uppercase',
                     }
+                  : isPremiumTheme(theme)
+                  ? { color: theme.colors.primary }
                   : isModernTheme(theme)
                   ? { color: theme.colors.primary }
                   : isGamedayHome
@@ -10434,7 +10438,7 @@ function HomeScreen({
     if (isPremiumHome) {
       return (
         <React.Fragment key="live_coverage">
-          <OptionalSectionHeader title="📡 Live Coverage" theme={theme} />
+          <OptionalSectionHeader title="📺 Live Coverage" theme={theme} />
           {liveCoverageCard}
         </React.Fragment>
       );
