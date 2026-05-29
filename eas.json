@@ -65,6 +65,14 @@
         "APP_VARIANT": "hoover",
         "EXPO_PUBLIC_SCHOOL_SLUG": "hoover"
       }
+    },
+    "wetumpka": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "wetumpka",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "wetumpka"
+      }
     }
   },
   "submit": {

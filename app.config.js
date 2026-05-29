@@ -66,6 +66,14 @@ const VARIANT_CONFIGS = {
     iosBundleIdentifier: 'com.athleticos.hoover',
     icon: './assets/images/icon.png',
   },
+  wetumpka: {
+    schoolSlug: 'wetumpka',
+    name: 'Wetumpka Athletics',
+    slug: 'wetumpka-athletics',
+    scheme: 'wetumpkaathletics',
+    iosBundleIdentifier: 'com.athleticos.wetumpka',
+    icon: './assets/images/icon.png',
+  },
 };
 
 function isLocalDevelopment() {
@@ -84,7 +92,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka.'
   );
 }
 
