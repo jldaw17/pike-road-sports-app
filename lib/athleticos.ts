@@ -2330,6 +2330,7 @@ export async function getStoriesBySchoolSlug(slug: string) {
 
 export async function getStoriesBySchoolId(schoolId: string | number) {
   await requireSchoolById(schoolId);
+  const now = new Date().toISOString();
 
   // Assumption to verify: `stories.school_id` references `schools.id`.
   const { data: storiesData, error } = await supabase
@@ -2344,7 +2345,10 @@ export async function getStoriesBySchoolId(schoolId: string | number) {
         )
       `
     )
-    .eq('school_id', schoolId);
+    .eq('school_id', schoolId)
+    .eq('status', 'published')
+    .eq('is_hidden', false)
+    .or(`scheduled_for.is.null,scheduled_for.lte.${now}`);
 
   if (error) {
     throw error;

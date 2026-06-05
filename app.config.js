@@ -64,7 +64,7 @@ const VARIANT_CONFIGS = {
     slug: 'hoover-athletics',
     scheme: 'hooverathletics',
     iosBundleIdentifier: 'com.athleticos.hoover',
-    icon: './assets/images/icon.png',
+    icon: './assets/variants/hoover/icon.png',
   },
   wetumpka: {
     schoolSlug: 'wetumpka',
