@@ -21666,6 +21666,9 @@ export default function App() {
   const [scheduleScreenAccentColor, setScheduleScreenAccentColor] = useState(BRAND.primary);
   const [embeddedTitle, setEmbeddedTitle] = useState('');
   const [embeddedUrl, setEmbeddedUrl] = useState('');
+  const [activeEmbeddedBottomNavSlot, setActiveEmbeddedBottomNavSlot] = useState<string | null>(
+    null
+  );
 
 const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
 const [allNewsItems, setAllNewsItems] = useState<NewsItem[]>([]);
@@ -22683,6 +22686,7 @@ const handleEnableNotifications = async () => {
     sportFilter?: ScheduleSportFilter | null;
     refreshReason?: string;
   }) => {
+    setActiveEmbeddedBottomNavSlot(null);
     const source = Array.isArray(options?.events)
       ? 'custom_scheduleScreenEvents'
       : 'global_allEvents';
@@ -22740,17 +22744,20 @@ const handleEnableNotifications = async () => {
   );
 
   const openEmbedded = (title: string, url: string) => {
+    setActiveEmbeddedBottomNavSlot(null);
     setEmbeddedTitle(title);
     setEmbeddedUrl(url);
     setScreenMode('embedded');
   };
 
   const openSport = (sport: SportType) => {
+    setActiveEmbeddedBottomNavSlot(null);
     setSelectedSport(sport);
     setScreenMode('sportDetail');
   };
 
   const openRosterScreen = (options: OpenRosterOptions) => {
+    setActiveEmbeddedBottomNavSlot(null);
     setPreviousScreenMode(screenMode);
     setSelectedRosterSport(options.sport);
     setSelectedRosterSportId(options.sportId);
@@ -22762,12 +22769,14 @@ const handleEnableNotifications = async () => {
   };
 
   const handleOpenStoryDetail = (item: NewsItem) => {
+    setActiveEmbeddedBottomNavSlot(null);
     setPreviousScreenMode(screenMode);
     setSelectedStory(item);
     setScreenMode('storyDetail');
   };
 
   const openAthleteProfile = (athlete: AthleticOSRosterAthlete) => {
+    setActiveEmbeddedBottomNavSlot(null);
     setSelectedAthlete(athlete);
     setScreenMode('athleteProfile');
   };
@@ -22778,6 +22787,7 @@ const handleEnableNotifications = async () => {
     headerSubtitle,
     schoolLogoUrl,
   }: OpenRecruitingOptions) => {
+    setActiveEmbeddedBottomNavSlot(null);
     setPreviousScreenMode(screenMode);
     setSelectedRecruitingSport(sport);
     setSelectedRecruitingSportId(sportId);
@@ -22788,11 +22798,13 @@ const handleEnableNotifications = async () => {
   };
 
   const openRecruitingPlayerScreen = (profile: Record<string, unknown>) => {
+    setActiveEmbeddedBottomNavSlot(null);
     setSelectedRecruitingPlayer(profile);
     setScreenMode('recruitingPlayer');
   };
 
   const openNewsListScreen = () => {
+    setActiveEmbeddedBottomNavSlot(null);
     setActiveTab('home');
     setScreenMode('newsList');
     setSelectedRosterSport(null);
@@ -22806,6 +22818,7 @@ const handleEnableNotifications = async () => {
 
   const openMediaScreen = () => {
     console.log('OPEN_MEDIA_SCREEN_CALLED');
+    setActiveEmbeddedBottomNavSlot(null);
     setActiveTab('media');
     setScreenMode('media');
     setSelectedRecruitingSport(null);
@@ -22828,6 +22841,7 @@ const handleEnableNotifications = async () => {
       return;
     }
 
+    setActiveEmbeddedBottomNavSlot(null);
     setActiveTab(tab);
     setScreenMode('tabs');
     setSelectedRecruitingSport(null);
@@ -22847,7 +22861,8 @@ const handleEnableNotifications = async () => {
   const openBottomNavUrl = (
     label: string,
     destinationValue: string,
-    openInWebview: boolean
+    openInWebview: boolean,
+    sourceBottomNavSlot?: string
   ) => {
     const trimmedValue = destinationValue.trim();
     if (!trimmedValue) {
@@ -22865,10 +22880,14 @@ const handleEnableNotifications = async () => {
     }
 
     if (openInWebview) {
-      openEmbedded(label, resolvedUrl);
+      setActiveEmbeddedBottomNavSlot(sourceBottomNavSlot ?? null);
+      setEmbeddedTitle(label);
+      setEmbeddedUrl(resolvedUrl);
+      setScreenMode('embedded');
       return;
     }
 
+    setActiveEmbeddedBottomNavSlot(null);
     openExternalUrl(resolvedUrl);
   };
 
@@ -23188,7 +23207,16 @@ const handleEnableNotifications = async () => {
       case 'tickets_url':
         if (hasResolvedUrl(configuredItem.destinationValue)) {
           onPress = () =>
-            openBottomNavUrl(label, configuredItem.destinationValue, configuredItem.openInWebview);
+            openBottomNavUrl(
+              label,
+              configuredItem.destinationValue,
+              configuredItem.openInWebview,
+              slotNumber === 4 ? 'slot-4' : undefined
+            );
+          active =
+            slotNumber === 4 &&
+            screenMode === 'embedded' &&
+            activeEmbeddedBottomNavSlot === 'slot-4';
         } else {
           active = activeTab === 'tickets';
           onPress = () => handleBottomNavChange('tickets');
@@ -23204,8 +23232,14 @@ const handleEnableNotifications = async () => {
             openBottomNavUrl(
               label,
               configuredItem.destinationValue,
-              configuredItem.openInWebview
+              configuredItem.openInWebview,
+              slotNumber === 4 && configuredItem.openInWebview ? 'slot-4' : undefined
             );
+          active =
+            slotNumber === 4 &&
+            configuredItem.openInWebview === true &&
+            screenMode === 'embedded' &&
+            activeEmbeddedBottomNavSlot === 'slot-4';
         }
         break;
       default:
@@ -23250,6 +23284,7 @@ const handleEnableNotifications = async () => {
 
   const closeSpecialScreen = () => {
     setScreenMode('tabs');
+    setActiveEmbeddedBottomNavSlot(null);
     setScheduleScreenEvents(null);
     setScheduleScreenSportFilter(null);
     setScheduleScreenTitle('Schedule');
