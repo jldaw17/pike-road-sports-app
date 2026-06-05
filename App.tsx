@@ -30,6 +30,7 @@ import {
   StyleSheet,
   type ViewStyle,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -6925,10 +6926,15 @@ function AppPrerollScreen({
   config: AthleticOSAppPrerollConfig;
   onComplete: () => void;
 }) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [canSkip, setCanSkip] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
 
   useEffect(() => {
     setCanSkip(false);
+    setVideoFailed(false);
+    setVideoAspectRatio(16 / 9);
 
     const timer = setTimeout(() => {
       setCanSkip(true);
@@ -6952,7 +6958,7 @@ function AppPrerollScreen({
     if (!status.isLoaded) {
       if (status.error) {
         console.log('Preroll playback error:', status.error);
-        onComplete();
+        setVideoFailed(true);
       }
 
       return;
@@ -6963,23 +6969,20 @@ function AppPrerollScreen({
     }
   };
 
+  const maxFrameWidth = Math.max(windowWidth - 32, 0);
+  const maxFrameHeight = Math.max(windowHeight * 0.64, 0);
+  const fittedFrameWidth = Math.min(maxFrameWidth, maxFrameHeight * videoAspectRatio);
+  const fittedFrameHeight =
+    fittedFrameWidth > 0 ? fittedFrameWidth / videoAspectRatio : maxFrameHeight;
+  const isPortraitVideo = videoAspectRatio < 1;
+  const portraitFrameHeight = Math.max(windowHeight - 96, 0);
+  const portraitFrameWidth =
+    portraitFrameHeight > 0 ? Math.min(windowWidth, portraitFrameHeight * videoAspectRatio) : windowWidth;
+
   const content = (
     <>
-      <Video
-        source={{ uri: config.video_url }}
-        style={styles.prerollVideo}
-        resizeMode="cover"
-        shouldPlay
-        isLooping={false}
-        onPlaybackStatusUpdate={handlePlaybackStatus}
-        onError={(error) => {
-          console.log('Preroll video load error:', error);
-          onComplete();
-        }}
-      />
-
       <LinearGradient
-        colors={['rgba(0,0,0,0.16)', 'rgba(0,0,0,0.76)']}
+        colors={['rgba(0,0,0,0.10)', 'rgba(0,0,0,0.72)']}
         style={styles.prerollOverlay}
       />
 
@@ -7008,6 +7011,66 @@ function AppPrerollScreen({
               <Text style={styles.prerollSkipButtonText}>Skip</Text>
             </Pressable>
           ) : null}
+        </View>
+
+        <View style={styles.prerollMediaStage}>
+          <View
+            style={[
+              styles.prerollVideoFrame,
+              isPortraitVideo
+                ? {
+                    width: portraitFrameWidth,
+                    height: portraitFrameHeight,
+                    maxWidth: windowWidth,
+                    maxHeight: portraitFrameHeight,
+                    alignSelf: 'center',
+                    borderRadius: 0,
+                    borderWidth: 0,
+                    borderColor: 'transparent',
+                    backgroundColor: BRAND.black,
+                  }
+                : {
+                    width: fittedFrameWidth || maxFrameWidth,
+                    height: fittedFrameHeight || maxFrameHeight,
+                    maxWidth: maxFrameWidth,
+                    maxHeight: maxFrameHeight,
+                    alignSelf: 'center',
+                    borderRadius: 18,
+                  },
+            ]}
+          >
+            {!videoFailed ? (
+              <Video
+                source={{ uri: config.video_url }}
+                style={styles.prerollVideo}
+                resizeMode="contain"
+                shouldPlay
+                isLooping={false}
+                usePoster={false}
+                onReadyForDisplay={(event) => {
+                  const naturalWidth = event.naturalSize?.width ?? 0;
+                  const naturalHeight = event.naturalSize?.height ?? 0;
+
+                  if (naturalWidth > 0 && naturalHeight > 0) {
+                    setVideoAspectRatio(naturalWidth / naturalHeight);
+                  }
+                }}
+                onPlaybackStatusUpdate={handlePlaybackStatus}
+                onError={(error) => {
+                  console.log('Preroll video load error:', error);
+                  setVideoFailed(true);
+                }}
+              />
+            ) : (
+              <View style={styles.prerollFallbackState}>
+                <Ionicons name="play-circle-outline" size={34} color={BRAND.white} />
+                <Text style={styles.prerollFallbackTitle}>Video unavailable</Text>
+                <Text style={styles.prerollFallbackText}>
+                  The preroll could not be displayed, but you can continue into the app.
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {config.click_url ? (
@@ -24278,7 +24341,8 @@ const styles = StyleSheet.create({
   },
 
   prerollVideo: {
-    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
 
   prerollOverlay: {
@@ -24287,7 +24351,7 @@ const styles = StyleSheet.create({
 
   prerollSafeArea: {
     flex: 1,
-    backgroundColor: BRAND.black,
+    backgroundColor: 'transparent',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -24298,6 +24362,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    zIndex: 5,
+    elevation: 5,
+  },
+
+  prerollMediaStage: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+
+  prerollVideoFrame: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#050505',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+
+  prerollFallbackState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+  },
+
+  prerollFallbackTitle: {
+    color: BRAND.white,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '800',
+    marginTop: 12,
+  },
+
+  prerollFallbackText: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: 280,
   },
 
   prerollSponsorWrap: {
@@ -24331,6 +24438,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+    zIndex: 6,
+    elevation: 6,
   },
 
   prerollSkipButtonText: {
