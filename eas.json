@@ -73,6 +73,22 @@
         "APP_VARIANT": "wetumpka",
         "EXPO_PUBLIC_SCHOOL_SLUG": "wetumpka"
       }
+    },
+    "opelika": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "opelika",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "opelika"
+      }
+    },
+    "hickory": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "hickory",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "hickory"
+      }
     }
   },
   "submit": {

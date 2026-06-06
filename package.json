@@ -12,6 +12,8 @@
     "start:sylacauga": "APP_VARIANT=sylacauga EXPO_PUBLIC_SCHOOL_SLUG=sylacauga npx expo start --clear",
     "start:hoover": "APP_VARIANT=hoover EXPO_PUBLIC_SCHOOL_SLUG=hoover npx expo start --clear",
     "start:wetumpka": "APP_VARIANT=wetumpka EXPO_PUBLIC_SCHOOL_SLUG=wetumpka npx expo start --clear",
+    "start:opelika": "APP_VARIANT=opelika EXPO_PUBLIC_SCHOOL_SLUG=opelika npx expo start --clear",
+    "start:hickory": "APP_VARIANT=hickory EXPO_PUBLIC_SCHOOL_SLUG=hickory npx expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

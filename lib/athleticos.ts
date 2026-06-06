@@ -225,6 +225,13 @@ export type AthleticOSAppLiveCoverageChannel = {
   title?: string;
   description?: string;
   channel_type?: string;
+  destination_type?: string | null;
+  destination_value?: string | null;
+  resolved_game_id?: string | null;
+  game_id?: string | null;
+  school_slug?: string | null;
+  sport_slug?: string | null;
+  public_url?: string | null;
   sport_id?: string | number | null;
   audio_stream_url?: string | null;
   video_url?: string | null;
@@ -552,6 +559,71 @@ export type AthleticOSScheduleEvent = {
   [key: string]: unknown;
 };
 
+export type AthleticOSGamecastPlay = {
+  id: string;
+  summary: string;
+  teamName?: string | null;
+  playerName?: string | null;
+  period?: string | null;
+  clock?: string | null;
+  timeLabel?: string | null;
+  scoreText?: string | null;
+  rawTimestamp?: string | null;
+  sequence?: number | null;
+};
+
+export type AthleticOSGamecastLeader = {
+  id: string;
+  label: string;
+  playerName: string;
+  value: string;
+  teamSide?: 'home' | 'away' | 'unknown';
+  secondaryValue?: string | null;
+};
+
+export type AthleticOSGamecastTeamComparison = {
+  id: string;
+  label: string;
+  homeValue: string;
+  awayValue: string;
+};
+
+export type AthleticOSNativeGamecastData = {
+  gameId: string;
+  sourceUrl?: string | null;
+  event: AthleticOSScheduleEvent;
+  statosGame?: Record<string, unknown> | null;
+  sportName?: string | null;
+  status?: string | null;
+  statusLabel: string;
+  isLive: boolean;
+  isFinal: boolean;
+  homeTeamName?: string | null;
+  awayTeamName?: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  period?: string | null;
+  clock?: string | null;
+  possession?: string | null;
+  location?: string | null;
+  eventDate?: string | null;
+  eventTimeText?: string | null;
+  latestPlay: AthleticOSGamecastPlay | null;
+  plays: AthleticOSGamecastPlay[];
+  leaders: AthleticOSGamecastLeader[];
+  teamComparison: AthleticOSGamecastTeamComparison[];
+  summaryItems: Array<{ label: string; value: string }>;
+};
+
+export type AthleticOSNativeGamecastRouteTarget = {
+  gameId?: string | null;
+  schoolSlug?: string | null;
+  sportSlug?: string | null;
+  sourceUrl?: string | null;
+  publicUrl?: string | null;
+  status?: string | null;
+};
+
 type AthleticOSSeason = {
   id?: string | number;
   school_id?: string | number;
@@ -876,9 +948,74 @@ function isMissingAppOSRelationError(error: unknown) {
   );
 }
 
+function isMissingColumnError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const maybeError = error as { code?: string; message?: string; details?: string };
+  const combinedText = [maybeError.message, maybeError.details]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    maybeError.code === '42703' ||
+    combinedText.includes('column') && combinedText.includes('does not exist')
+  );
+}
+
 function isFinalStatus(value?: string) {
   const status = normalizeStatus(value);
   return status === 'final' || status === 'completed' || status === 'closed';
+}
+
+function isLiveGameStatus(value?: string) {
+  const status = normalizeStatus(value);
+  return (
+    status === 'live' ||
+    status === 'in_progress' ||
+    status === 'in-progress' ||
+    status === 'halftime' ||
+    status === 'half' ||
+    status === 'pregame_live' ||
+    status === 'active' ||
+    status === 'started' ||
+    status === 'underway'
+  );
+}
+
+function getNormalizedGamecastStatusLabel(value?: string) {
+  const status = normalizeStatus(value);
+
+  if (status === 'halftime' || status === 'half') {
+    return 'Halftime';
+  }
+
+  if (
+    status === 'live' ||
+    status === 'in_progress' ||
+    status === 'in-progress' ||
+    status === 'active' ||
+    status === 'started' ||
+    status === 'underway'
+  ) {
+    return 'Live';
+  }
+
+  if (status === 'final' || status === 'completed' || status === 'closed') {
+    return 'Final';
+  }
+
+  if (!status || status === 'scheduled' || status === 'pre' || status === 'pregame') {
+    return 'Scheduled';
+  }
+
+  return status
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 async function requireSchool(slug: string) {
@@ -1769,26 +1906,74 @@ export async function getAppLiveCoverageConfigBySchoolId(schoolId: string | numb
       return null;
     }
 
-    const channels = ((channelData ?? []) as Record<string, unknown>[]).map((row) => ({
-      ...(row as Record<string, unknown>),
-      id: pickFirstId(row, ['id']) ?? row.id,
-      school_id: pickFirstId(row, ['school_id']) ?? row.school_id,
-      title: pickFirstString(row, ['title']) ?? '',
-      description: pickFirstString(row, ['description']) ?? '',
-      channel_type: pickFirstString(row, ['channel_type']) ?? '',
-      sport_id: pickFirstId(row, ['sport_id']) ?? row.sport_id ?? null,
-      audio_stream_url: pickFirstString(row, ['audio_stream_url']) ?? '',
-      video_url: pickFirstString(row, ['video_url']) ?? '',
-      embed_url: pickFirstString(row, ['embed_url']) ?? '',
-      target_url: pickFirstString(row, ['target_url']) ?? '',
-      button_label: pickFirstString(row, ['button_label']) ?? '',
-      sponsor_name: pickFirstString(row, ['sponsor_name']) ?? '',
-      sponsor_logo_url: pickFirstString(row, ['sponsor_logo_url']) ?? '',
-      sponsor_link_url: pickFirstString(row, ['sponsor_link_url']) ?? '',
-      display_order: pickFirstNumber(row, ['display_order']) ?? 0,
-      is_active:
-        pickFirstBoolean(row, ['is_active', 'active', 'enabled']) ?? true,
-    })) as AthleticOSAppLiveCoverageChannel[];
+    const channels = ((channelData ?? []) as Record<string, unknown>[]).map((row) => {
+      const resolvedDestinationValue = row.resolved_destination;
+      const resolvedDestination =
+        resolvedDestinationValue &&
+        typeof resolvedDestinationValue === 'object' &&
+        !Array.isArray(resolvedDestinationValue)
+          ? (resolvedDestinationValue as Record<string, unknown>)
+          : null;
+
+      return {
+        ...(row as Record<string, unknown>),
+        id: pickFirstId(row, ['id']) ?? row.id,
+        school_id: pickFirstId(row, ['school_id']) ?? row.school_id,
+        title: pickFirstString(row, ['title']) ?? '',
+        description: pickFirstString(row, ['description']) ?? '',
+        channel_type: pickFirstString(row, ['channel_type']) ?? '',
+        destination_type:
+          pickFirstString(row, ['destination_type']) ??
+          pickFirstString((resolvedDestination ?? {}) as Record<string, unknown>, [
+            'destination_type',
+          ]) ??
+          '',
+        destination_value:
+          pickFirstString(row, ['destination_value']) ??
+          pickFirstString((resolvedDestination ?? {}) as Record<string, unknown>, [
+            'destination_value',
+          ]) ??
+          '',
+        resolved_game_id:
+          pickFirstId((resolvedDestination ?? {}) as Record<string, unknown>, [
+            'resolved_game_id',
+          ]) ?? '',
+        game_id:
+          pickFirstId(row, ['game_id']) ??
+          pickFirstId((resolvedDestination ?? {}) as Record<string, unknown>, ['game_id']) ??
+          '',
+        public_url:
+          pickFirstString(row, ['public_url']) ??
+          pickFirstString((resolvedDestination ?? {}) as Record<string, unknown>, [
+            'public_url',
+          ]) ??
+          '',
+        school_slug:
+          pickFirstString(row, ['school_slug']) ??
+          pickFirstString((resolvedDestination ?? {}) as Record<string, unknown>, [
+            'school_slug',
+          ]) ??
+          '',
+        sport_slug:
+          pickFirstString(row, ['sport_slug']) ??
+          pickFirstString((resolvedDestination ?? {}) as Record<string, unknown>, [
+            'sport_slug',
+          ]) ??
+          '',
+        sport_id: pickFirstId(row, ['sport_id']) ?? row.sport_id ?? null,
+        audio_stream_url: pickFirstString(row, ['audio_stream_url']) ?? '',
+        video_url: pickFirstString(row, ['video_url']) ?? '',
+        embed_url: pickFirstString(row, ['embed_url']) ?? '',
+        target_url: pickFirstString(row, ['target_url']) ?? '',
+        button_label: pickFirstString(row, ['button_label']) ?? '',
+        sponsor_name: pickFirstString(row, ['sponsor_name']) ?? '',
+        sponsor_logo_url: pickFirstString(row, ['sponsor_logo_url']) ?? '',
+        sponsor_link_url: pickFirstString(row, ['sponsor_link_url']) ?? '',
+        display_order: pickFirstNumber(row, ['display_order']) ?? 0,
+        is_active:
+          pickFirstBoolean(row, ['is_active', 'active', 'enabled']) ?? true,
+      };
+    }) as AthleticOSAppLiveCoverageChannel[];
 
     return {
       ...(data as Record<string, unknown>),
@@ -2450,6 +2635,506 @@ async function getScheduleEventsBySchoolIdAndSportId(
   return ((data ?? []) as AthleticOSScheduleEvent[]).sort((a, b) => {
     return getScheduleEventSortTimestamp(a) - getScheduleEventSortTimestamp(b);
   });
+}
+
+function matchesGameIdInUrl(urlValue: string | undefined, gameId: string) {
+  const trimmedUrl = (urlValue ?? '').trim();
+  if (!trimmedUrl) {
+    return false;
+  }
+
+  const normalizedGameId = gameId.trim();
+  if (!normalizedGameId) {
+    return false;
+  }
+
+  return (
+    trimmedUrl.includes(`/games/${normalizedGameId}`) ||
+    trimmedUrl.includes(`gameId=${normalizedGameId}`) ||
+    trimmedUrl.includes(`game_id=${normalizedGameId}`) ||
+    trimmedUrl.includes(`/gamecast/${normalizedGameId}`) ||
+    trimmedUrl.endsWith(`/${normalizedGameId}`)
+  );
+}
+
+function extractGameIdFromUrlValue(urlValue?: string | null) {
+  const trimmedUrl = (urlValue ?? '').trim();
+  if (!trimmedUrl) {
+    return '';
+  }
+
+  const gameIdFromQuery =
+    trimmedUrl.match(/[?&](?:gameId|game_id|eventId|event_id)=([^&#]+)/i)?.[1] ?? '';
+  const gameIdFromPath =
+    trimmedUrl.match(/\/games\/([^/?#]+)/i)?.[1] ??
+    trimmedUrl.match(/\/gamecast\/([^/?#]+)/i)?.[1] ??
+    '';
+  const rawGameId = gameIdFromQuery || gameIdFromPath;
+  return rawGameId ? decodeURIComponent(rawGameId).trim() : '';
+}
+
+async function getOptionalGamecastTableRows(
+  tableNames: string[],
+  gameId: string
+): Promise<Record<string, unknown>[]> {
+  const candidateGameKeys = ['game_id', 'event_id', 'schedule_event_id', 'source_game_id'];
+
+  for (const tableName of tableNames) {
+    for (const key of candidateGameKeys) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq(key, gameId)
+        .limit(200);
+
+      if (error) {
+        if (isMissingAppOSRelationError(error)) {
+          break;
+        }
+
+        if (isMissingColumnError(error)) {
+          continue;
+        }
+
+        throw error;
+      }
+
+      if (Array.isArray(data) && data.length > 0) {
+        return data as Record<string, unknown>[];
+      }
+    }
+  }
+
+  return [];
+}
+
+async function getOptionalStatosGameRow(
+  gameId: string,
+  matchedEvent?: AthleticOSScheduleEvent | null,
+  sourceUrl?: string | null
+): Promise<Record<string, unknown> | null> {
+  const candidateKeys = [
+    'id',
+    'game_id',
+    'event_id',
+    'schedule_event_id',
+    'source_game_id',
+  ];
+  const candidateValues = Array.from(
+    new Set(
+      [
+        gameId,
+        pickFirstId((matchedEvent ?? {}) as Record<string, unknown>, ['id']),
+        pickFirstId((matchedEvent ?? {}) as Record<string, unknown>, ['game_id']),
+        pickFirstId((matchedEvent ?? {}) as Record<string, unknown>, ['event_id']),
+        pickFirstId((matchedEvent ?? {}) as Record<string, unknown>, ['schedule_event_id']),
+        pickFirstId((matchedEvent ?? {}) as Record<string, unknown>, ['source_game_id']),
+        extractGameIdFromUrlValue(
+          pickFirstString((matchedEvent ?? {}) as Record<string, unknown>, [
+            'external_url',
+            'url',
+          ])
+        ),
+        extractGameIdFromUrlValue(sourceUrl),
+      ].filter(Boolean)
+    )
+  ) as string[];
+
+  for (const key of candidateKeys) {
+    for (const value of candidateValues) {
+      const { data, error } = await supabase
+        .from('statos_games')
+        .select('*')
+        .eq(key, value)
+        .limit(2);
+
+      if (error) {
+        if (isMissingAppOSRelationError(error) || isMissingColumnError(error)) {
+          continue;
+        }
+
+        throw error;
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      if (rows.length > 0) {
+        return rows[0] as Record<string, unknown>;
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalizeGamecastPlay(row: Record<string, unknown>, index: number): AthleticOSGamecastPlay | null {
+  const summary =
+    pickFirstString(row, ['play_text', 'description', 'summary', 'event_text', 'title']) ?? '';
+
+  if (!summary) {
+    return null;
+  }
+
+  const period =
+    pickFirstString(row, ['period', 'quarter', 'inning', 'period_label']) ?? null;
+  const clock =
+    pickFirstString(row, ['clock', 'time_remaining', 'clock_display', 'time']) ?? null;
+  const playerName =
+    pickFirstString(row, ['player_name', 'athlete_name', 'player']) ?? null;
+  const teamName =
+    pickFirstString(row, ['team_name', 'side_label', 'team']) ?? null;
+  const scoreText =
+    pickFirstString(row, ['score_display', 'score_text', 'score']) ?? null;
+  const rawTimestamp =
+    pickFirstString(row, ['created_at', 'updated_at', 'timestamp', 'occurred_at']) ?? null;
+  const sequence =
+    pickFirstNumber(row, ['sequence', 'play_index', 'display_order', 'sort_order']) ?? null;
+  const timeLabel = [period, clock].filter(Boolean).join(' • ') || null;
+
+  return {
+    id: pickFirstId(row, ['id']) ?? `play-${index}`,
+    summary,
+    teamName,
+    playerName,
+    period,
+    clock,
+    timeLabel,
+    scoreText,
+    rawTimestamp,
+    sequence,
+  };
+}
+
+function normalizeGamecastLeader(
+  row: Record<string, unknown>,
+  index: number
+): AthleticOSGamecastLeader | null {
+  const playerName =
+    pickFirstString(row, ['player_name', 'athlete_name', 'leader_name', 'name']) ?? '';
+  const value =
+    pickFirstString(row, ['stat_value', 'value', 'display_value']) ?? '';
+
+  if (!playerName || !value) {
+    return null;
+  }
+
+  const label =
+    pickFirstString(row, ['stat_label', 'category', 'metric', 'label']) ?? 'Leader';
+  const teamSideRaw =
+    pickFirstString(row, ['team_side', 'side', 'team_key'])?.toLowerCase() ?? '';
+  const teamSide: 'home' | 'away' | 'unknown' =
+    teamSideRaw === 'home' ? 'home' : teamSideRaw === 'away' ? 'away' : 'unknown';
+
+  return {
+    id: pickFirstId(row, ['id']) ?? `leader-${index}`,
+    label,
+    playerName,
+    value,
+    teamSide,
+    secondaryValue:
+      pickFirstString(row, ['secondary_value', 'sub_value', 'detail']) ?? null,
+  };
+}
+
+function normalizeGamecastTeamComparison(
+  row: Record<string, unknown>,
+  index: number
+): AthleticOSGamecastTeamComparison | null {
+  const label =
+    pickFirstString(row, ['stat_label', 'category', 'metric', 'label']) ?? '';
+  const homeValue =
+    pickFirstString(row, ['home_value', 'home_display_value', 'home_stat']) ?? '';
+  const awayValue =
+    pickFirstString(row, ['away_value', 'away_display_value', 'away_stat']) ?? '';
+
+  if (!label || !homeValue || !awayValue) {
+    return null;
+  }
+
+  return {
+    id: pickFirstId(row, ['id']) ?? `comparison-${index}`,
+    label,
+    homeValue,
+    awayValue,
+  };
+}
+
+export async function getNativeGamecastBySchoolIdAndGameId(
+  schoolId: string | number,
+  gameId: string,
+  sourceUrl?: string | null,
+  options?: {
+    statusOverride?: string | null;
+  }
+): Promise<AthleticOSNativeGamecastData | null> {
+  await requireSchoolById(schoolId);
+
+  const scheduleEvents = await getScheduleEventsBySchoolId(schoolId);
+  let matchedEvent =
+    scheduleEvents.find((event) => {
+      const eventId = pickFirstId(event, ['id']);
+      return eventId === gameId;
+    }) ??
+    scheduleEvents.find((event) =>
+      matchesGameIdInUrl(pickFirstString(event, ['external_url', 'url']), gameId)
+    ) ??
+    (sourceUrl
+      ? scheduleEvents.find((event) => {
+          const eventUrl = pickFirstString(event, ['external_url', 'url']) ?? '';
+          return eventUrl.trim() === sourceUrl.trim();
+        })
+      : null);
+
+  const statosGame = await getOptionalStatosGameRow(gameId, matchedEvent, sourceUrl);
+  if (!matchedEvent && statosGame) {
+    const linkedScheduleEventId =
+      pickFirstId(statosGame, ['schedule_event_id']) ??
+      pickFirstId(statosGame, ['event_id']) ??
+      pickFirstId(statosGame, ['source_game_id']);
+    const statosSourceUrl =
+      pickFirstString(statosGame, ['public_url', 'url', 'external_url']) ?? null;
+
+    matchedEvent =
+      (linkedScheduleEventId
+        ? scheduleEvents.find(
+            (event) => pickFirstId(event, ['id']) === linkedScheduleEventId
+          ) ?? null
+        : null) ??
+      (statosSourceUrl
+        ? scheduleEvents.find((event) => {
+            const eventUrl = pickFirstString(event, ['external_url', 'url']) ?? '';
+            return eventUrl.trim() === statosSourceUrl.trim();
+          }) ?? null
+        : null);
+  }
+
+  if (!matchedEvent && !statosGame) {
+    return null;
+  }
+
+  const mergedGameRecord = {
+    ...((matchedEvent ?? {}) as Record<string, unknown>),
+    ...((statosGame ?? {}) as Record<string, unknown>),
+  };
+
+  const playsRows = await getOptionalGamecastTableRows(
+    ['statos_gamecast_plays', 'gamecast_plays', 'game_plays', 'statos_plays'],
+    gameId
+  );
+  const leadersRows = await getOptionalGamecastTableRows(
+    ['statos_gamecast_leaders', 'gamecast_leaders', 'game_leaders'],
+    gameId
+  );
+  const teamComparisonRows = await getOptionalGamecastTableRows(
+    ['statos_gamecast_team_stats', 'gamecast_team_stats', 'game_team_stats'],
+    gameId
+  );
+
+  const plays = playsRows
+    .map((row, index) => normalizeGamecastPlay(row, index))
+    .filter((play): play is AthleticOSGamecastPlay => Boolean(play))
+    .sort((a, b) => {
+      const sequenceDiff = (b.sequence ?? -1) - (a.sequence ?? -1);
+      if (sequenceDiff !== 0) {
+        return sequenceDiff;
+      }
+
+      return normalizeSortDate(b.rawTimestamp ?? '') - normalizeSortDate(a.rawTimestamp ?? '');
+    });
+
+  const leaders = leadersRows
+    .map((row, index) => normalizeGamecastLeader(row, index))
+    .filter((leader): leader is AthleticOSGamecastLeader => Boolean(leader));
+
+  const teamComparison = teamComparisonRows
+    .map((row, index) => normalizeGamecastTeamComparison(row, index))
+    .filter(
+      (comparison): comparison is AthleticOSGamecastTeamComparison => Boolean(comparison)
+    );
+
+  const schoolRecord = await getSchoolById(schoolId);
+  const statusOverride = pickFirstString((options ?? {}) as Record<string, unknown>, [
+    'statusOverride',
+  ]);
+  const status =
+    statusOverride ??
+    pickFirstString((statosGame ?? {}) as Record<string, unknown>, ['game_status']) ??
+    pickFirstString((statosGame ?? {}) as Record<string, unknown>, ['status']) ??
+    pickFirstString(matchedEvent, ['game_status']) ??
+    pickFirstString(matchedEvent, ['status']) ??
+    null;
+  const statusLabel = getNormalizedGamecastStatusLabel(status);
+  const sportName =
+    pickFirstString(mergedGameRecord, ['sport_name', 'sport']) ?? null;
+  const period =
+    pickFirstString(mergedGameRecord, [
+      'period',
+      'quarter',
+      'inning',
+      'current_period',
+      'game_period',
+      'period_label',
+    ]) ?? null;
+  const clock =
+    pickFirstString(mergedGameRecord, [
+      'clock',
+      'game_clock',
+      'time_remaining',
+      'clock_display',
+    ]) ?? null;
+  const possession =
+    pickFirstString(mergedGameRecord, [
+      'possession',
+      'possession_team',
+      'possession_label',
+    ]) ?? null;
+  const location =
+    pickFirstString(mergedGameRecord, ['location', 'stadium_name']) ?? null;
+  const eventDate =
+    pickFirstString(mergedGameRecord, ['event_date', 'game_date', 'date']) ?? null;
+  const eventTimeText = pickFirstString(mergedGameRecord, ['event_time_text']) ?? null;
+  const homeScore = pickFirstNumber(mergedGameRecord, ['home_score']) ?? null;
+  const awayScore = pickFirstNumber(mergedGameRecord, ['away_score']) ?? null;
+
+  const schoolIdNorm = normalizeId(pickFirstId(mergedGameRecord, ['school_id']));
+  const homeTeamIdNorm = normalizeId(
+    pickFirstId(mergedGameRecord, ['home_team_id', 'homeTeamId'])
+  );
+  const awayTeamIdNorm = normalizeId(
+    pickFirstId(mergedGameRecord, ['away_team_id', 'awayTeamId'])
+  );
+  const opponentName =
+    pickFirstString(mergedGameRecord, ['opponent_name', 'opponent', 'away_team_name', 'home_team_name']) ??
+    'Opponent';
+  const schoolDisplayName =
+    pickFirstString(mergedGameRecord, [
+      'school_display_name',
+      'team_name',
+      'school_name',
+      'display_name',
+    ]) ??
+    pickFirstString((schoolRecord ?? {}) as Record<string, unknown>, [
+      'app_display_name',
+      'display_name',
+      'name',
+    ]) ??
+    'Home Team';
+
+  const isHomeTeam = Boolean(schoolIdNorm && homeTeamIdNorm && schoolIdNorm === homeTeamIdNorm);
+  const isAwayTeam = Boolean(schoolIdNorm && awayTeamIdNorm && schoolIdNorm === awayTeamIdNorm);
+  const homeAwayLabel = normalizeToken(pickFirstString(mergedGameRecord, ['home_away']) ?? '');
+
+  let homeTeamName =
+    pickFirstString(mergedGameRecord, ['home_team_name']) ?? null;
+  let awayTeamName =
+    pickFirstString(mergedGameRecord, ['away_team_name']) ?? null;
+
+  if (isHomeTeam) {
+    homeTeamName = homeTeamName || schoolDisplayName;
+    awayTeamName = awayTeamName || opponentName;
+  } else if (isAwayTeam) {
+    homeTeamName = homeTeamName || opponentName;
+    awayTeamName = awayTeamName || schoolDisplayName;
+  } else {
+    homeTeamName =
+      homeTeamName ||
+      (homeAwayLabel === 'away' || homeAwayLabel === 'at' ? opponentName : schoolDisplayName);
+    awayTeamName =
+      awayTeamName ||
+      (homeAwayLabel === 'away' || homeAwayLabel === 'at' ? schoolDisplayName : opponentName);
+  }
+
+  const summaryItems = [
+    statusLabel ? { label: 'Status', value: statusLabel } : null,
+    period ? { label: 'Period', value: period } : null,
+    clock ? { label: 'Clock', value: clock } : null,
+    possession ? { label: 'Possession', value: possession } : null,
+    location ? { label: 'Location', value: location } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+
+  return {
+    gameId,
+    sourceUrl:
+      sourceUrl?.trim() ||
+      pickFirstString(mergedGameRecord, ['public_url', 'external_url', 'url']) ||
+      null,
+    event: (matchedEvent ?? (mergedGameRecord as AthleticOSScheduleEvent)),
+    statosGame,
+    sportName,
+    status,
+    statusLabel,
+    isLive: isLiveGameStatus(status),
+    isFinal:
+      pickFirstBoolean(mergedGameRecord, ['is_final']) ?? isFinalStatus(status),
+    homeTeamName,
+    awayTeamName,
+    homeScore,
+    awayScore,
+    period,
+    clock,
+    possession,
+    location,
+    eventDate,
+    eventTimeText,
+    latestPlay: plays[0] ?? null,
+    plays,
+    leaders,
+    teamComparison,
+    summaryItems,
+  };
+}
+
+export async function getNativeGamecastBySchoolIdAndSportSlug(
+  schoolId: string | number,
+  sportSlug: string,
+  sourceUrl?: string | null,
+  options?: {
+    statusOverride?: string | null;
+  }
+): Promise<AthleticOSNativeGamecastData | null> {
+  await requireSchoolById(schoolId);
+
+  const normalizedSportSlug = normalizeToken(sportSlug);
+  if (!normalizedSportSlug) {
+    return null;
+  }
+
+  const sportRecord = await getSportBySchoolIdAndKey(schoolId, sportSlug);
+  const matchedSportId = sportRecord ? pickFirstId(sportRecord, ['id']) : null;
+  const scheduleEvents = await getScheduleEventsBySchoolId(schoolId);
+  const matchingEvents = scheduleEvents.filter((event) => {
+    const eventSportId = pickFirstId(event, ['sport_id']);
+    const eventSportSlug = normalizeToken(
+      pickFirstString(event, ['sport_slug', 'sport_name', 'sport']) ?? ''
+    );
+
+    return (
+      (matchedSportId && eventSportId === matchedSportId) ||
+      eventSportSlug === normalizedSportSlug
+    );
+  });
+
+  const activeLiveEvent =
+    matchingEvents.find((event) =>
+      isLiveGameStatus(pickFirstString(event, ['game_status', 'status']))
+    ) ?? null;
+
+  if (!activeLiveEvent) {
+    return null;
+  }
+
+  const activeGameId = pickFirstId(activeLiveEvent, ['id']);
+  if (!activeGameId) {
+    return null;
+  }
+
+  return getNativeGamecastBySchoolIdAndGameId(
+    schoolId,
+    activeGameId,
+    sourceUrl ??
+      pickFirstString(activeLiveEvent, ['external_url', 'url']) ??
+      null,
+    options
+  );
 }
 
 export function mapStoryToHomeNewsItem(

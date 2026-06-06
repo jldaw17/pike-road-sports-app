@@ -43,7 +43,9 @@ import {
   type AthleticOSResolvedTheme,
   type AthleticOSTeamNavItem,
   type AthleticOSAthleteOfTheWeek,
+  type AthleticOSNativeGamecastData,
   type AthleticOSAppLiveCoverageConfig,
+  type AthleticOSNativeGamecastRouteTarget,
   type AthleticOSAppPrerollConfig,
   type AthleticOSAppVideosConfig,
   type AthleticOSPromotionCard,
@@ -54,6 +56,8 @@ import {
   getAppPrerollConfigBySchoolId,
   getTeamNavBySportId,
   getDefaultSchoolConfig,
+  getNativeGamecastBySchoolIdAndGameId,
+  getNativeGamecastBySchoolIdAndSportSlug,
   getSchoolConfigById,
   getScheduleEventsBySchoolId,
   getRosterBySchoolIdAndSportId,
@@ -483,6 +487,7 @@ function resolveHeroQuickActionIcon(
       return 'calendar-outline';
     case 'news':
       return 'newspaper-outline';
+    case 'stats':
     case 'standings':
       return 'stats-chart-outline';
     case 'shop':
@@ -1739,6 +1744,222 @@ function normalizeBottomNavDestinationType(value?: string) {
   return (value ?? '').trim().toLowerCase();
 }
 
+function isNativeGamecastDestinationType(value?: string) {
+  const destinationType = normalizeBottomNavDestinationType(value);
+  return (
+    destinationType === 'statos_game' ||
+    destinationType === 'statos_game_auto' ||
+    destinationType === 'live_game' ||
+    destinationType === 'gamecast' ||
+    destinationType === 'statos_url'
+  );
+}
+
+function extractNativeGamecastTarget(url: string): AthleticOSNativeGamecastRouteTarget | null {
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) {
+    return null;
+  }
+
+  const liveStatsMatch = trimmedUrl.match(
+    /\/([^/?#]+)\/([^/?#]+)\/stats\/live(?:[/?#]|$)/i
+  );
+  if (liveStatsMatch) {
+    return {
+      schoolSlug: decodeURIComponent(liveStatsMatch[1] ?? '').trim(),
+      sportSlug: decodeURIComponent(liveStatsMatch[2] ?? '').trim(),
+      sourceUrl: trimmedUrl,
+    };
+  }
+
+  const gameIdFromQuery =
+    trimmedUrl.match(/[?&](?:gameId|game_id|eventId|event_id)=([^&#]+)/i)?.[1] ?? '';
+  const gameIdFromPath =
+    trimmedUrl.match(/\/games\/([^/?#]+)/i)?.[1] ??
+    trimmedUrl.match(/\/gamecast\/([^/?#]+)/i)?.[1] ??
+    '';
+  const rawGameId = gameIdFromQuery || gameIdFromPath;
+  const decodedGameId = rawGameId ? decodeURIComponent(rawGameId).trim() : '';
+
+  if (!decodedGameId) {
+    return null;
+  }
+
+  return {
+    gameId: decodedGameId,
+    sourceUrl: trimmedUrl,
+  };
+}
+
+function readTrimmedRecordString(
+  record: Record<string, unknown> | null | undefined,
+  keys: string[]
+) {
+  if (!record) {
+    return '';
+  }
+
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if ((typeof value === 'number' || typeof value === 'bigint') && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+
+  return '';
+}
+
+function resolveStatsChannelGamecastTarget(
+  channel: Record<string, unknown>,
+  resolveUrl: (value?: string) => string
+) {
+  const nestedResolvedDestinationValue = channel.resolved_destination;
+  const nestedResolvedDestination =
+    nestedResolvedDestinationValue &&
+    typeof nestedResolvedDestinationValue === 'object' &&
+    !Array.isArray(nestedResolvedDestinationValue)
+      ? (nestedResolvedDestinationValue as Record<string, unknown>)
+      : null;
+  const resolvedGameId = readTrimmedRecordString(channel, ['resolved_game_id']);
+  const gameId = readTrimmedRecordString(channel, ['game_id']);
+  const nestedResolvedGameId = readTrimmedRecordString(
+    nestedResolvedDestination,
+    ['resolved_game_id']
+  );
+  const nestedGameId = readTrimmedRecordString(nestedResolvedDestination, ['game_id']);
+  const publicUrl = resolveUrl(
+    readTrimmedRecordString(channel, ['public_url']) ||
+      readTrimmedRecordString(nestedResolvedDestination, ['public_url'])
+  );
+  const targetUrl = resolveUrl(readTrimmedRecordString(channel, ['target_url']));
+  const embedUrl = resolveUrl(readTrimmedRecordString(channel, ['embed_url']));
+  const destinationValue = resolveUrl(
+    readTrimmedRecordString(channel, ['destination_value']) ||
+      readTrimmedRecordString(nestedResolvedDestination, ['destination_value'])
+  );
+  const schoolSlug =
+    readTrimmedRecordString(channel, ['school_slug']) ||
+    readTrimmedRecordString(nestedResolvedDestination, ['school_slug']);
+  const sportSlug =
+    readTrimmedRecordString(channel, ['sport_slug']) ||
+    readTrimmedRecordString(nestedResolvedDestination, ['sport_slug']);
+  const resolvedStatus =
+    readTrimmedRecordString(nestedResolvedDestination, ['status']) ||
+    readTrimmedRecordString(channel, ['status']);
+  const fallbackUrl = publicUrl || targetUrl || embedUrl || destinationValue || '';
+  const parsedPublicTarget = publicUrl ? extractNativeGamecastTarget(publicUrl) : null;
+  const parsedDestinationTarget = destinationValue
+    ? extractNativeGamecastTarget(destinationValue)
+    : null;
+  const parsedFallbackTarget = fallbackUrl ? extractNativeGamecastTarget(fallbackUrl) : null;
+  const finalGameId =
+    resolvedGameId ||
+    gameId ||
+    nestedResolvedGameId ||
+    nestedGameId ||
+    parsedPublicTarget?.gameId ||
+    parsedDestinationTarget?.gameId ||
+    parsedFallbackTarget?.gameId ||
+    '';
+
+  return {
+    gameId: finalGameId || '',
+    fallbackUrl,
+    launchUrl:
+      parsedPublicTarget?.sourceUrl ||
+      parsedDestinationTarget?.sourceUrl ||
+      parsedFallbackTarget?.sourceUrl ||
+      fallbackUrl ||
+      '',
+    routeTarget: {
+      gameId: finalGameId || '',
+      schoolSlug: schoolSlug || parsedPublicTarget?.schoolSlug || parsedDestinationTarget?.schoolSlug || null,
+      sportSlug: sportSlug || parsedPublicTarget?.sportSlug || parsedDestinationTarget?.sportSlug || null,
+      sourceUrl:
+        parsedPublicTarget?.sourceUrl ||
+        parsedDestinationTarget?.sourceUrl ||
+        parsedFallbackTarget?.sourceUrl ||
+        fallbackUrl ||
+        null,
+      publicUrl: publicUrl || null,
+      status: resolvedStatus || null,
+    } satisfies AthleticOSNativeGamecastRouteTarget,
+  };
+}
+
+type StatsHubSportDefinition = {
+  key: string;
+  label: string;
+  primarySportSlug: string;
+  fallbackSportSlugs: string[];
+};
+
+type StatsHubSportCard = {
+  key: string;
+  label: string;
+  routeTarget: AthleticOSNativeGamecastRouteTarget;
+  fallbackUrl: string;
+  isLive: boolean;
+  isChecking: boolean;
+};
+
+const STATS_HUB_SPORTS: StatsHubSportDefinition[] = [
+  {
+    key: 'football',
+    label: 'Football',
+    primarySportSlug: 'football',
+    fallbackSportSlugs: ['football'],
+  },
+  {
+    key: 'basketball',
+    label: 'Basketball',
+    primarySportSlug: 'mens-basketball',
+    fallbackSportSlugs: ['mens-basketball', 'boys-basketball', 'basketball'],
+  },
+];
+
+function normalizeStatsHubToken(value?: string | null) {
+  return (value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function isStatsHubDestination(options: {
+  destinationType?: string | null;
+  label?: string | null;
+  iconKey?: string | null;
+  url?: string | null;
+}) {
+  const destinationType = normalizeBottomNavDestinationType(options.destinationType ?? '');
+  const labelToken = normalizeStatsHubToken(options.label);
+  const iconToken = normalizeStatsHubToken(options.iconKey);
+  const parsedRouteTarget = options.url ? extractNativeGamecastTarget(options.url) : null;
+
+  return (
+    destinationType === 'stats' ||
+    isNativeGamecastDestinationType(destinationType) ||
+    labelToken === 'stats' ||
+    labelToken === 'live-stats' ||
+    labelToken === 'gamecast' ||
+    iconToken === 'stats' ||
+    iconToken === 'standings' ||
+    Boolean(parsedRouteTarget?.sportSlug)
+  );
+}
+
+function isStatsHubLiveStatus(value?: string | null) {
+  const normalized = normalizeBottomNavDestinationType(value ?? '').replace(/-/g, '_');
+  return (
+    normalized === 'live' ||
+    normalized === 'in_progress' ||
+    normalized === 'active' ||
+    normalized === 'started' ||
+    normalized === 'underway' ||
+    normalized === 'halftime'
+  );
+}
+
 function resolveBottomNavIcon(iconKey?: string): keyof typeof Ionicons.glyphMap {
   switch ((iconKey ?? '').trim().toLowerCase()) {
     case 'broadcast':
@@ -1751,6 +1972,7 @@ function resolveBottomNavIcon(iconKey?: string): keyof typeof Ionicons.glyphMap 
       return 'calendar-outline';
     case 'news':
       return 'newspaper-outline';
+    case 'stats':
     case 'standings':
       return 'stats-chart-outline';
     case 'shop':
@@ -1786,6 +2008,8 @@ type ScreenMode =
   | 'newsList'
   | 'storyDetail'
   | 'embedded'
+  | 'gamecast'
+  | 'statsHub'
   | 'schedule'
   | 'settings'
   | 'manageTeams'
@@ -9171,6 +9395,8 @@ function TeamTile({
 
 function HomeScreen({
   onOpenEmbedded,
+  onOpenNativeGamecast,
+  onOpenStatsHub,
   onOpenStoryDetail,
   onOpenExternal,
   onOpenSchedule,
@@ -9205,6 +9431,15 @@ function HomeScreen({
   theme = DEFAULT_APP_THEME,
 }: {
   onOpenEmbedded: (title: string, url: string) => void;
+  onOpenNativeGamecast: (
+    title: string,
+    options: {
+      gameId?: string | null;
+      fallbackUrl?: string | null;
+      routeTarget?: AthleticOSNativeGamecastRouteTarget | null;
+    }
+  ) => void;
+  onOpenStatsHub: () => void;
   onOpenStoryDetail: (item: NewsItem) => void;
   onOpenExternal: (url: string) => void;
   onOpenSchedule: () => void;
@@ -9787,10 +10022,34 @@ function HomeScreen({
     const destinationType = normalizeBottomNavDestinationType(
       liveCoverageConfig?.destination_type
     );
+    const destinationValue = liveCoverageConfig?.destination_value?.trim() ?? '';
+    const destinationUrl = hasResolvedUrl(destinationValue)
+      ? destinationValue
+      : destinationValue.startsWith('/') && hasResolvedUrl(schoolConfig.mainSiteUrl)
+      ? `${schoolConfig.mainSiteUrl.replace(/\/+$/, '')}${destinationValue}`
+      : '';
 
     if (destinationType === 'broadcast_page') {
       console.log('LIVE_COVERAGE_BROADCAST_BRANCH');
       onGoToMedia();
+      return;
+    }
+
+    if (primaryStatsLiveCoverageChannel) {
+      onOpenStatsHub();
+      return;
+    }
+
+    if (
+      (isStatsHubDestination({
+        destinationType,
+        label: liveCoverageConfig?.cta_label,
+        url: destinationUrl,
+      }) ||
+        Boolean(extractNativeGamecastTarget(destinationUrl))) &&
+      hasResolvedUrl(destinationUrl)
+    ) {
+      onOpenStatsHub();
       return;
     }
 
@@ -19899,6 +20158,748 @@ function EmbeddedWebView({
   );
 }
 
+function GamecastScreen({
+  gamecast,
+  headerTitle,
+  schoolLogoUrl,
+  onBack,
+  theme = DEFAULT_APP_THEME,
+}: {
+  gamecast: AthleticOSNativeGamecastData;
+  headerTitle: string;
+  schoolLogoUrl?: string;
+  onBack: () => void;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const statusLabel = gamecast.statusLabel || 'Scheduled';
+  const headerSubtitle = [gamecast.sportName, gamecast.eventDate, gamecast.eventTimeText]
+    .filter(Boolean)
+    .join(' • ');
+  const metaLine = [gamecast.period, gamecast.clock, gamecast.possession]
+    .filter(Boolean)
+    .join(' • ');
+  const hasPlays = gamecast.plays.length > 0;
+  const hasLeaders = gamecast.leaders.length > 0;
+  const hasTeamComparison = gamecast.teamComparison.length > 0;
+  const topSummaryItems = gamecast.summaryItems.slice(0, 4);
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[
+        styles.screenContent,
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
+      ]}
+    >
+      {isPremiumTheme(theme)
+        ? renderPremiumScreenHeader({
+            theme,
+            eyebrow: 'Live Gamecast',
+            title: headerTitle,
+            subtitle: headerSubtitle || statusLabel,
+            logoUrl: schoolLogoUrl,
+            logoLabel: headerTitle,
+            onBack,
+          })
+        : (
+          <LinearGradient
+            colors={getThemeHeroGradient(theme)}
+            style={[
+              styles.tabHero,
+              isSchoolPrideTheme(theme)
+                ? { borderRadius: 6, overflow: 'hidden' }
+                : null,
+              isCleanSlateTheme(theme) || isGamedayTheme(theme)
+                ? getThemeHeroShellStyle(theme)
+                : null,
+            ]}
+          >
+            <Pressable
+              style={[
+                styles.backButton,
+                {
+                  alignSelf: 'flex-start',
+                  marginBottom: 10,
+                  backgroundColor: withAlpha(theme.colors.surface, isSchoolPrideTheme(theme) ? 'F4' : 'D8'),
+                  borderColor: withAlpha(theme.colors.primary, '28'),
+                },
+              ]}
+              onPress={onBack}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+              <Text style={[styles.backButtonText, { color: theme.colors.text }]}>Back</Text>
+            </Pressable>
+            <Text
+              style={[
+                styles.tabHeroEyebrow,
+                {
+                  color: isSchoolPrideTheme(theme)
+                    ? getSchoolPrideMutedTextColor()
+                    : theme.colors.mutedText,
+                },
+              ]}
+            >
+              Live Gamecast
+            </Text>
+            <Text style={[styles.tabHeroTitle, { color: theme.colors.text }]}>
+              {headerTitle}
+            </Text>
+            {headerSubtitle ? (
+              <Text style={[styles.tabHeroText, { color: theme.colors.mutedText }]}>
+                {headerSubtitle}
+              </Text>
+            ) : null}
+          </LinearGradient>
+        )}
+
+      <View
+        style={[
+          getThemeSurfaceCardStyle(theme),
+          {
+            backgroundColor: theme.colors.surface,
+            borderRadius: isSchoolPrideTheme(theme) ? 6 : 20,
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+          },
+        ]}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: metaLine ? 10 : 0,
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              style={{
+                color: theme.colors.mutedText,
+                fontSize: 11,
+                lineHeight: 14,
+                letterSpacing: 0.8,
+                textTransform: 'uppercase',
+                fontWeight: '700',
+                marginBottom: 4,
+              }}
+            >
+              Away
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 20,
+                lineHeight: 24,
+                fontWeight: '800',
+              }}
+              numberOfLines={2}
+            >
+              {gamecast.awayTeamName || 'Away Team'}
+            </Text>
+          </View>
+
+          <View style={{ alignItems: 'center', justifyContent: 'center', minWidth: 82 }}>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 32,
+                lineHeight: 34,
+                fontWeight: '900',
+                letterSpacing: -0.8,
+              }}
+            >
+              {gamecast.awayScore ?? '-'} <Text style={{ color: theme.colors.mutedText }}>-</Text>{' '}
+              {gamecast.homeScore ?? '-'}
+            </Text>
+            <View
+              style={{
+                marginTop: 6,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: 999,
+                backgroundColor: withAlpha(theme.colors.primary, '10'),
+                borderWidth: 1,
+                borderColor: withAlpha(theme.colors.primary, '1E'),
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.primary,
+                  fontSize: 11,
+                  lineHeight: 13,
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.7,
+                }}
+              >
+                {statusLabel}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-end' }}>
+            <Text
+              style={{
+                color: theme.colors.mutedText,
+                fontSize: 11,
+                lineHeight: 14,
+                letterSpacing: 0.8,
+                textTransform: 'uppercase',
+                fontWeight: '700',
+                marginBottom: 4,
+              }}
+            >
+              Home
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 20,
+                lineHeight: 24,
+                fontWeight: '800',
+                textAlign: 'right',
+              }}
+              numberOfLines={2}
+            >
+              {gamecast.homeTeamName || 'Home Team'}
+            </Text>
+          </View>
+        </View>
+
+        {metaLine ? (
+          <Text
+            style={{
+              color: theme.colors.mutedText,
+              fontSize: 13,
+              lineHeight: 18,
+              fontWeight: '600',
+            }}
+          >
+            {metaLine}
+          </Text>
+        ) : null}
+      </View>
+
+      {gamecast.latestPlay ? (
+        <View
+          style={[
+            getThemeSurfaceCardStyle(theme),
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: isSchoolPrideTheme(theme) ? 6 : 18,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              marginTop: 12,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 8, fontSize: 18 }]}>
+            Latest Play
+          </Text>
+          <Text
+            style={{
+              color: theme.colors.text,
+              fontSize: 16,
+              lineHeight: 22,
+              fontWeight: '700',
+            }}
+          >
+            {gamecast.latestPlay.summary}
+          </Text>
+          <Text
+            style={{
+              color: theme.colors.mutedText,
+              fontSize: 12,
+              lineHeight: 17,
+              marginTop: 6,
+            }}
+          >
+            {[gamecast.latestPlay.teamName, gamecast.latestPlay.playerName, gamecast.latestPlay.timeLabel]
+              .filter(Boolean)
+              .join(' • ')}
+          </Text>
+        </View>
+      ) : null}
+
+      {topSummaryItems.length > 0 || hasTeamComparison ? (
+        <View
+          style={[
+            getThemeSurfaceCardStyle(theme),
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: isSchoolPrideTheme(theme) ? 6 : 18,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              marginTop: 12,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 10, fontSize: 18 }]}>
+            Summary
+          </Text>
+
+          {topSummaryItems.length > 0 ? (
+            <View style={{ gap: 8 }}>
+              {topSummaryItems.map((item) => (
+                <View
+                  key={`${item.label}-${item.value}`}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}
+                >
+                  <Text style={{ color: theme.colors.mutedText, fontSize: 12, lineHeight: 16 }}>
+                    {item.label}
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      fontSize: 13,
+                      lineHeight: 17,
+                      fontWeight: '700',
+                      flexShrink: 1,
+                      textAlign: 'right',
+                    }}
+                  >
+                    {item.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {hasTeamComparison ? (
+            <View style={{ marginTop: topSummaryItems.length > 0 ? 12 : 0, gap: 8 }}>
+              {gamecast.teamComparison.map((item) => (
+                <View
+                  key={item.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                  }}
+                >
+                  <Text style={{ color: theme.colors.text, fontSize: 13, lineHeight: 17, flex: 1 }}>
+                    {item.label}
+                  </Text>
+                  <Text style={{ color: theme.colors.text, fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+                    {item.awayValue}
+                  </Text>
+                  <Text style={{ color: theme.colors.mutedText, fontSize: 11, lineHeight: 14 }}>vs</Text>
+                  <Text style={{ color: theme.colors.text, fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+                    {item.homeValue}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {hasLeaders ? (
+        <View
+          style={[
+            getThemeSurfaceCardStyle(theme),
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: isSchoolPrideTheme(theme) ? 6 : 18,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              marginTop: 12,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 10, fontSize: 18 }]}>
+            Leaders
+          </Text>
+          <View style={{ gap: 10 }}>
+            {gamecast.leaders.map((leader) => (
+              <View
+                key={leader.id}
+                style={{
+                  borderWidth: 1,
+                  borderColor: withAlpha(theme.colors.text, '0C'),
+                  borderRadius: 14,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  backgroundColor: theme.colors.cardAlt,
+                }}
+              >
+                <Text style={{ color: theme.colors.primary, fontSize: 11, lineHeight: 14, fontWeight: '800' }}>
+                  {leader.label}
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontSize: 15,
+                    lineHeight: 20,
+                    fontWeight: '700',
+                    marginTop: 3,
+                  }}
+                >
+                  {leader.playerName}
+                </Text>
+                <Text style={{ color: theme.colors.mutedText, fontSize: 12, lineHeight: 17, marginTop: 2 }}>
+                  {[leader.value, leader.secondaryValue].filter(Boolean).join(' • ')}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {hasPlays ? (
+        <View
+          style={[
+            getThemeSurfaceCardStyle(theme),
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: isSchoolPrideTheme(theme) ? 6 : 18,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              marginTop: 12,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 10, fontSize: 18 }]}>
+            Plays
+          </Text>
+          <View style={{ gap: 10 }}>
+            {gamecast.plays.slice(0, 24).map((play) => (
+              <View
+                key={play.id}
+                style={{
+                  borderBottomWidth: 1,
+                  borderBottomColor: withAlpha(theme.colors.text, '08'),
+                  paddingBottom: 10,
+                }}
+              >
+                <Text style={{ color: theme.colors.text, fontSize: 14, lineHeight: 20, fontWeight: '700' }}>
+                  {play.summary}
+                </Text>
+                <Text style={{ color: theme.colors.mutedText, fontSize: 12, lineHeight: 17, marginTop: 4 }}>
+                  {[play.teamName, play.playerName, play.timeLabel, play.scoreText]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+function StatsHubScreen({
+  cards,
+  loading,
+  schoolDisplayName,
+  schoolLogoUrl,
+  onBack,
+  onOpenSport,
+  theme = DEFAULT_APP_THEME,
+}: {
+  cards: StatsHubSportCard[];
+  loading: boolean;
+  schoolDisplayName: string;
+  schoolLogoUrl?: string;
+  onBack: () => void;
+  onOpenSport: (card: StatsHubSportCard) => void;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const heroSubtitle =
+    'Choose a sport to view live stats, Gamecast, and team coverage.';
+  const isSchoolPride = isSchoolPrideTheme(theme);
+  const isCleanSlate = isCleanSlateTheme(theme);
+  const isGradientElite = isGradientEliteTheme(theme);
+  const isModern = isModernTheme(theme);
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[
+        styles.screenContent,
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
+      ]}
+    >
+      {isPremiumTheme(theme)
+        ? renderPremiumScreenHeader({
+            theme,
+            eyebrow: 'LIVE STATS',
+            title: 'Stats Hub',
+            subtitle: heroSubtitle,
+            logoUrl: schoolLogoUrl,
+            logoLabel: schoolDisplayName,
+            onBack,
+          })
+        : (
+          <LinearGradient
+            colors={
+              isGradientElite
+                ? getThemeHeroGradient(theme)
+                : isModern
+                ? [
+                    withAlpha(theme.colors.primary, '10'),
+                    theme.colors.surface,
+                    withAlpha(theme.colors.secondary, '08'),
+                  ]
+                : isCleanSlate
+                ? [theme.colors.surface, theme.colors.surface]
+                : getThemeHeroGradient(theme)
+            }
+            style={[
+              styles.tabHero,
+              isSchoolPride ? { borderRadius: 6, overflow: 'hidden' } : null,
+              isCleanSlate || isGamedayTheme(theme)
+                ? getThemeHeroShellStyle(theme)
+                : null,
+              isCleanSlate
+                ? {
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    shadowOpacity: 0,
+                    elevation: 0,
+                  }
+                : null,
+              isModern
+                ? {
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: withAlpha(theme.colors.primary, '18'),
+                  }
+                : null,
+            ]}
+          >
+            <Pressable
+              style={[
+                styles.backButton,
+                {
+                  alignSelf: 'flex-start',
+                  marginBottom: 10,
+                  backgroundColor: withAlpha(
+                    theme.colors.surface,
+                    isSchoolPrideTheme(theme) ? 'F4' : 'D8'
+                  ),
+                  borderColor: withAlpha(theme.colors.primary, '28'),
+                },
+              ]}
+              onPress={onBack}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+              <Text style={[styles.backButtonText, { color: theme.colors.text }]}>Back</Text>
+            </Pressable>
+            <Text
+              style={[
+                styles.tabHeroEyebrow,
+                {
+                  color: isSchoolPrideTheme(theme)
+                    ? getSchoolPrideMutedTextColor()
+                    : isGradientElite
+                    ? withAlpha(BRAND.white, 'B8')
+                    : theme.colors.mutedText,
+                },
+              ]}
+            >
+              LIVE STATS
+            </Text>
+            {hasResolvedUrl(schoolLogoUrl) ? (
+              <RemoteImage
+                uri={schoolLogoUrl}
+                style={{
+                  width: isCleanSlate ? 72 : 76,
+                  height: isCleanSlate ? 72 : 76,
+                  marginBottom: 10,
+                  alignSelf: 'flex-start',
+                }}
+                contentFit="contain"
+                mode="logo"
+                label={schoolDisplayName}
+                theme={theme}
+              />
+            ) : null}
+            <Text
+              style={[
+                styles.tabHeroTitle,
+                {
+                  color: isGradientElite ? BRAND.white : theme.colors.text,
+                },
+              ]}
+            >
+              Stats Hub
+            </Text>
+            <Text
+              style={[
+                styles.tabHeroText,
+                {
+                  color: isGradientElite
+                    ? withAlpha(BRAND.white, 'B8')
+                    : theme.colors.mutedText,
+                },
+              ]}
+            >
+              {heroSubtitle}
+            </Text>
+            <Text
+              style={[
+                styles.tabHeroText,
+                {
+                  color: isGradientElite
+                    ? withAlpha(BRAND.white, '96')
+                    : theme.colors.mutedText,
+                  marginTop: 8,
+                  fontSize: 12,
+                  lineHeight: 16,
+                  fontWeight: '700',
+                  letterSpacing: 0.35,
+                  textTransform: 'uppercase',
+                },
+              ]}
+            >
+              {schoolDisplayName}
+            </Text>
+          </LinearGradient>
+        )}
+
+      <View
+        style={[
+          getThemeSurfaceCardStyle(theme),
+          {
+            backgroundColor: theme.colors.surface,
+            borderRadius: isSchoolPrideTheme(theme) ? 6 : 18,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            gap: 12,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 2 }]}>
+          Available Sports
+        </Text>
+        <Text
+          style={{
+            color: theme.colors.mutedText,
+            fontSize: 13,
+            lineHeight: 18,
+          }}
+        >
+          Open live StatOS Gamecast when a game is active, or fall back to the sport stats page.
+        </Text>
+
+        {cards.map((card) => (
+          <Pressable
+            key={card.key}
+            onPress={() => onOpenSport(card)}
+            style={({ pressed }) => [
+              getThemeSurfaceCardStyle(theme),
+              {
+                backgroundColor: theme.colors.card,
+                borderRadius: isSchoolPrideTheme(theme) ? 6 : 16,
+                paddingHorizontal: 14,
+                paddingVertical: 14,
+                borderColor: card.isLive
+                  ? withAlpha(theme.colors.primary, '44')
+                  : theme.colors.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              },
+              pressed ? { opacity: 0.9, transform: [{ scale: 0.99 }] } : null,
+            ]}
+          >
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: isSchoolPrideTheme(theme) ? 6 : 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: card.isLive
+                  ? withAlpha(theme.colors.primary, isGradientEliteTheme(theme) ? '1E' : '12')
+                  : withAlpha(theme.colors.primary, isGradientEliteTheme(theme) ? '16' : '0B'),
+                borderWidth: 1,
+                borderColor: withAlpha(theme.colors.primary, card.isLive ? '36' : '1A'),
+              }}
+            >
+              <Ionicons
+                name={card.key === 'football' ? 'american-football-outline' : 'basketball-outline'}
+                size={22}
+                color={card.isLive ? theme.colors.primary : theme.colors.text}
+              />
+            </View>
+
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text
+                style={{
+                  color: isGradientEliteTheme(theme) ? BRAND.white : theme.colors.text,
+                  fontSize: 18,
+                  lineHeight: 22,
+                  fontWeight: '800',
+                  marginBottom: 5,
+                }}
+              >
+                {card.label}
+              </Text>
+              <Text
+                style={{
+                  color: card.isLive
+                    ? theme.colors.primary
+                    : isGradientEliteTheme(theme)
+                    ? withAlpha(BRAND.white, 'A3')
+                    : theme.colors.mutedText,
+                  fontSize: 12,
+                  lineHeight: 16,
+                  fontWeight: card.isLive ? '700' : '500',
+                }}
+              >
+                {card.isChecking
+                  ? 'Checking live status.'
+                  : 'Opens live stats when available.'}
+              </Text>
+            </View>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                flexShrink: 0,
+              }}
+            >
+              <Text
+                style={{
+                  color: card.isLive ? theme.colors.primary : theme.colors.mutedText,
+                  fontSize: 12,
+                  lineHeight: 16,
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                {`View ${card.label} Stats`}
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={card.isLive ? theme.colors.primary : theme.colors.mutedText}
+              />
+            </View>
+          </Pressable>
+        ))}
+
+        {!loading && cards.length === 0 ? (
+          <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+              No stats sports are available right now.
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </ScrollView>
+  );
+}
+
 function TicketsScreen({
   onOpenEmbedded,
   ticketsUrl,
@@ -22048,6 +23049,10 @@ export default function App() {
   const [scheduleScreenAccentColor, setScheduleScreenAccentColor] = useState(BRAND.primary);
   const [embeddedTitle, setEmbeddedTitle] = useState('');
   const [embeddedUrl, setEmbeddedUrl] = useState('');
+  const [selectedGamecast, setSelectedGamecast] =
+    useState<AthleticOSNativeGamecastData | null>(null);
+  const [statsHubCards, setStatsHubCards] = useState<StatsHubSportCard[]>([]);
+  const [statsHubLoading, setStatsHubLoading] = useState(false);
   const [activeEmbeddedBottomNavSlot, setActiveEmbeddedBottomNavSlot] = useState<string | null>(
     null
   );
@@ -23141,21 +24146,143 @@ const handleEnableNotifications = async () => {
     [appDisplayName, openScheduleScreen, schoolConfig.logoUrl]
   );
 
-  const openEmbedded = (title: string, url: string) => {
-    setActiveEmbeddedBottomNavSlot(null);
-    setEmbeddedTitle(title);
-    setEmbeddedUrl(url);
-    setScreenMode('embedded');
-  };
+  const openNativeGamecastOrEmbedded = useCallback(
+    async (
+      title: string,
+      url: string,
+      options?: {
+        sourceBottomNavSlot?: string | null;
+        forceNativeGamecast?: boolean;
+        explicitGameId?: string | null;
+        fallbackUrl?: string | null;
+        routeTargetOverride?: AthleticOSNativeGamecastRouteTarget | null;
+      }
+    ) => {
+      const fallbackUrl = options?.fallbackUrl?.trim() || url.trim();
+      const explicitGameId = options?.explicitGameId?.trim() || '';
+      const gamecastTarget = options?.routeTargetOverride
+        ? options.routeTargetOverride
+        : explicitGameId
+        ? {
+            gameId: explicitGameId,
+            sourceUrl: fallbackUrl,
+            publicUrl: fallbackUrl || null,
+            status: null,
+          }
+        : extractNativeGamecastTarget(url);
+      const shouldTryNative =
+        Boolean(gamecastTarget?.gameId || gamecastTarget?.sportSlug) ||
+        options?.forceNativeGamecast === true;
+
+      if (shouldTryNative && resolvedSchoolId) {
+        try {
+          const nativeGamecast = gamecastTarget?.gameId
+            ? await getNativeGamecastBySchoolIdAndGameId(
+                resolvedSchoolId,
+                gamecastTarget.gameId,
+                gamecastTarget.sourceUrl || fallbackUrl,
+                {
+                  statusOverride: gamecastTarget.status || null,
+                }
+              )
+            : gamecastTarget?.sportSlug
+            ? await getNativeGamecastBySchoolIdAndSportSlug(
+                resolvedSchoolId,
+                gamecastTarget.sportSlug,
+                gamecastTarget.sourceUrl || fallbackUrl,
+                {
+                  statusOverride: gamecastTarget.status || null,
+                }
+              )
+            : null;
+
+          if (nativeGamecast) {
+            setActiveEmbeddedBottomNavSlot(options?.sourceBottomNavSlot ?? null);
+            setEmbeddedTitle(title);
+            setEmbeddedUrl('');
+            setSelectedGamecast(nativeGamecast);
+            setScreenMode('gamecast');
+            return;
+          }
+        } catch (error) {
+          console.log('Native gamecast open error:', error);
+        }
+      }
+
+      if (!fallbackUrl) {
+        return;
+      }
+
+      setSelectedGamecast(null);
+      setActiveEmbeddedBottomNavSlot(options?.sourceBottomNavSlot ?? null);
+      setEmbeddedTitle(title);
+      setEmbeddedUrl(fallbackUrl);
+      setScreenMode('embedded');
+    },
+    [resolvedSchoolId]
+  );
+
+  const openEmbedded = useCallback(
+    (title: string, url: string) => {
+      if (isStatsHubDestination({ label: title, url })) {
+        openStatsHub();
+        return;
+      }
+
+      void openNativeGamecastOrEmbedded(title, url, {
+        sourceBottomNavSlot: null,
+      });
+    },
+    [openNativeGamecastOrEmbedded, openStatsHub]
+  );
+
+  const openNativeGamecast = useCallback(
+    (
+      title: string,
+      options: {
+        gameId?: string | null;
+        fallbackUrl?: string | null;
+        routeTarget?: AthleticOSNativeGamecastRouteTarget | null;
+      }
+    ) => {
+      void openNativeGamecastOrEmbedded(title, options.fallbackUrl?.trim() || '', {
+        sourceBottomNavSlot: null,
+        forceNativeGamecast: Boolean(options.gameId || options.routeTarget?.sportSlug),
+        explicitGameId: options.gameId ?? null,
+        fallbackUrl: options.fallbackUrl ?? null,
+        routeTargetOverride: options.routeTarget ?? null,
+      });
+    },
+    [openNativeGamecastOrEmbedded]
+  );
+
+  const openStatsHubSport = useCallback(
+    (card: StatsHubSportCard) => {
+      void openNativeGamecastOrEmbedded(
+        card.label,
+        card.routeTarget.sourceUrl || card.fallbackUrl,
+        {
+          sourceBottomNavSlot: activeEmbeddedBottomNavSlot,
+          forceNativeGamecast: true,
+          explicitGameId: card.routeTarget.gameId || null,
+          fallbackUrl: card.fallbackUrl || null,
+          routeTargetOverride: card.routeTarget,
+        }
+      );
+    },
+    [activeEmbeddedBottomNavSlot, openNativeGamecastOrEmbedded]
+  );
 
   const openSport = (sport: SportType) => {
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setSelectedSport(sport);
     setScreenMode('sportDetail');
   };
 
   const openRosterScreen = (options: OpenRosterOptions) => {
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setPreviousScreenMode(screenMode);
     setSelectedRosterSport(options.sport);
     setSelectedRosterSportId(options.sportId);
@@ -23168,6 +24295,7 @@ const handleEnableNotifications = async () => {
 
   const handleOpenStoryDetail = (item: NewsItem) => {
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setPreviousScreenMode(screenMode);
     setSelectedStory(item);
     setScreenMode('storyDetail');
@@ -23175,6 +24303,7 @@ const handleEnableNotifications = async () => {
 
   const openAthleteProfile = (athlete: AthleticOSRosterAthlete) => {
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setSelectedAthlete(athlete);
     setScreenMode('athleteProfile');
   };
@@ -23186,6 +24315,7 @@ const handleEnableNotifications = async () => {
     schoolLogoUrl,
   }: OpenRecruitingOptions) => {
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setPreviousScreenMode(screenMode);
     setSelectedRecruitingSport(sport);
     setSelectedRecruitingSportId(sportId);
@@ -23197,12 +24327,14 @@ const handleEnableNotifications = async () => {
 
   const openRecruitingPlayerScreen = (profile: Record<string, unknown>) => {
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setSelectedRecruitingPlayer(profile);
     setScreenMode('recruitingPlayer');
   };
 
   const openNewsListScreen = () => {
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setActiveTab('home');
     setScreenMode('newsList');
     setSelectedRosterSport(null);
@@ -23217,6 +24349,7 @@ const handleEnableNotifications = async () => {
   const openMediaScreen = () => {
     console.log('OPEN_MEDIA_SCREEN_CALLED');
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setActiveTab('media');
     setScreenMode('media');
     setSelectedRecruitingSport(null);
@@ -23240,6 +24373,7 @@ const handleEnableNotifications = async () => {
     }
 
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setActiveTab(tab);
     setScreenMode('tabs');
     setSelectedRecruitingSport(null);
@@ -23260,7 +24394,9 @@ const handleEnableNotifications = async () => {
     label: string,
     destinationValue: string,
     openInWebview: boolean,
-    sourceBottomNavSlot?: string
+    sourceBottomNavSlot?: string,
+    destinationType?: string,
+    iconKey?: string
   ) => {
     const trimmedValue = destinationValue.trim();
     if (!trimmedValue) {
@@ -23273,18 +24409,42 @@ const handleEnableNotifications = async () => {
       ? `${schoolConfig.mainSiteUrl.replace(/\/+$/, '')}${trimmedValue}`
       : '';
 
+    if (
+      isStatsHubDestination({
+        destinationType,
+        label,
+        iconKey,
+        url: resolvedUrl || trimmedValue,
+      })
+    ) {
+      openStatsHub({ sourceBottomNavSlot: sourceBottomNavSlot ?? null });
+      return;
+    }
+
+    if (isNativeGamecastDestinationType(destinationType)) {
+      const parsedTarget = extractNativeGamecastTarget(resolvedUrl || trimmedValue);
+      void openNativeGamecastOrEmbedded(label, resolvedUrl || '', {
+        sourceBottomNavSlot: sourceBottomNavSlot ?? null,
+        forceNativeGamecast: true,
+        explicitGameId: parsedTarget?.gameId || null,
+        fallbackUrl: hasResolvedUrl(resolvedUrl) ? resolvedUrl : null,
+      });
+      return;
+    }
+
     if (!hasResolvedUrl(resolvedUrl)) {
       return;
     }
 
-    if (openInWebview) {
-      setActiveEmbeddedBottomNavSlot(sourceBottomNavSlot ?? null);
-      setEmbeddedTitle(label);
-      setEmbeddedUrl(resolvedUrl);
-      setScreenMode('embedded');
-      return;
+      if (openInWebview) {
+        void openNativeGamecastOrEmbedded(label, resolvedUrl, {
+          sourceBottomNavSlot: sourceBottomNavSlot ?? null,
+          forceNativeGamecast: false,
+        });
+        return;
     }
 
+    setSelectedGamecast(null);
     setActiveEmbeddedBottomNavSlot(null);
     openExternalUrl(resolvedUrl);
   };
@@ -23336,6 +24496,210 @@ const handleEnableNotifications = async () => {
         return String(a.id ?? '').localeCompare(String(b.id ?? ''));
       });
   }, [liveCoverageConfig?.channels]);
+
+  const primaryStatsLiveCoverageChannel = useMemo(() => {
+    return appOsMediaChannels.find((channel) => {
+      const channelRecord = channel as Record<string, unknown>;
+      const channelType = normalizeBottomNavDestinationType(channel.channel_type);
+      const destinationType = normalizeBottomNavDestinationType(
+        readTrimmedRecordString(channelRecord, ['destination_type'])
+      );
+
+      if (channelType !== 'stats' && !isNativeGamecastDestinationType(destinationType)) {
+        return false;
+      }
+
+      const target = resolveStatsChannelGamecastTarget(channelRecord, resolveSchoolScopedUrl);
+      return Boolean(target.gameId || target.fallbackUrl);
+    }) ?? null;
+  }, [appOsMediaChannels, resolveSchoolScopedUrl]);
+
+  const buildStatsHubFallbackUrl = useCallback(
+    (sportSlug: string) => {
+      const trimmedSportSlug = sportSlug.trim().replace(/^\/+|\/+$/g, '');
+      const trimmedSchoolSlug = schoolSlug.trim().replace(/^\/+|\/+$/g, '');
+      const preferredBase =
+        (schoolConfig.athleticOSSiteUrl || schoolConfig.mainSiteUrl || '').trim();
+
+      if (!trimmedSportSlug || !hasResolvedUrl(preferredBase)) {
+        return '';
+      }
+
+      const trimmedBase = preferredBase.replace(/\/+$/, '');
+      const baseIncludesSchoolSlug = Boolean(
+        trimmedSchoolSlug &&
+          trimmedBase.toLowerCase().endsWith(`/${trimmedSchoolSlug.toLowerCase()}`)
+      );
+
+      if (baseIncludesSchoolSlug) {
+        return `${trimmedBase}/${trimmedSportSlug}/stats/live`;
+      }
+
+      if (trimmedSchoolSlug) {
+        return `${trimmedBase}/${trimmedSchoolSlug}/${trimmedSportSlug}/stats/live`;
+      }
+
+      return `${trimmedBase}/${trimmedSportSlug}/stats/live`;
+    },
+    [schoolConfig.athleticOSSiteUrl, schoolConfig.mainSiteUrl, schoolSlug]
+  );
+
+  const getStatsHubTargetForSport = useCallback(
+    (sport: StatsHubSportDefinition) => {
+      const fallbackUrl = buildStatsHubFallbackUrl(sport.primarySportSlug);
+      const matchingChannel = appOsMediaChannels.find((channel) => {
+        const channelRecord = channel as Record<string, unknown>;
+        const channelType = normalizeBottomNavDestinationType(channel.channel_type);
+        const destinationType = normalizeBottomNavDestinationType(
+          readTrimmedRecordString(channelRecord, ['destination_type'])
+        );
+
+        if (channelType !== 'stats' && !isNativeGamecastDestinationType(destinationType)) {
+          return false;
+        }
+
+        const target = resolveStatsChannelGamecastTarget(channelRecord, resolveSchoolScopedUrl);
+        const channelSportSlug = normalizeStatsHubToken(
+          target.routeTarget.sportSlug ||
+            readTrimmedRecordString(channelRecord, ['sport_slug'])
+        );
+
+        return sport.fallbackSportSlugs
+          .map((value) => normalizeStatsHubToken(value))
+          .includes(channelSportSlug);
+      });
+
+      if (matchingChannel) {
+        const channelTarget = resolveStatsChannelGamecastTarget(
+          matchingChannel as Record<string, unknown>,
+          resolveSchoolScopedUrl
+        );
+
+        return {
+          fallbackUrl: channelTarget.fallbackUrl || fallbackUrl,
+          routeTarget: {
+            ...channelTarget.routeTarget,
+            schoolSlug: channelTarget.routeTarget.schoolSlug || schoolSlug || null,
+            sportSlug: channelTarget.routeTarget.sportSlug || sport.primarySportSlug,
+            sourceUrl:
+              channelTarget.routeTarget.sourceUrl ||
+              channelTarget.fallbackUrl ||
+              fallbackUrl ||
+              null,
+            publicUrl:
+              channelTarget.routeTarget.publicUrl ||
+              channelTarget.fallbackUrl ||
+              fallbackUrl ||
+              null,
+          } satisfies AthleticOSNativeGamecastRouteTarget,
+        };
+      }
+
+      return {
+        fallbackUrl,
+        routeTarget: {
+          schoolSlug: schoolSlug || null,
+          sportSlug: sport.primarySportSlug,
+          sourceUrl: fallbackUrl || null,
+          publicUrl: fallbackUrl || null,
+          status: null,
+        } satisfies AthleticOSNativeGamecastRouteTarget,
+      };
+    },
+    [appOsMediaChannels, buildStatsHubFallbackUrl, resolveSchoolScopedUrl, schoolSlug]
+  );
+
+  const openStatsHub = useCallback(
+    (options?: { sourceBottomNavSlot?: string | null }) => {
+      setSelectedGamecast(null);
+      setEmbeddedTitle('Stats Hub');
+      setEmbeddedUrl('');
+      setActiveEmbeddedBottomNavSlot(options?.sourceBottomNavSlot ?? null);
+      setScreenMode('statsHub');
+    },
+    []
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStatsHubCards = async () => {
+      if (screenMode !== 'statsHub') {
+        setStatsHubLoading(false);
+        return;
+      }
+
+      const initialCards = STATS_HUB_SPORTS.map((sport) => {
+        const target = getStatsHubTargetForSport(sport);
+        return {
+          key: sport.key,
+          label: sport.label,
+          routeTarget: target.routeTarget,
+          fallbackUrl: target.fallbackUrl,
+          isLive: isStatsHubLiveStatus(target.routeTarget.status),
+          isChecking: Boolean(resolvedSchoolId) && !isStatsHubLiveStatus(target.routeTarget.status),
+        } satisfies StatsHubSportCard;
+      });
+
+      setStatsHubCards(initialCards);
+
+      if (!resolvedSchoolId) {
+        setStatsHubLoading(false);
+        return;
+      }
+
+      setStatsHubLoading(true);
+
+      const nextCards = await Promise.all(
+        STATS_HUB_SPORTS.map(async (sport) => {
+          const target = getStatsHubTargetForSport(sport);
+          let isLive = isStatsHubLiveStatus(target.routeTarget.status);
+
+          if (!isLive) {
+            for (const sportSlug of sport.fallbackSportSlugs) {
+              try {
+                const gamecast = await getNativeGamecastBySchoolIdAndSportSlug(
+                  resolvedSchoolId,
+                  sportSlug,
+                  target.routeTarget.sourceUrl || target.fallbackUrl,
+                  {
+                    statusOverride: target.routeTarget.status || null,
+                  }
+                );
+
+                if (gamecast?.isLive) {
+                  isLive = true;
+                  break;
+                }
+              } catch (error) {
+                console.log('Stats hub status load error:', error);
+              }
+            }
+          }
+
+          return {
+            key: sport.key,
+            label: sport.label,
+            routeTarget: target.routeTarget,
+            fallbackUrl: target.fallbackUrl,
+            isLive,
+            isChecking: false,
+          } satisfies StatsHubSportCard;
+        })
+      );
+
+      if (!cancelled) {
+        setStatsHubCards(nextCards);
+        setStatsHubLoading(false);
+      }
+    };
+
+    void loadStatsHubCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getStatsHubTargetForSport, resolvedSchoolId, screenMode]);
 
   useEffect(() => {
     console.log('APPOS_LIVE_COVERAGE_CONFIG_ID', liveCoverageConfig?.id ?? null);
@@ -23468,12 +24832,26 @@ const handleEnableNotifications = async () => {
           case 'livestream':
           case 'media':
             if (targetUrl) {
-              onPress = () => openEmbedded(label, targetUrl);
+              onPress = isStatsHubDestination({
+                destinationType: actionType,
+                label,
+                iconKey: action.iconKey,
+                url: targetUrl,
+              })
+                ? () => openStatsHub()
+                : () => openEmbedded(label, targetUrl);
             }
             break;
           default:
             if (targetUrl) {
-              onPress = () => openEmbedded(label, targetUrl);
+              onPress = isStatsHubDestination({
+                destinationType: actionType,
+                label,
+                iconKey: action.iconKey,
+                url: targetUrl,
+              })
+                ? () => openStatsHub()
+                : () => openEmbedded(label, targetUrl);
             }
             break;
         }
@@ -23497,6 +24875,7 @@ const handleEnableNotifications = async () => {
     heroQuickActions,
     openEmbedded,
     openHeroQuickActionSchedule,
+    openStatsHub,
     resolveSchoolScopedUrl,
     schoolConfig.listenUrl,
     schoolConfig.mainSiteUrl,
@@ -23609,19 +24988,36 @@ const handleEnableNotifications = async () => {
               label,
               configuredItem.destinationValue,
               configuredItem.openInWebview,
-              slotNumber === 4 ? 'slot-4' : undefined
+              slotNumber === 4 ? 'slot-4' : undefined,
+              destinationType,
+              configuredItem.iconKey
             );
           active =
             slotNumber === 4 &&
-            screenMode === 'embedded' &&
+            (screenMode === 'embedded' || screenMode === 'gamecast' || screenMode === 'statsHub') &&
             activeEmbeddedBottomNavSlot === 'slot-4';
         } else {
           active = activeTab === 'tickets';
           onPress = () => handleBottomNavChange('tickets');
         }
         break;
+      case 'stats':
+        onPress = () =>
+          openStatsHub({
+            sourceBottomNavSlot: slotNumber === 4 ? 'slot-4' : undefined,
+          });
+        active =
+          slotNumber === 4 &&
+          screenMode === 'statsHub' &&
+          activeEmbeddedBottomNavSlot === 'slot-4';
+        break;
       case 'external_url':
       case 'custom_page':
+      case 'statos_game':
+      case 'statos_game_auto':
+      case 'live_game':
+      case 'gamecast':
+      case 'statos_url':
         if (normalizeInternalBottomNavTarget(configuredItem.destinationValue) === 'newslist') {
           active = screenMode === 'newsList';
           onPress = openNewsListScreen;
@@ -23631,12 +25027,14 @@ const handleEnableNotifications = async () => {
               label,
               configuredItem.destinationValue,
               configuredItem.openInWebview,
-              slotNumber === 4 && configuredItem.openInWebview ? 'slot-4' : undefined
+              slotNumber === 4 && configuredItem.openInWebview ? 'slot-4' : undefined,
+              destinationType,
+              configuredItem.iconKey
             );
           active =
             slotNumber === 4 &&
             configuredItem.openInWebview === true &&
-            screenMode === 'embedded' &&
+            (screenMode === 'embedded' || screenMode === 'gamecast' || screenMode === 'statsHub') &&
             activeEmbeddedBottomNavSlot === 'slot-4';
         }
         break;
@@ -23683,6 +25081,7 @@ const handleEnableNotifications = async () => {
   const closeSpecialScreen = () => {
     setScreenMode('tabs');
     setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
     setScheduleScreenEvents(null);
     setScheduleScreenSportFilter(null);
     setScheduleScreenTitle('Schedule');
@@ -23784,6 +25183,14 @@ const handleEnableNotifications = async () => {
         return 'Listen Live';
       }
 
+      if (destinationType === 'stats') {
+        return 'Live Stats';
+      }
+
+      if (isNativeGamecastDestinationType(destinationType)) {
+        return 'Gamecast';
+      }
+
       if (destinationType === 'schedule') {
         return 'View Schedule';
       }
@@ -23798,6 +25205,14 @@ const handleEnableNotifications = async () => {
 
       if (destinationType === 'audio') {
         return 'Start or pause the live audio stream.';
+      }
+
+      if (destinationType === 'stats') {
+        return 'Open the live StatOS Gamecast.';
+      }
+
+      if (isNativeGamecastDestinationType(destinationType)) {
+        return 'Open the live StatOS Gamecast.';
       }
 
       if (destinationType === 'schedule') {
@@ -23816,6 +25231,14 @@ const handleEnableNotifications = async () => {
         return isCurrentAudioStream && isPlaying ? 'pause-circle' : 'headset';
       }
 
+      if (destinationType === 'stats') {
+        return 'stats-chart-outline' as const;
+      }
+
+      if (isNativeGamecastDestinationType(destinationType)) {
+        return 'stats-chart-outline' as const;
+      }
+
       if (destinationType === 'schedule') {
         return 'calendar';
       }
@@ -23825,7 +25248,12 @@ const handleEnableNotifications = async () => {
 
     return appOsMediaChannels
       .map((channel) => {
-        const destinationType = normalizeBottomNavDestinationType(channel.channel_type);
+        const channelRecord = channel as Record<string, unknown>;
+        const channelType = normalizeBottomNavDestinationType(channel.channel_type);
+        const configuredDestinationType = normalizeBottomNavDestinationType(
+          readTrimmedRecordString(channelRecord, ['destination_type'])
+        );
+        const destinationType = channelType || configuredDestinationType;
         const videoUrl =
           resolveSchoolScopedUrl(channel.video_url) ||
           resolveSchoolScopedUrl(channel.embed_url) ||
@@ -23855,8 +25283,14 @@ const handleEnableNotifications = async () => {
         const isScheduleType = destinationType === 'schedule';
         const isVideoType = destinationType === 'video';
         const isAudioType = destinationType === 'audio';
+        const isStatsType = channelType === 'stats';
+        const isGamecastType =
+          isStatsType || isNativeGamecastDestinationType(destinationType);
         const isCurrentAudioStream =
           Boolean(audioUrl) && audioUrl === currentAudioUrlRef.current;
+        const statsTarget = isGamecastType
+          ? resolveStatsChannelGamecastTarget(channelRecord, resolveSchoolScopedUrl)
+          : null;
 
         if (isVideoType && videoUrl) {
           return {
@@ -23910,6 +25344,29 @@ const handleEnableNotifications = async () => {
           };
         }
 
+        if (isGamecastType) {
+          if (!statsTarget || (!statsTarget.gameId && !statsTarget.fallbackUrl)) {
+            return null;
+          }
+
+          return {
+            key: `media-channel-${channel.id ?? title}-gamecast`,
+            icon: getChannelIcon(isStatsType ? 'stats' : destinationType, false),
+            title:
+              title ||
+              (isStatsType ? 'Live Stats' : getChannelFallbackLabel(destinationType)),
+            subtitle:
+              subtitle ||
+              (isStatsType
+                ? 'Open the live StatOS Gamecast.'
+                : getChannelFallbackDescription(destinationType)),
+            sponsorName: sponsorName || undefined,
+            sponsorLogoUrl: sponsorLogoUrl || undefined,
+            sponsorLinkUrl: sponsorLinkUrl || undefined,
+            onPress: () => openStatsHub(),
+          };
+        }
+
         if (!generalUrl) {
           return null;
         }
@@ -23932,6 +25389,7 @@ const handleEnableNotifications = async () => {
     openEmbedded,
     openExternalUrl,
     openScheduleScreen,
+    openStatsHub,
     resolveSchoolScopedUrl,
     toggleAudio,
   ]);
@@ -23991,6 +25449,28 @@ if (showPreroll && prerollConfig) {
       <EmbeddedWebView
         url={embeddedUrl}
         headerTitle={embeddedTitle}
+        onBack={closeSpecialScreen}
+        theme={resolvedTheme}
+      />
+    );
+  } else if (screenMode === 'statsHub') {
+    mainContent = (
+      <StatsHubScreen
+        cards={statsHubCards}
+        loading={statsHubLoading}
+        schoolDisplayName={appDisplayName}
+        schoolLogoUrl={schoolConfig.logoUrl}
+        onBack={closeSpecialScreen}
+        onOpenSport={openStatsHubSport}
+        theme={resolvedTheme}
+      />
+    );
+  } else if (screenMode === 'gamecast' && selectedGamecast) {
+    mainContent = (
+      <GamecastScreen
+        gamecast={selectedGamecast}
+        headerTitle={embeddedTitle || selectedGamecast.sportName || 'Live Gamecast'}
+        schoolLogoUrl={schoolConfig.logoUrl}
         onBack={closeSpecialScreen}
         theme={resolvedTheme}
       />
@@ -24157,6 +25637,8 @@ if (showPreroll && prerollConfig) {
         {activeTab === 'home' ? (
           <HomeScreen
             onOpenEmbedded={openEmbedded}
+            onOpenNativeGamecast={openNativeGamecast}
+            onOpenStatsHub={() => openStatsHub()}
             onOpenStoryDetail={handleOpenStoryDetail}
             onOpenExternal={openExternalUrl}
             onOpenSchedule={openScheduleScreen}

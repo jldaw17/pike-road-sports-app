@@ -74,6 +74,22 @@ const VARIANT_CONFIGS = {
     iosBundleIdentifier: 'com.athleticos.wetumpka',
     icon: './assets/images/icon.png',
   },
+  opelika: {
+    schoolSlug: 'opelika',
+    name: 'Opelika Athletics',
+    slug: 'opelika-athletics',
+    scheme: 'opelikaathletics',
+    iosBundleIdentifier: 'com.athleticos.opelika',
+    icon: './assets/images/icon.png',
+  },
+  hickory: {
+    schoolSlug: 'hickory',
+    name: 'Hickory Athletics',
+    slug: 'hickory-athletics',
+    scheme: 'hickoryathletics',
+    iosBundleIdentifier: 'com.athleticos.hickory',
+    icon: './assets/images/icon.png',
+  },
 };
 
 function isLocalDevelopment() {
@@ -92,7 +108,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, hickory.'
   );
 }
 
