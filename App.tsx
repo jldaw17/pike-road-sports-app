@@ -17054,6 +17054,7 @@ function AthleteProfileScreen({
 }) {
   const isCleanSlate = isCleanSlateTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
+  const isPremium = isPremiumTheme(theme);
   const imageUrl = athlete.photoUrl?.trim() || '';
   const numberLabel = athlete.jerseyNumber || athlete.number || '';
   const infoRows = [
@@ -17066,6 +17067,16 @@ function AthleteProfileScreen({
     athlete.weight ? `Weight: ${athlete.weight}` : '',
     athlete.hometown ? `Hometown: ${athlete.hometown}` : '',
   ].filter(Boolean);
+  const premiumMetaLine = [
+    numberLabel ? `No. ${numberLabel}` : '',
+    athlete.position || '',
+    athlete.classYear || '',
+  ]
+    .filter(Boolean)
+    .join(' • ');
+  const premiumSizeLine = [athlete.height || '', athlete.weight || '']
+    .filter(Boolean)
+    .join(' • ');
 
   return (
     <ScrollView
@@ -17146,29 +17157,98 @@ function AthleteProfileScreen({
               : null,
           ]}
         >
-          <Text
-            style={[
-              styles.storyDetailTitle,
-              {
-                color: isSchoolPride
-                  ? getSchoolPrideTextColor()
-                  : isCleanSlateTheme(theme)
-                  ? theme.colors.text
-                  : BRAND.white,
-              },
-              isSchoolPride
-                ? getSchoolPrideStoryHeaderTitleStyle()
-                : isCleanSlate
-                  ? {
-                      fontSize: 30,
-                      lineHeight: 34,
-                      fontWeight: '800' as const,
-                    }
-                : null,
-            ]}
-          >
-            {athlete.fullName}
-          </Text>
+          {isPremium ? (
+            <View
+              style={[
+                getThemeSurfaceCardStyle(theme),
+                {
+                  backgroundColor: withAlpha(BRAND.white, 'F6'),
+                  borderColor: withAlpha(theme.colors.text, '10'),
+                  borderRadius: 20,
+                  paddingHorizontal: 18,
+                  paddingVertical: 16,
+                  shadowColor: withAlpha(theme.colors.text, '16'),
+                  shadowOpacity: 0.08,
+                  shadowRadius: 14,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 3,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.storyDetailTitle,
+                  {
+                    color: theme.colors.text,
+                    fontSize: 30,
+                    lineHeight: 34,
+                    fontWeight: '800',
+                    marginBottom: 6,
+                  },
+                ]}
+              >
+                {athlete.fullName}
+              </Text>
+              {premiumMetaLine ? (
+                <Text
+                  style={[
+                    styles.rosterProfileMeta,
+                    {
+                      color: theme.colors.text,
+                      marginTop: 0,
+                      marginBottom: premiumSizeLine ? 6 : 0,
+                      fontSize: 15,
+                      lineHeight: 20,
+                      fontWeight: '700',
+                    },
+                  ]}
+                >
+                  {premiumMetaLine}
+                </Text>
+              ) : null}
+              {premiumSizeLine ? (
+                <Text
+                  style={[
+                    styles.rosterProfileDetail,
+                    {
+                      color: theme.colors.text,
+                      marginTop: 0,
+                      marginBottom: 0,
+                      fontSize: 14,
+                      lineHeight: 19,
+                      fontWeight: '600',
+                    },
+                  ]}
+                >
+                  {premiumSizeLine}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <Text
+              style={[
+                styles.storyDetailTitle,
+                {
+                  color: isSchoolPride
+                    ? getSchoolPrideTextColor()
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.text
+                    : BRAND.white,
+                },
+                isSchoolPride
+                  ? getSchoolPrideStoryHeaderTitleStyle()
+                  : isCleanSlate
+                    ? {
+                        fontSize: 30,
+                        lineHeight: 34,
+                        fontWeight: '800' as const,
+                      }
+                  : null,
+              ]}
+            >
+              {athlete.fullName}
+            </Text>
+          )}
           {(isSchoolPride || isCleanSlate) && infoRows.length > 0 ? (
             <Text
               style={[
@@ -17278,12 +17358,12 @@ function AthleteProfileScreen({
 
         {((!isSchoolPride && !isCleanSlate) || athlete.bio) ? (
           <View style={[styles.rosterProfileCard, getThemeSoftCardStyle(theme)]}>
-            {!isSchoolPride && !isCleanSlate && infoRows.length > 0 ? (
+            {!isSchoolPride && !isCleanSlate && !isPremium && infoRows.length > 0 ? (
               <Text style={[styles.rosterProfileMeta, { color: theme.colors.text }]}>
                 {infoRows.join(' • ')}
               </Text>
             ) : null}
-            {!isSchoolPride && !isCleanSlate
+            {!isSchoolPride && !isCleanSlate && !isPremium
               ? bodyRows.map((row) => (
                   <Text key={row} style={[styles.rosterProfileDetail, { color: theme.colors.mutedText }]}>
                     {row}
