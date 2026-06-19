@@ -2039,6 +2039,7 @@ type NewsItem = {
   description: string;
   summary?: string;
   body?: string;
+  slug?: string;
   sportId?: string;
   sportLabel?: string | null;
   sportName?: string;
@@ -2457,6 +2458,49 @@ function normalizeUrl(url = '') {
 
 function hasResolvedUrl(url?: string) {
   return /^https?:\/\//i.test((url ?? '').trim());
+}
+
+const AUDIO_STREAM_TIMEOUT_MS = 9000;
+const UNSUPPORTED_AUDIO_PAGE_HOSTS = new Set([
+  'youtube.com',
+  'www.youtube.com',
+  'm.youtube.com',
+  'youtu.be',
+  'facebook.com',
+  'www.facebook.com',
+  'm.facebook.com',
+  'fb.watch',
+  'vimeo.com',
+  'www.vimeo.com',
+]);
+
+function looksLikeUnsupportedAudioPageUrl(url?: string) {
+  const trimmed = (url ?? '').trim();
+  if (!hasResolvedUrl(trimmed)) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+
+    if (UNSUPPORTED_AUDIO_PAGE_HOSTS.has(host)) {
+      return true;
+    }
+
+    if (
+      (host.includes('youtube') || host.includes('facebook') || host.includes('vimeo')) &&
+      (parsed.pathname.includes('/watch') ||
+        parsed.pathname.includes('/video') ||
+        parsed.pathname.includes('/videos'))
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }
 
 function getInitials(value?: string) {
@@ -3959,6 +4003,7 @@ function LiveBadge() {
 function AudioMiniPlayer({
   isPlaying,
   isLoading,
+  errorMessage,
   title,
   enabled,
   onToggle,
@@ -3966,6 +4011,7 @@ function AudioMiniPlayer({
 }: {
   isPlaying: boolean;
   isLoading: boolean;
+  errorMessage?: string;
   title?: string;
   enabled: boolean;
   onToggle: () => void;
@@ -3991,7 +4037,9 @@ function AudioMiniPlayer({
           {title || 'Live Audio'}
         </Text>
         <Text style={[styles.audioBarSub, { color: theme.colors.mutedText }]}>
-          {isLoading
+          {errorMessage
+            ? errorMessage
+            : isLoading
             ? 'Loading stream...'
             : isPlaying
               ? 'Now Playing'
@@ -4322,6 +4370,7 @@ function renderPremiumScreenHeader({
   logoUrl,
   logoLabel,
   onBack,
+  rightAction,
 }: {
   theme: AthleticOSResolvedTheme;
   eyebrow?: string;
@@ -4330,6 +4379,7 @@ function renderPremiumScreenHeader({
   logoUrl?: string;
   logoLabel?: string;
   onBack?: () => void;
+  rightAction?: React.ReactNode;
 }) {
   if (!isPremiumTheme(theme)) {
     return null;
@@ -4361,25 +4411,39 @@ function renderPremiumScreenHeader({
           backgroundColor: withAlpha(theme.colors.primary, 'CC'),
         }}
       />
-      {onBack ? (
-        <Pressable
-          style={[
-            styles.backButton,
-            {
-              marginBottom: 10,
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              backgroundColor: theme.colors.cardAlt,
-              borderWidth: 1,
-              borderColor: withAlpha(theme.colors.text, '0C'),
-              borderRadius: 999,
-            },
-          ]}
-          onPress={onBack}
+      {onBack || rightAction ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 10,
+          }}
         >
-          <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-          <Text style={[styles.backButtonText, { color: theme.colors.text }]}>Back</Text>
-        </Pressable>
+          {onBack ? (
+            <Pressable
+              style={[
+                styles.backButton,
+                {
+                  marginBottom: 0,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: theme.colors.cardAlt,
+                  borderWidth: 1,
+                  borderColor: withAlpha(theme.colors.text, '0C'),
+                  borderRadius: 999,
+                },
+              ]}
+              onPress={onBack}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+              <Text style={[styles.backButtonText, { color: theme.colors.text }]}>Back</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+          {rightAction ? <View>{rightAction}</View> : null}
+        </View>
       ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {hasResolvedUrl(logoUrl) ? (
@@ -5343,10 +5407,14 @@ function NewsCard({
 function StoryDetailScreen({
   item,
   onBack,
+  appDisplayName,
+  schoolSlug,
   theme = DEFAULT_APP_THEME,
 }: {
   item: NewsItem;
   onBack: () => void;
+  appDisplayName?: string;
+  schoolSlug?: string;
   theme?: AthleticOSResolvedTheme;
 }) {
   const summary = item.summary?.trim() || item.description?.trim() || '';
@@ -5373,6 +5441,87 @@ function StoryDetailScreen({
     item.imageUrl?.trim() ||
     item.image?.trim() ||
     '';
+  const generatedShareUrl =
+    schoolSlug?.trim() && item.slug?.trim()
+      ? `https://athleticos.ai/${schoolSlug.trim()}/news/${item.slug.trim()}`
+      : '';
+  const shareUrl = hasResolvedUrl(generatedShareUrl)
+    ? generatedShareUrl
+    : hasResolvedUrl(item.link)
+    ? item.link.trim()
+    : '';
+
+  const handleShareStory = useCallback(async () => {
+    const message = [item.title.trim(), shareUrl].filter(Boolean).join('\n');
+    console.log('STORY_SHARE_URL', shareUrl || null);
+
+    await Share.share({
+      message: message || item.title.trim() || appDisplayName?.trim() || 'AthleticOS',
+    });
+  }, [appDisplayName, item.title, shareUrl]);
+
+  const shareButton = (
+    <Pressable
+      style={[
+        styles.storyDetailShareButton,
+        isSchoolPride
+          ? {
+              backgroundColor: withAlpha(theme.colors.primary, '0E'),
+              borderColor: withAlpha(theme.colors.primary, '18'),
+              borderRadius: 4,
+            }
+          : isPremium
+          ? {
+              backgroundColor: theme.colors.cardAlt,
+              borderColor: withAlpha(theme.colors.text, '0C'),
+              borderRadius: 999,
+            }
+          : isCleanSlateTheme(theme)
+          ? {
+              backgroundColor: theme.colors.cardAlt,
+              borderColor: theme.colors.border,
+            }
+          : {
+              backgroundColor: withAlpha(BRAND.white, '12'),
+              borderColor: withAlpha(BRAND.white, '18'),
+            },
+      ]}
+      onPress={() => {
+        void handleShareStory();
+      }}
+    >
+      <Ionicons
+        name="share-social-outline"
+        size={18}
+        color={
+          isSchoolPride
+            ? theme.colors.primary
+            : isPremium
+            ? theme.colors.text
+            : isCleanSlateTheme(theme)
+            ? theme.colors.text
+            : BRAND.white
+        }
+      />
+      <Text
+        style={[
+          styles.storyDetailShareButtonText,
+          {
+            color:
+              isSchoolPride
+                ? theme.colors.primary
+                : isPremium
+                ? theme.colors.text
+                : isCleanSlateTheme(theme)
+                ? theme.colors.text
+                : BRAND.white,
+          },
+        ]}
+      >
+        Share
+      </Text>
+    </Pressable>
+  );
 
   useEffect(() => {
     console.log('STORY_DETAIL_IS_GRADIENT_ELITE', isGradientElite);
@@ -5439,6 +5588,7 @@ function StoryDetailScreen({
           title: item.title,
           subtitle: item.date,
           onBack,
+          rightAction: shareButton,
         })
       ) : (
       <LinearGradient
@@ -5473,65 +5623,73 @@ function StoryDetailScreen({
             : null,
         ]}
       >
-        <Pressable
+        <View
           style={[
-            styles.storyDetailBackButton,
-            isSchoolPride
-              ? {
-                  marginBottom: 14,
-                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
-                  borderColor: withAlpha(theme.colors.primary, '18'),
-                  borderRadius: 4,
-                }
-              : null,
-            isPremium
-              ? {
-                  marginBottom: 14,
-                  backgroundColor: theme.colors.cardAlt,
-                  borderColor: withAlpha(theme.colors.text, '0C'),
-                  borderRadius: 999,
-                }
-              : null,
-            isGradientElite ? { marginBottom: 16, paddingVertical: 7 } : null,
-            isCleanSlateTheme(theme)
-              ? {
-                  backgroundColor: theme.colors.cardAlt,
-                  borderColor: theme.colors.border,
-                }
-              : null,
+            styles.storyDetailTopActionsRow,
+            isGradientElite ? { marginBottom: 16 } : { marginBottom: 14 },
           ]}
-          onPress={onBack}
         >
-          <Ionicons
-            name="arrow-back"
-            size={20}
-            color={
-              isSchoolPride
-                ? theme.colors.primary
-                : isPremium
-                ? theme.colors.text
-                : isCleanSlateTheme(theme)
-                ? theme.colors.text
-                : BRAND.white
-            }
-          />
-          <Text
+          <Pressable
             style={[
-              styles.backButtonText,
-              {
-                color: isSchoolPride
+              styles.storyDetailBackButton,
+              isSchoolPride
+                ? {
+                    marginBottom: 0,
+                    backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                    borderColor: withAlpha(theme.colors.primary, '18'),
+                    borderRadius: 4,
+                  }
+                : null,
+              isPremium
+                ? {
+                    marginBottom: 0,
+                    backgroundColor: theme.colors.cardAlt,
+                    borderColor: withAlpha(theme.colors.text, '0C'),
+                    borderRadius: 999,
+                  }
+                : null,
+              isGradientElite ? { marginBottom: 0, paddingVertical: 7 } : null,
+              isCleanSlateTheme(theme)
+                ? {
+                    backgroundColor: theme.colors.cardAlt,
+                    borderColor: theme.colors.border,
+                  }
+                : null,
+            ]}
+            onPress={onBack}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={20}
+              color={
+                isSchoolPride
                   ? theme.colors.primary
                   : isPremium
                   ? theme.colors.text
                   : isCleanSlateTheme(theme)
                   ? theme.colors.text
-                  : BRAND.white,
-              },
-            ]}
-          >
-            Back
-          </Text>
-        </Pressable>
+                  : BRAND.white
+              }
+            />
+            <Text
+              style={[
+                styles.backButtonText,
+                {
+                  color: isSchoolPride
+                    ? theme.colors.primary
+                    : isPremium
+                    ? theme.colors.text
+                    : isCleanSlateTheme(theme)
+                    ? theme.colors.text
+                    : BRAND.white,
+                },
+              ]}
+            >
+              Back
+            </Text>
+          </Pressable>
+          {shareButton}
+        </View>
 
         <View
           style={[
@@ -23098,6 +23256,10 @@ export default function App() {
   const player = useAudioPlayer(null);
   const playerStatus = useAudioPlayerStatus(player);
   const currentAudioUrlRef = useRef('');
+  const audioStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeAudioUrl, setActiveAudioUrl] = useState('');
+  const [audioErrorMessage, setAudioErrorMessage] = useState('');
+  const [audioStartInFlight, setAudioStartInFlight] = useState(false);
 
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
@@ -23241,29 +23403,27 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
   const hasMainSiteUrl = hasResolvedUrl(schoolConfig.mainSiteUrl);
   const isPlaying = Boolean((playerStatus as any)?.playing);
-  const isLoading = Boolean(
-    hasListenUrl &&
-      audioPlayerVisible &&
-      (Boolean((playerStatus as any)?.isBuffering) ||
-        Boolean((playerStatus as any)?.isLoaded === false))
-  );
+  const isLoading = Boolean(audioPlayerVisible && audioStartInFlight);
 
   useEffect(() => {
-    const nextListenUrl = resolveSchoolScopedUrl(schoolConfig.listenUrl);
-
-    if (!nextListenUrl) {
-      try {
-        player.pause();
-      } catch {}
-      currentAudioUrlRef.current = '';
-      return;
+    if (isPlaying) {
+      if (audioStartTimeoutRef.current) {
+        clearTimeout(audioStartTimeoutRef.current);
+        audioStartTimeoutRef.current = null;
+      }
+      setAudioStartInFlight(false);
+      setAudioErrorMessage('');
     }
+  }, [isPlaying]);
 
-    if (currentAudioUrlRef.current !== nextListenUrl) {
-      player.replace(nextListenUrl);
-      currentAudioUrlRef.current = nextListenUrl;
-    }
-  }, [player, resolveSchoolScopedUrl, schoolConfig.listenUrl]);
+  useEffect(() => {
+    return () => {
+      if (audioStartTimeoutRef.current) {
+        clearTimeout(audioStartTimeoutRef.current);
+        audioStartTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
   setAudioModeAsync({
@@ -24594,6 +24754,40 @@ const handleEnableNotifications = async () => {
     }) ?? null;
   }, [appOsMediaChannels, resolveSchoolScopedUrl]);
 
+  const primaryAppOsAudioUrl = useMemo(() => {
+    const matchingChannel = appOsMediaChannels.find((channel) => {
+      const channelRecord = channel as Record<string, unknown>;
+      const channelType = normalizeBottomNavDestinationType(channel.channel_type);
+      const destinationType = normalizeBottomNavDestinationType(
+        readTrimmedRecordString(channelRecord, ['destination_type'])
+      );
+      const normalizedType = channelType || destinationType;
+
+      if (normalizedType !== 'audio') {
+        return false;
+      }
+
+      return Boolean(
+        resolveSchoolScopedUrl(channel.audio_stream_url) ||
+          resolveSchoolScopedUrl(channel.target_url) ||
+          resolveSchoolScopedUrl(channel.embed_url)
+      );
+    });
+
+    if (!matchingChannel) {
+      return '';
+    }
+
+    return (
+      resolveSchoolScopedUrl(matchingChannel.audio_stream_url) ||
+      resolveSchoolScopedUrl(matchingChannel.target_url) ||
+      resolveSchoolScopedUrl(matchingChannel.embed_url) ||
+      ''
+    );
+  }, [appOsMediaChannels, resolveSchoolScopedUrl]);
+
+  const hasAppOsAudioChannel = Boolean(primaryAppOsAudioUrl);
+
   const buildStatsHubFallbackUrl = useCallback(
     (sportSlug: string) => {
       const trimmedSportSlug = sportSlug.trim().replace(/^\/+|\/+$/g, '');
@@ -24881,7 +25075,7 @@ const handleEnableNotifications = async () => {
             : actionType === 'watch' || actionType === 'livestream' || actionType === 'media'
             ? schoolConfig.watchUrl
             : actionType === 'listen'
-            ? schoolConfig.listenUrl
+            ? primaryAppOsAudioUrl || schoolConfig.listenUrl
             : '';
         const targetUrl = resolveSchoolScopedUrl(action.targetValue || fallbackUrl);
 
@@ -24898,9 +25092,12 @@ const handleEnableNotifications = async () => {
             };
             break;
           case 'listen':
-            if (targetUrl || hasListenUrl) {
+            if (targetUrl || primaryAppOsAudioUrl || hasListenUrl) {
               onPress = () => {
-                void toggleAudio(targetUrl || schoolConfig.listenUrl);
+                void toggleAudio(
+                  targetUrl || primaryAppOsAudioUrl || schoolConfig.listenUrl,
+                  'hero_quick_action'
+                );
               };
             }
             break;
@@ -24956,11 +25153,12 @@ const handleEnableNotifications = async () => {
     openEmbedded,
     openHeroQuickActionSchedule,
     openStatsHub,
+    primaryAppOsAudioUrl,
     resolveSchoolScopedUrl,
     schoolConfig.listenUrl,
     schoolConfig.mainSiteUrl,
-      schoolConfig.watchUrl,
-      toggleAudio,
+    schoolConfig.watchUrl,
+    toggleAudio,
   ]);
 
   const hasAppHeroQuickActions = heroQuickActions.length > 0;
@@ -25211,47 +25409,106 @@ const handleEnableNotifications = async () => {
     setScreenMode('roster');
   };
 
-  const toggleAudio = async (streamUrl?: string) => {
-  try {
-    const resolvedStreamUrl = resolveSchoolScopedUrl(
-      streamUrl || currentAudioUrlRef.current || schoolConfig.listenUrl
-    );
+  const toggleAudio = async (streamUrl?: string, requestSource = 'unknown') => {
+    const requestedStreamUrl = resolveSchoolScopedUrl(streamUrl);
+    const currentStreamUrl = activeAudioUrl || currentAudioUrlRef.current;
+    const fallbackStreamUrl = !hasAppOsAudioChannel
+      ? resolveSchoolScopedUrl(schoolConfig.listenUrl)
+      : '';
+    const resolvedStreamUrl =
+      requestedStreamUrl || currentStreamUrl || fallbackStreamUrl;
+
+    console.log('AUDIO_REQUEST_SOURCE', requestSource);
+    console.log('AUDIO_REQUEST_URL_PRESENT', Boolean(requestedStreamUrl || fallbackStreamUrl));
+    console.log('AUDIO_ACTIVE_URL_PRESENT', Boolean(currentStreamUrl));
 
     if (!resolvedStreamUrl) {
-      Alert.alert('Audio Unavailable', 'No live audio stream is configured.');
+      setAudioPlayerVisible(true);
+      setAudioErrorMessage('Audio stream unavailable.');
+      setAudioStartInFlight(false);
+      console.log('AUDIO_PLAYER_ACTION', 'unavailable');
       return;
     }
 
-    if (isPlaying) {
-      player.pause();
+    if (looksLikeUnsupportedAudioPageUrl(resolvedStreamUrl)) {
+      setAudioPlayerVisible(true);
+      setAudioErrorMessage('Audio stream is currently unavailable. Please try again.');
+      setAudioStartInFlight(false);
+      console.log('AUDIO_PLAYER_ACTION', 'unsupported_url');
+      return;
+    }
 
-      if (Platform.OS === 'android') {
-        player.setActiveForLockScreen(false);
+    const isCurrentStream = currentStreamUrl === resolvedStreamUrl;
+    const shouldReplaceSource =
+      !isCurrentStream || !Boolean((playerStatus as any)?.isLoaded);
+
+    try {
+      setAudioErrorMessage('');
+
+      if (isPlaying && isCurrentStream) {
+        console.log('AUDIO_PLAYER_ACTION', 'pause');
+        if (audioStartTimeoutRef.current) {
+          clearTimeout(audioStartTimeoutRef.current);
+          audioStartTimeoutRef.current = null;
+        }
+        setAudioStartInFlight(false);
+        player.pause();
+
+        if (Platform.OS === 'android') {
+          player.setActiveForLockScreen(false);
+        }
+
+        return;
       }
 
-      return;
-    }
+      if (shouldReplaceSource) {
+        console.log('AUDIO_PLAYER_ACTION', 'replace');
+        player.replace(resolvedStreamUrl);
+        currentAudioUrlRef.current = resolvedStreamUrl;
+      } else if (!currentAudioUrlRef.current) {
+        currentAudioUrlRef.current = resolvedStreamUrl;
+      }
 
-    setAudioPlayerVisible(true);
-    if (currentAudioUrlRef.current !== resolvedStreamUrl) {
-      player.replace(resolvedStreamUrl);
-      currentAudioUrlRef.current = resolvedStreamUrl;
-    }
+      setActiveAudioUrl(resolvedStreamUrl);
+      setAudioPlayerVisible(true);
+      setAudioStartInFlight(true);
 
-    if (Platform.OS === 'android') {
-      player.setActiveForLockScreen(true, {
-        title: appDisplayName,
-        artist: 'AthleticOS',
-        albumTitle: 'Live Stream',
-      });
-    }
+      if (audioStartTimeoutRef.current) {
+        clearTimeout(audioStartTimeoutRef.current);
+      }
+      audioStartTimeoutRef.current = setTimeout(() => {
+        try {
+          player.pause();
+          if (Platform.OS === 'android') {
+            player.setActiveForLockScreen(false);
+          }
+        } catch {}
+        setAudioStartInFlight(false);
+        setAudioErrorMessage('Audio stream is currently unavailable. Please try again.');
+        console.log('AUDIO_PLAYER_ACTION', 'timeout');
+      }, AUDIO_STREAM_TIMEOUT_MS);
 
-    player.play();
-  } catch (error) {
-    console.log('Audio toggle error:', error);
-    Alert.alert('Audio Error', 'Could not start the stream.');
-  }
-};
+      if (Platform.OS === 'android') {
+        player.setActiveForLockScreen(true, {
+          title: appDisplayName,
+          artist: 'AthleticOS',
+          albumTitle: 'Live Stream',
+        });
+      }
+
+      console.log('AUDIO_PLAYER_ACTION', 'play');
+      player.play();
+    } catch (error) {
+      console.log('Audio toggle error:', error);
+      if (audioStartTimeoutRef.current) {
+        clearTimeout(audioStartTimeoutRef.current);
+        audioStartTimeoutRef.current = null;
+      }
+      setAudioStartInFlight(false);
+      setAudioErrorMessage('Audio stream is currently unavailable. Please try again.');
+      console.log('AUDIO_PLAYER_ACTION', 'error');
+    }
+  };
 
   const appOsBroadcastMediaActions = useMemo<MediaScreenAction[]>(() => {
     const getChannelFallbackLabel = (destinationType: string) => {
@@ -25367,7 +25624,7 @@ const handleEnableNotifications = async () => {
         const isGamecastType =
           isStatsType || isNativeGamecastDestinationType(destinationType);
         const isCurrentAudioStream =
-          Boolean(audioUrl) && audioUrl === currentAudioUrlRef.current;
+          Boolean(audioUrl) && audioUrl === activeAudioUrl;
         const statsTarget = isGamecastType
           ? resolveStatsChannelGamecastTarget(channelRecord, resolveSchoolScopedUrl)
           : null;
@@ -25394,7 +25651,7 @@ const handleEnableNotifications = async () => {
             sponsorName: sponsorName || undefined,
             sponsorLogoUrl: sponsorLogoUrl || undefined,
             sponsorLinkUrl: sponsorLinkUrl || undefined,
-            onPress: () => toggleAudio(audioUrl),
+            onPress: () => toggleAudio(audioUrl, 'media_channel'),
           };
         }
 
@@ -25464,6 +25721,7 @@ const handleEnableNotifications = async () => {
       })
       .filter((action): action is MediaScreenAction => action !== null);
   }, [
+    activeAudioUrl,
     appOsMediaChannels,
     isPlaying,
     openEmbedded,
@@ -25570,7 +25828,13 @@ if (showPreroll && prerollConfig) {
     );
   } else if (screenMode === 'storyDetail' && selectedStory) {
     mainContent = (
-      <StoryDetailScreen item={selectedStory} onBack={closeStoryDetail} theme={resolvedTheme} />
+      <StoryDetailScreen
+        item={selectedStory}
+        onBack={closeStoryDetail}
+        appDisplayName={appDisplayName}
+        schoolSlug={schoolSlug}
+        theme={resolvedTheme}
+      />
     );
   } else if (screenMode === 'roster' && selectedRosterSport) {
     mainContent = (
@@ -25677,7 +25941,9 @@ if (showPreroll && prerollConfig) {
         onOpenEmbedded={openEmbedded}
         onOpenExternal={openExternalUrl}
         onOpenSchedule={openScheduleScreen}
-        onToggleAudio={toggleAudio}
+        onToggleAudio={(streamUrl?: string) => {
+          void toggleAudio(streamUrl, 'media_screen');
+        }}
         mediaActions={appOsBroadcastMediaActions}
         watchUrl={schoolConfig.watchUrl}
         listenUrl={schoolConfig.listenUrl}
@@ -25723,7 +25989,9 @@ if (showPreroll && prerollConfig) {
             onOpenExternal={openExternalUrl}
             onOpenSchedule={openScheduleScreen}
             onOpenSport={openSport}
-            onToggleAudio={toggleAudio}
+            onToggleAudio={() => {
+              void toggleAudio(primaryAppOsAudioUrl || schoolConfig.listenUrl, 'home_screen');
+            }}
             onGoToMedia={openMediaScreen}
             newsItems={newsItems}
             newsLoading={newsLoading}
@@ -25780,7 +26048,9 @@ if (showPreroll && prerollConfig) {
             onOpenEmbedded={openEmbedded}
             onOpenExternal={openExternalUrl}
             onOpenSchedule={openScheduleScreen}
-            onToggleAudio={toggleAudio}
+            onToggleAudio={(streamUrl?: string) => {
+              void toggleAudio(streamUrl, 'media_screen');
+            }}
             mediaActions={appOsBroadcastMediaActions}
             watchUrl={schoolConfig.watchUrl}
             listenUrl={schoolConfig.listenUrl}
@@ -25867,9 +26137,12 @@ if (showPreroll && prerollConfig) {
       <AudioMiniPlayer
         isPlaying={isPlaying}
         isLoading={isLoading}
+        errorMessage={audioErrorMessage}
         title={appDisplayName}
-        enabled={audioPlayerVisible && hasListenUrl}
-        onToggle={toggleAudio}
+        enabled={audioPlayerVisible && (Boolean(activeAudioUrl) || Boolean(audioErrorMessage))}
+        onToggle={() => {
+          void toggleAudio(undefined, 'mini_player');
+        }}
         theme={resolvedTheme}
       />
       <BottomNav
@@ -27274,6 +27547,29 @@ bannerImage: {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+  },
+
+  storyDetailTopActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  storyDetailShareButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    gap: 6,
+  },
+
+  storyDetailShareButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 
   storyDetailHeroContent: {

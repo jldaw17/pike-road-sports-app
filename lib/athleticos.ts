@@ -1239,7 +1239,7 @@ function buildAthleticOSSchoolSiteUrl(slug?: string) {
 
 function buildStoryPath(baseUrl: string, storyIdentifier: string) {
   const trimmedBase = baseUrl.replace(/\/+$/, '');
-  return `${trimmedBase}/stories/${storyIdentifier}`;
+  return `${trimmedBase}/news/${storyIdentifier}`;
 }
 
 function sportRecordMatchesKey(sport: AthleticOSSport, sportKey: string) {
@@ -3199,6 +3199,7 @@ export function mapStoryToHomeNewsItem(
     description: summary,
     summary,
     body,
+    slug: pickFirstString(story, ['slug']) ?? undefined,
     sportId: sportId || undefined,
     sportLabel,
     sportName: sportLabel,
