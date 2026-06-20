@@ -71,7 +71,8 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "wetumpka",
-        "EXPO_PUBLIC_SCHOOL_SLUG": "wetumpka"
+        "EXPO_PUBLIC_SCHOOL_SLUG": "wetumpka",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057"
       }
     },
     "opelika": {
@@ -93,6 +94,7 @@
   },
   "submit": {
     "production": {},
-    "sylacauga": {}
+    "sylacauga": {},
+    "wetumpka": {}
   }
 }

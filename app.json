@@ -49,12 +49,13 @@
       "expo-video"
     ],
     "extra": {
-      "schoolSlug": "pike-road",
+      "schoolSlug": "wetumpka",
       "youtubeApiKey": "AIzaSyAbZ_d503d_Lu4RCUqaBHxk-Qq30uOyJZY",
       "router": {},
       "eas": {
-        "projectId": "70b794e3-e8d7-4919-ac83-0b034b118ea2"
-      }
+        "projectId": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057"
+      },
+      "appVariant": "wetumpka"
     },
     "owner": "jlaw171"
   }

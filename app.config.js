@@ -72,7 +72,8 @@ const VARIANT_CONFIGS = {
     slug: 'wetumpka-athletics',
     scheme: 'wetumpkaathletics',
     iosBundleIdentifier: 'com.athleticos.wetumpka',
-    icon: './assets/images/icon.png',
+    icon: './assets/variants/wetumpka/wetumpka-app-icon.png',
+    easProjectId: 'ef5cbd90-cdb0-46ea-b1a6-6d676dee0057',
   },
   opelika: {
     schoolSlug: 'opelika',
