@@ -11881,7 +11881,7 @@ function HomeScreen({
               theme={theme}
               onPress={() => onOpenSchedule()}
             />
-          ))}
+	          ))}
         </View>
       ) : (
         <ScrollView
@@ -11897,7 +11897,7 @@ function HomeScreen({
               theme={theme}
               onPress={() => onOpenSchedule()}
             />
-          ))}
+		          ))}
         </ScrollView>
       )}
       </React.Fragment>
@@ -11938,7 +11938,7 @@ function HomeScreen({
               theme={theme}
               onPress={() => onOpenSchedule()}
             />
-          ))}
+		          ))}
         </View>
       ) : (
         <ScrollView
@@ -11953,7 +11953,7 @@ function HomeScreen({
               theme={theme}
               onPress={() => onOpenSchedule()}
             />
-          ))}
+		          ))}
         </ScrollView>
       )}
       </React.Fragment>
@@ -13973,6 +13973,7 @@ function TeamsScreen({
   onOpenRoster,
   onOpenSchedule,
   onOpenRecruiting,
+  sports,
   schoolId,
   schoolDisplayName,
   mascotName,
@@ -13992,6 +13993,7 @@ function TeamsScreen({
     sportFilter?: ScheduleSportFilter | null;
   }) => void;
   onOpenRecruiting: (options: OpenRecruitingOptions) => void;
+  sports: SportType[];
   schoolId?: string | number | null;
   schoolDisplayName?: string;
   mascotName?: string;
@@ -14007,6 +14009,7 @@ function TeamsScreen({
   const heroText = heroMascot
     ? `Explore ${heroMascot} athletics, team pages, schedules, rosters, and coverage.`
     : 'Explore team pages, schedules, rosters, and coverage.';
+  const visibleSports = sports;
   const [expandedSportKey, setExpandedSportKey] = useState('');
   const [premiumTeamNavBySport, setPremiumTeamNavBySport] = useState<
     Record<string, { sportId: string; navItems: AthleticOSTeamNavItem[] }>
@@ -14026,7 +14029,7 @@ function TeamsScreen({
       try {
         const sports = await getSportsBySchoolId(schoolId);
         const navEntries = await Promise.all(
-          SPORTS.map(async (sport) => {
+          visibleSports.map(async (sport) => {
             const candidates = new Set(
               [
                 normalizeSportMatchToken(sport.key),
@@ -14072,7 +14075,7 @@ function TeamsScreen({
     return () => {
       mounted = false;
     };
-  }, [isPremium, schoolId]);
+  }, [isPremium, schoolId, visibleSports]);
 
   const buildPremiumTeamActions = useCallback(
     (sport: SportType) => {
@@ -14330,7 +14333,27 @@ function TeamsScreen({
             },
           ]}
         >
-          {SPORTS.map((sport, index) => {
+          {visibleSports.length === 0 ? (
+            <View
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 22,
+                backgroundColor: theme.colors.surface,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 16,
+                  lineHeight: 21,
+                  fontWeight: '800',
+                  textAlign: 'center',
+                }}
+              >
+                No active teams are available for this school right now.
+              </Text>
+            </View>
+          ) : visibleSports.map((sport, index) => {
             const expanded = expandedSportKey === sport.key;
             const actions = buildPremiumTeamActions(sport);
 
@@ -14343,7 +14366,7 @@ function TeamsScreen({
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    borderBottomWidth: index === SPORTS.length - 1 && !expanded ? 0 : 1,
+                    borderBottomWidth: index === visibleSports.length - 1 && !expanded ? 0 : 1,
                     borderBottomColor: withAlpha(theme.colors.text, '0C'),
                   }}
                   onPress={() =>
@@ -14586,7 +14609,27 @@ function TeamsScreen({
             : null,
         ]}
       >
-        {SPORTS.map((sport) => (
+        {visibleSports.length === 0 ? (
+          <View
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+              getThemeCardShellStyle(theme),
+            ]}
+          >
+            <Text
+              style={[
+                styles.emptyTitle,
+                { color: isSchoolPrideTheme(theme) ? getSchoolPrideTextColor() : theme.colors.text },
+              ]}
+            >
+              No active teams are available for this school right now.
+            </Text>
+          </View>
+        ) : visibleSports.map((sport) => (
           <Pressable
             key={sport.key}
             style={[
@@ -23426,7 +23469,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [sponsorPlacements, setSponsorPlacements] = useState<
     AthleticOSAppSponsorPlacement[]
   >([]);
-  const [homeSports, setHomeSports] = useState<SportType[]>(SPORTS);
+  const [homeSports, setHomeSports] = useState<SportType[]>([]);
   const [followableSports, setFollowableSports] = useState<FollowableSport[]>([]);
   const [resolvedSchoolId, setResolvedSchoolId] = useState<string | number | null>(
     null
@@ -23676,7 +23719,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       setPromotionCard(null);
       setAthleteOfWeek(null);
       setSponsorPlacements([]);
-      setHomeSports(SPORTS);
+      setHomeSports([]);
       setFollowableSports([]);
       setNewsItems([]);
       setAllNewsItems([]);
@@ -23958,15 +24001,21 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     );
 
     const orderedHomeSports = resolvedSports
-      .map(({ sport, record }, index) => {
-        const config = record?.id ? sportConfigById.get(String(record.id)) : undefined;
+      .flatMap(({ sport, record }, index) => {
+        if (!record?.id) {
+          return [];
+        }
 
-        return {
-          sport,
-          index,
-          sortOrder: getSafeSortOrder(config?.sort_order ?? index),
-          isVisible: config?.is_visible !== false,
-        };
+        const config = sportConfigById.get(String(record.id));
+
+        return [
+          {
+            sport,
+            index,
+            sortOrder: getSafeSortOrder(config?.sort_order ?? index),
+            isVisible: config?.is_visible !== false,
+          },
+        ];
       })
       .filter((item) => item.isVisible)
       .sort((a, b) => {
@@ -24038,7 +24087,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     setSponsorPlacements(sponsorConfig);
     setVideoItems(nextVideoItems);
     setFollowableSports(nextFollowableSports);
-    setHomeSports(orderedHomeSports.length > 0 ? orderedHomeSports : SPORTS);
+    setHomeSports(orderedHomeSports);
   } catch (error) {
     console.log('Home feed load error:', error);
     setHomeModules([]);
@@ -24050,7 +24099,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     setPromotionCard(null);
     setAthleteOfWeek(null);
     setSponsorPlacements([]);
-    setHomeSports(SPORTS);
+    setHomeSports([]);
     setFollowableSports([]);
     setNewsItems([]);
     setAllNewsItems([]);
@@ -25690,20 +25739,22 @@ const handleEnableNotifications = async () => {
           readTrimmedRecordString(channelRecord, ['destination_type'])
         );
         const destinationType = channelType || configuredDestinationType;
+        const embedUrl = resolveSchoolScopedUrl(channel.embed_url) || '';
+        const targetUrl = resolveSchoolScopedUrl(channel.target_url) || '';
+        const directVideoUrl = resolveSchoolScopedUrl(channel.video_url) || '';
         const videoUrl =
-          resolveSchoolScopedUrl(channel.video_url) ||
-          resolveSchoolScopedUrl(channel.embed_url) ||
-          resolveSchoolScopedUrl(channel.target_url) ||
+          directVideoUrl ||
+          targetUrl ||
           '';
         const audioUrl =
           resolveSchoolScopedUrl(channel.audio_stream_url) ||
-          resolveSchoolScopedUrl(channel.target_url) ||
-          resolveSchoolScopedUrl(channel.embed_url) ||
+          targetUrl ||
+          embedUrl ||
           '';
         const generalUrl =
-          resolveSchoolScopedUrl(channel.target_url) ||
-          resolveSchoolScopedUrl(channel.embed_url) ||
-          resolveSchoolScopedUrl(channel.video_url) ||
+          targetUrl ||
+          embedUrl ||
+          directVideoUrl ||
           resolveSchoolScopedUrl(channel.audio_stream_url) ||
           '';
         const title =
@@ -25728,6 +25779,28 @@ const handleEnableNotifications = async () => {
           ? resolveStatsChannelGamecastTarget(channelRecord, resolveSchoolScopedUrl)
           : null;
 
+        if (isVideoType && embedUrl) {
+          return {
+            key: `media-channel-${channel.id ?? title}-video`,
+            icon: getChannelIcon(destinationType, false),
+            title,
+            subtitle,
+            sponsorName: sponsorName || undefined,
+            sponsorLogoUrl: sponsorLogoUrl || undefined,
+            sponsorLinkUrl: sponsorLinkUrl || undefined,
+            onPress: () => {
+              console.log('LIVE_CHANNEL_ACTION', {
+                channelType: destinationType,
+                hasEmbedUrl: Boolean(embedUrl),
+                hasVideoUrl: Boolean(directVideoUrl),
+                hasTargetUrl: Boolean(targetUrl),
+                actionType: 'embedded',
+              });
+              openEmbedded(title, embedUrl);
+            },
+          };
+        }
+
         if (isVideoType && videoUrl) {
           return {
             key: `media-channel-${channel.id ?? title}-video`,
@@ -25737,7 +25810,16 @@ const handleEnableNotifications = async () => {
             sponsorName: sponsorName || undefined,
             sponsorLogoUrl: sponsorLogoUrl || undefined,
             sponsorLinkUrl: sponsorLinkUrl || undefined,
-            onPress: () => openExternalUrl(videoUrl),
+            onPress: () => {
+              console.log('LIVE_CHANNEL_ACTION', {
+                channelType: destinationType,
+                hasEmbedUrl: Boolean(embedUrl),
+                hasVideoUrl: Boolean(directVideoUrl),
+                hasTargetUrl: Boolean(targetUrl),
+                actionType: 'external',
+              });
+              openExternalUrl(videoUrl);
+            },
           };
         }
 
@@ -25750,7 +25832,16 @@ const handleEnableNotifications = async () => {
             sponsorName: sponsorName || undefined,
             sponsorLogoUrl: sponsorLogoUrl || undefined,
             sponsorLinkUrl: sponsorLinkUrl || undefined,
-            onPress: () => toggleAudio(audioUrl, 'media_channel'),
+            onPress: () => {
+              console.log('LIVE_CHANNEL_ACTION', {
+                channelType: destinationType,
+                hasEmbedUrl: Boolean(embedUrl),
+                hasVideoUrl: Boolean(directVideoUrl),
+                hasTargetUrl: Boolean(targetUrl),
+                actionType: 'audio',
+              });
+              toggleAudio(audioUrl, 'media_channel');
+            },
           };
         }
 
@@ -25764,7 +25855,16 @@ const handleEnableNotifications = async () => {
               sponsorName: sponsorName || undefined,
               sponsorLogoUrl: sponsorLogoUrl || undefined,
               sponsorLinkUrl: sponsorLinkUrl || undefined,
-              onPress: () => openEmbedded(title, generalUrl),
+              onPress: () => {
+                console.log('LIVE_CHANNEL_ACTION', {
+                  channelType: destinationType,
+                  hasEmbedUrl: Boolean(embedUrl),
+                  hasVideoUrl: Boolean(directVideoUrl),
+                  hasTargetUrl: Boolean(targetUrl),
+                  actionType: 'embedded',
+                });
+                openEmbedded(title, generalUrl);
+              },
             };
           }
 
@@ -25815,7 +25915,16 @@ const handleEnableNotifications = async () => {
           sponsorName: sponsorName || undefined,
           sponsorLogoUrl: sponsorLogoUrl || undefined,
           sponsorLinkUrl: sponsorLinkUrl || undefined,
-          onPress: () => openEmbedded(title, generalUrl),
+          onPress: () => {
+            console.log('LIVE_CHANNEL_ACTION', {
+              channelType: destinationType,
+              hasEmbedUrl: Boolean(embedUrl),
+              hasVideoUrl: Boolean(directVideoUrl),
+              hasTargetUrl: Boolean(targetUrl),
+              actionType: 'embedded',
+            });
+            openEmbedded(title, generalUrl);
+          },
         };
       })
       .filter((action): action is MediaScreenAction => action !== null);
@@ -26133,6 +26242,7 @@ if (showPreroll && prerollConfig) {
             onOpenRoster={openRosterScreen}
             onOpenSchedule={openScheduleScreen}
             onOpenRecruiting={openRecruitingScreen}
+            sports={homeSports}
             schoolId={resolvedSchoolId}
             schoolDisplayName={appDisplayName}
             mascotName={schoolConfig.mascotName}

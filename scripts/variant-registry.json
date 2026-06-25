@@ -1,0 +1,38 @@
+{
+  "sylacauga": {
+    "variant": "sylacauga",
+    "schoolSlug": "sylacauga",
+    "appSlug": "sylacauga-athletics",
+    "scheme": "sylacaugaathletics",
+    "iosBundleIdentifier": "com.athleticos.sylacauga",
+    "easProjectId": "8673888c-85fd-46b5-adae-d1c603e9acbd",
+    "launchable": true
+  },
+  "wetumpka": {
+    "variant": "wetumpka",
+    "schoolSlug": "wetumpka",
+    "appSlug": "wetumpka-athletics",
+    "scheme": "wetumpkaathletics",
+    "iosBundleIdentifier": "com.athleticos.wetumpka",
+    "easProjectId": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057",
+    "launchable": true
+  },
+  "pike-road": {
+    "variant": "pike-road",
+    "schoolSlug": "pike-road",
+    "appSlug": "pike-road-athletics",
+    "scheme": "pikeroadathletics",
+    "iosBundleIdentifier": "com.athleticos.pikeroad",
+    "easProjectId": "70b794e3-e8d7-4919-ac83-0b034b118ea2",
+    "launchable": true
+  },
+  "pellcity": {
+    "variant": "pellcity",
+    "schoolSlug": "pellcity",
+    "appSlug": "pell-city-athletics",
+    "scheme": "pellcityathletics",
+    "iosBundleIdentifier": "com.athleticos.pellcity",
+    "easProjectId": "1fb0bea0-6786-49cb-8844-50e8e75b5dc5",
+    "launchable": true
+  }
+}
