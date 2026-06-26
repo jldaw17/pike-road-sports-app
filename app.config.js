@@ -81,7 +81,7 @@ const VARIANT_CONFIGS = {
     slug: 'opelika-athletics',
     scheme: 'opelikaathletics',
     iosBundleIdentifier: 'com.athleticos.opelika',
-    icon: './assets/images/icon.png',
+    icon: './assets/variants/opelika/opelika-app-icon.png',
   },
   hickory: {
     schoolSlug: 'hickory',
@@ -165,7 +165,10 @@ module.exports = () => {
     if (Array.isArray(plugin) && plugin[0] === 'expo-splash-screen') {
       return [
         plugin[0],
-        NATIVE_SPLASH_CONFIG,
+        {
+          ...(plugin[1] || {}),
+          ...NATIVE_SPLASH_CONFIG,
+        },
       ];
     }
 
@@ -195,7 +198,10 @@ module.exports = () => {
     slug: variantConfig.slug,
     scheme: variantConfig.scheme,
     icon: resolvedIcon,
-    splash: NATIVE_SPLASH_CONFIG,
+    splash: {
+      ...(baseExpoConfig.splash || {}),
+      ...NATIVE_SPLASH_CONFIG,
+    },
     runtimeVersion: {
       policy: 'appVersion',
     },
