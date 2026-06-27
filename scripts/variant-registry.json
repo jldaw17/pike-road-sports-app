@@ -34,5 +34,14 @@
     "iosBundleIdentifier": "com.athleticos.pellcity",
     "easProjectId": "1fb0bea0-6786-49cb-8844-50e8e75b5dc5",
     "launchable": true
+  },
+  "opelika": {
+    "variant": "opelika",
+    "schoolSlug": "opelika",
+    "appSlug": "opelika-athletics",
+    "scheme": "opelikaathletics",
+    "iosBundleIdentifier": "com.athleticos.opelika",
+    "easProjectId": "949be373-10ae-40b4-88b4-2e11d58615d3",
+    "launchable": true
   }
 }

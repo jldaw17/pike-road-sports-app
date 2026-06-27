@@ -1,6 +1,8 @@
 const appJson = require('./app.json');
 const fs = require('fs');
 
+const NEUTRAL_SPLASH_IMAGE = './assets/images/splash-icon.png';
+
 const NATIVE_SPLASH_CONFIG = {
   backgroundColor: '#FFFFFF',
   resizeMode: 'contain',
@@ -82,6 +84,7 @@ const VARIANT_CONFIGS = {
     scheme: 'opelikaathletics',
     iosBundleIdentifier: 'com.athleticos.opelika',
     icon: './assets/variants/opelika/opelika-app-icon.png',
+    easProjectId: '949be373-10ae-40b4-88b4-2e11d58615d3',
   },
   hickory: {
     schoolSlug: 'hickory',
@@ -145,6 +148,18 @@ function resolveIconPath(iconPath, fallbackPath) {
   return fallbackPath;
 }
 
+function resolveSplashImagePath(primaryPath, fallbackPath = NEUTRAL_SPLASH_IMAGE) {
+  if (primaryPath && fs.existsSync(primaryPath)) {
+    return primaryPath;
+  }
+
+  if (fallbackPath && fs.existsSync(fallbackPath)) {
+    return fallbackPath;
+  }
+
+  return primaryPath || fallbackPath;
+}
+
 function resolveEasProjectId(variantConfig) {
   const envProjectId = String(
     process.env.EXPO_PUBLIC_EAS_PROJECT_ID ||
@@ -159,6 +174,7 @@ module.exports = () => {
   const baseExpoConfig = appJson.expo || {};
   const variantConfig = resolveVariantConfig();
   const resolvedIcon = resolveIconPath(variantConfig.icon, baseExpoConfig.icon);
+  const resolvedSplashImage = resolveSplashImagePath(resolvedIcon);
   const baseExtra = baseExpoConfig.extra || {};
   const { eas: _ignoredBaseEas, ...safeBaseExtraWithoutEas } = baseExtra;
   const plugins = (baseExpoConfig.plugins || []).map((plugin) => {
@@ -167,6 +183,7 @@ module.exports = () => {
         plugin[0],
         {
           ...(plugin[1] || {}),
+          image: resolvedSplashImage,
           ...NATIVE_SPLASH_CONFIG,
         },
       ];
@@ -200,6 +217,7 @@ module.exports = () => {
     icon: resolvedIcon,
     splash: {
       ...(baseExpoConfig.splash || {}),
+      image: resolvedSplashImage,
       ...NATIVE_SPLASH_CONFIG,
     },
     runtimeVersion: {

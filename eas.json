@@ -80,7 +80,8 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "opelika",
-        "EXPO_PUBLIC_SCHOOL_SLUG": "opelika"
+        "EXPO_PUBLIC_SCHOOL_SLUG": "opelika",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "949be373-10ae-40b4-88b4-2e11d58615d3"
       }
     },
     "hickory": {
@@ -95,6 +96,7 @@
   "submit": {
     "production": {},
     "sylacauga": {},
-    "wetumpka": {}
+    "wetumpka": {},
+    "opelika": {}
   }
 }
