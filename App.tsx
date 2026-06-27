@@ -11967,9 +11967,7 @@ function HomeScreen({
         <View
           style={[
             styles.sponsorTextWrap,
-            isSchoolPrideTheme(theme)
-              ? { flex: 1, justifyContent: 'center', paddingRight: 12 }
-              : null,
+            { flex: 1, justifyContent: 'center', paddingRight: 14 },
           ]}
         >
           <Text
@@ -11988,11 +11986,12 @@ function HomeScreen({
                 },
             ]}
           >
-            Presented by
+            Brought to you by
           </Text>
           <Text
             style={[
               styles.sponsorTitle,
+              { marginBottom: 0 },
               isSchoolPrideTheme(theme)
                 ? { color: getSchoolPrideTextColor() }
                 : isPremiumTheme(theme)
@@ -12006,24 +12005,6 @@ function HomeScreen({
             ]}
           >
             {sponsorCardTitle}
-          </Text>
-          <Text
-            style={[
-              styles.sponsorText,
-              isSchoolPrideTheme(theme)
-                ? { color: getSchoolPrideMutedTextColor() }
-                : isPremiumTheme(theme)
-                ? { color: theme.colors.mutedText }
-                : {
-                color: isCleanSlateTheme(theme)
-                  ? theme.colors.mutedText
-                  : isGamedayTheme(theme)
-                  ? withAlpha(theme.colors.text, 'C8')
-                  : '#F3F4F6',
-                },
-            ]}
-          >
-            Premium sponsor placement for the AthleticOS app experience.
           </Text>
         </View>
 
@@ -12061,7 +12042,7 @@ function HomeScreen({
           >
             <RemoteImage
               uri={sponsorPlacement.sponsor_logo_url}
-              style={styles.sponsorLogo}
+              style={[styles.sponsorLogo, { width: 92, height: 72, marginLeft: 12 }]}
               contentFit="contain"
               mode="sponsor"
               label={sponsorCardTitle}
@@ -12087,12 +12068,14 @@ function HomeScreen({
                     borderTopWidth: 8,
                     borderTopColor: withAlpha(theme.colors.primary, 'DE'),
                     borderRadius: 6,
+                    paddingVertical: 14,
                   }
                 : isPremiumTheme(theme)
                 ? {
                     backgroundColor: theme.colors.surface,
                     borderColor: withAlpha(theme.colors.text, '0C'),
                     borderRadius: 22,
+                    paddingVertical: 14,
                   }
                 : null,
             ]}
@@ -12112,12 +12095,14 @@ function HomeScreen({
                     borderTopWidth: 8,
                     borderTopColor: withAlpha(theme.colors.primary, 'DE'),
                     borderRadius: 6,
+                    paddingVertical: 14,
                   }
                 : isPremiumTheme(theme)
                 ? {
                     backgroundColor: theme.colors.surface,
                     borderColor: withAlpha(theme.colors.text, '0C'),
                     borderRadius: 22,
+                    paddingVertical: 14,
                   }
                 : null,
             ]}
