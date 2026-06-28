@@ -110,6 +110,7 @@ const STORAGE_KEYS = {
 
 const SPONSOR_CAROUSEL_CARD_WIDTH = 212;
 const SPONSOR_CAROUSEL_CARD_GAP = 12;
+const APPOS_RUNTIME_SPLASH_MIN_DURATION_MS = 2000;
 const DEFAULT_APP_THEME = resolveAthleticOSTheme();
 const BOOTSTRAP_LIGHT_THEME = resolveAthleticOSTheme({ theme_key: 'clean_slate' });
 const STARTUP_NEUTRAL_BACKGROUND = '#FFFFFF';
@@ -1595,14 +1596,33 @@ function normalizeConfiguredSchoolSlug(value?: string) {
 }
 
 function getConfiguredSchoolSlug() {
+  const extraSlug = Constants?.expoConfig?.extra?.schoolSlug;
+  const normalizedNativeSlug =
+    typeof extraSlug === 'string' && extraSlug.trim()
+      ? normalizeConfiguredSchoolSlug(extraSlug)
+      : '';
+
   const envSlug = process.env.EXPO_PUBLIC_SCHOOL_SLUG;
-  if (typeof envSlug === 'string' && envSlug.trim()) {
-    return normalizeConfiguredSchoolSlug(envSlug);
+  const normalizedEnvSlug =
+    typeof envSlug === 'string' && envSlug.trim()
+      ? normalizeConfiguredSchoolSlug(envSlug)
+      : '';
+
+  if (normalizedNativeSlug && normalizedEnvSlug && normalizedNativeSlug !== normalizedEnvSlug) {
+    console.warn('[AthleticOS Theme] school slug mismatch detected', {
+      nativeSlug: normalizedNativeSlug,
+      envSlug: normalizedEnvSlug,
+      resolvedSlug: normalizedNativeSlug,
+    });
+    return normalizedNativeSlug;
   }
 
-  const extraSlug = Constants?.expoConfig?.extra?.schoolSlug;
-  if (typeof extraSlug === 'string' && extraSlug.trim()) {
-    return normalizeConfiguredSchoolSlug(extraSlug);
+  if (normalizedNativeSlug) {
+    return normalizedNativeSlug;
+  }
+
+  if (normalizedEnvSlug) {
+    return normalizedEnvSlug;
   }
 
   const appSlug = Constants?.expoConfig?.slug;
@@ -4182,16 +4202,19 @@ function LaunchSplash({
   splashBackgroundUrl,
   splashLogoUrl,
   schoolDisplayName,
+  onVisible,
   theme = DEFAULT_APP_THEME,
 }: {
   splashBackgroundUrl?: string;
   splashLogoUrl?: string;
   schoolDisplayName?: string;
+  onVisible?: () => void;
   theme?: AthleticOSResolvedTheme;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const logoSlide = useRef(new Animated.Value(16)).current;
+  const didNotifyVisibleRef = useRef(false);
   const hasSplashBackground = hasResolvedUrl(splashBackgroundUrl);
   const hasSplashLogo = hasResolvedUrl(splashLogoUrl);
   const shouldRenderSplashLogo = hasSplashLogo && !hasSplashBackground;
@@ -4230,8 +4253,13 @@ function LaunchSplash({
         duration: 700,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [fadeAnim, scaleAnim, logoSlide]);
+    ]).start(() => {
+      if (!didNotifyVisibleRef.current) {
+        didNotifyVisibleRef.current = true;
+        onVisible?.();
+      }
+    });
+  }, [fadeAnim, logoSlide, onVisible, scaleAnim]);
 
   return (
     <Animated.View
@@ -23425,6 +23453,10 @@ function BottomNav({
 
 export default function App() {
   const splashOpacity = useRef(new Animated.Value(1)).current;
+  const launchSplashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const launchSplashDismissedRef = useRef(false);
+  const appSplashTimerStartedRef = useRef(false);
+  const runtimeSplashVisibleSinceRef = useRef<number | null>(null);
   const schoolSlug = useMemo(() => getConfiguredSchoolSlug(), []);
   const defaultSchoolConfig = useMemo(
     () => getDefaultSchoolConfig(schoolSlug),
@@ -23439,6 +23471,8 @@ export default function App() {
   const [audioStartInFlight, setAudioStartInFlight] = useState(false);
 
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
+  const [appSplashReadyToDismiss, setAppSplashReadyToDismiss] = useState(false);
+  const [runtimeSplashVisible, setRuntimeSplashVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [screenMode, setScreenMode] = useState<ScreenMode>('tabs');
   const [selectedSport, setSelectedSport] = useState<SportType | null>(null);
@@ -23579,6 +23613,8 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
   const hasMainSiteUrl = hasResolvedUrl(schoolConfig.mainSiteUrl);
+  const hasConfiguredRuntimeSplash =
+    hasResolvedUrl(schoolConfig.splashBackgroundUrl) || hasResolvedUrl(schoolConfig.splashLogoUrl);
   const isPlaying = Boolean((playerStatus as any)?.playing);
   const isLoading = Boolean(audioPlayerVisible && audioStartInFlight);
 
@@ -23613,15 +23649,85 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      Animated.timing(splashOpacity, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }).start(() => setShowLaunchSplash(false));
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [splashOpacity]);
+    launchSplashDismissedRef.current = false;
+    appSplashTimerStartedRef.current = false;
+    runtimeSplashVisibleSinceRef.current = null;
+    setShowLaunchSplash(true);
+    setAppSplashReadyToDismiss(false);
+    setRuntimeSplashVisible(false);
+    splashOpacity.setValue(1);
+
+    return () => {
+      if (launchSplashTimerRef.current) {
+        clearTimeout(launchSplashTimerRef.current);
+        launchSplashTimerRef.current = null;
+      }
+    };
+  }, [schoolSlug, splashOpacity]);
+
+  const handleRuntimeSplashVisible = useCallback(() => {
+    if (runtimeSplashVisibleSinceRef.current !== null) {
+      return;
+    }
+
+    runtimeSplashVisibleSinceRef.current = Date.now();
+    setRuntimeSplashVisible(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showLaunchSplash || !themeConfigLoaded || !runtimeSplashVisible) {
+      return;
+    }
+
+    if (!hasConfiguredRuntimeSplash) {
+      return;
+    }
+
+    if (appSplashTimerStartedRef.current) {
+      return;
+    }
+
+    appSplashTimerStartedRef.current = true;
+    setAppSplashReadyToDismiss(false);
+    launchSplashTimerRef.current = setTimeout(() => {
+      setAppSplashReadyToDismiss(true);
+      launchSplashTimerRef.current = null;
+    }, APPOS_RUNTIME_SPLASH_MIN_DURATION_MS);
+
+    return () => {
+      if (launchSplashTimerRef.current) {
+        clearTimeout(launchSplashTimerRef.current);
+        launchSplashTimerRef.current = null;
+      }
+    };
+  }, [hasConfiguredRuntimeSplash, runtimeSplashVisible, showLaunchSplash, themeConfigLoaded]);
+
+  useEffect(() => {
+    if (
+      !showLaunchSplash ||
+      !hasConfiguredRuntimeSplash ||
+      !themeConfigLoaded ||
+      !prerollDecisionComplete ||
+      !appSplashReadyToDismiss ||
+      launchSplashDismissedRef.current
+    ) {
+      return;
+    }
+
+    launchSplashDismissedRef.current = true;
+    Animated.timing(splashOpacity, {
+      toValue: 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start(() => setShowLaunchSplash(false));
+  }, [
+    appSplashReadyToDismiss,
+    hasConfiguredRuntimeSplash,
+    prerollDecisionComplete,
+    showLaunchSplash,
+    splashOpacity,
+    themeConfigLoaded,
+  ]);
 
   useEffect(() => {
     console.log('[AthleticOS Theme] configuredSchoolSlug:', schoolSlug);
@@ -25991,10 +26097,11 @@ if (!themeConfigLoaded) {
   );
 }
 
-if (showLaunchSplash) {
+if (showLaunchSplash && hasConfiguredRuntimeSplash) {
   return (
     <Animated.View style={{ flex: 1, opacity: splashOpacity }}>
       <LaunchSplash
+        onVisible={handleRuntimeSplashVisible}
         splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
         splashLogoUrl={schoolConfig.splashLogoUrl}
         schoolDisplayName={schoolConfig.displayName}
@@ -26006,12 +26113,17 @@ if (showLaunchSplash) {
 
 if (!prerollDecisionComplete) {
   return (
-    <LaunchSplash
-      splashBackgroundUrl={schoolConfig.splashBackgroundUrl}
-      splashLogoUrl={schoolConfig.splashLogoUrl}
-      schoolDisplayName={schoolConfig.displayName}
-      theme={resolvedTheme}
-    />
+    <SafeAreaView
+      style={[
+        styles.appShell,
+        { backgroundColor: BOOTSTRAP_LIGHT_THEME.colors.background },
+      ]}
+    >
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.bootstrapLoadingWrap}>
+        <ActivityIndicator color={STARTUP_NEUTRAL_TEXT} />
+      </View>
+    </SafeAreaView>
   );
 }
 
