@@ -84,6 +84,14 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "949be373-10ae-40b4-88b4-2e11d58615d3"
       }
     },
+    "prattville": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "prattville",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "prattville"
+      }
+    },
     "hickory": {
       "channel": "production",
       "autoIncrement": true,
@@ -97,6 +105,7 @@
     "production": {},
     "sylacauga": {},
     "wetumpka": {},
-    "opelika": {}
+    "opelika": {},
+    "prattville": {}
   }
 }

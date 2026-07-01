@@ -43,5 +43,13 @@
     "iosBundleIdentifier": "com.athleticos.opelika",
     "easProjectId": "949be373-10ae-40b4-88b4-2e11d58615d3",
     "launchable": true
+  },
+  "prattville": {
+    "variant": "prattville",
+    "schoolSlug": "prattville",
+    "appSlug": "prattville-athletics",
+    "scheme": "prattvilleathletics",
+    "iosBundleIdentifier": "com.athleticos.prattville",
+    "launchable": true
   }
 }

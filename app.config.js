@@ -86,6 +86,13 @@ const VARIANT_CONFIGS = {
     icon: './assets/variants/opelika/opelika-app-icon.png',
     easProjectId: '949be373-10ae-40b4-88b4-2e11d58615d3',
   },
+  prattville: {
+    schoolSlug: 'prattville',
+    name: 'Prattville Lions',
+    slug: 'prattville-athletics',
+    scheme: 'prattvilleathletics',
+    iosBundleIdentifier: 'com.athleticos.prattville',
+  },
   hickory: {
     schoolSlug: 'hickory',
     name: 'Hickory Athletics',
@@ -112,7 +119,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, hickory.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, prattville, hickory.'
   );
 }
 

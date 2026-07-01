@@ -13,6 +13,7 @@
     "start:hoover": "APP_VARIANT=hoover EXPO_PUBLIC_SCHOOL_SLUG=hoover npx expo start --clear",
     "start:wetumpka": "APP_VARIANT=wetumpka EXPO_PUBLIC_SCHOOL_SLUG=wetumpka npx expo start --clear",
     "start:opelika": "APP_VARIANT=opelika EXPO_PUBLIC_SCHOOL_SLUG=opelika npx expo start --clear",
+    "start:prattville": "APP_VARIANT=prattville EXPO_PUBLIC_SCHOOL_SLUG=prattville npx expo start --clear",
     "start:hickory": "APP_VARIANT=hickory EXPO_PUBLIC_SCHOOL_SLUG=hickory npx expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "safe:update": "node ./scripts/safe-eas-update.mjs",
