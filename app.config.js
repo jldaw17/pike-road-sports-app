@@ -184,6 +184,12 @@ module.exports = () => {
   const resolvedIcon = resolveIconPath(variantConfig.icon, baseExpoConfig.icon);
   const resolvedSplashImage = resolveSplashImagePath(resolvedIcon);
   const baseExtra = baseExpoConfig.extra || {};
+  const baseUiBackgroundModes = Array.isArray(baseExpoConfig.ios?.infoPlist?.UIBackgroundModes)
+    ? baseExpoConfig.ios.infoPlist.UIBackgroundModes
+    : [];
+  const resolvedUiBackgroundModes = Array.from(
+    new Set([...baseUiBackgroundModes, 'audio'])
+  );
   const { eas: _ignoredBaseEas, ...safeBaseExtraWithoutEas } = baseExtra;
   const plugins = (baseExpoConfig.plugins || []).map((plugin) => {
     if (Array.isArray(plugin) && plugin[0] === 'expo-splash-screen') {
@@ -241,6 +247,7 @@ module.exports = () => {
       infoPlist: {
         ...(baseExpoConfig.ios?.infoPlist || {}),
         CFBundleDisplayName: variantConfig.name,
+        UIBackgroundModes: resolvedUiBackgroundModes,
       },
     },
     plugins,
