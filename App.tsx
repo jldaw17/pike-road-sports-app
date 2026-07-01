@@ -2537,6 +2537,52 @@ function hasResolvedUrl(url?: string) {
   return /^https?:\/\//i.test((url ?? '').trim());
 }
 
+const SAFE_IOS_NOW_PLAYING_ARTWORK_HOST_SUFFIXES = ['.supabase.co'];
+const SAFE_IOS_NOW_PLAYING_ARTWORK_EXACT_HOSTS = ['zblfnvxnexdplxmtojkx.supabase.co'];
+const SAFE_IOS_NOW_PLAYING_ARTWORK_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
+
+function getSafeIosNowPlayingArtworkUrl(url?: string) {
+  if (typeof url !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const protocol = parsed.protocol.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    const hasAllowedHost =
+      SAFE_IOS_NOW_PLAYING_ARTWORK_EXACT_HOSTS.includes(hostname) ||
+      SAFE_IOS_NOW_PLAYING_ARTWORK_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
+    const isPublicSupabaseObject = pathname.includes('/storage/v1/object/public/');
+    const hasAllowedExtension = SAFE_IOS_NOW_PLAYING_ARTWORK_EXTENSIONS.some((extension) =>
+      pathname.endsWith(extension)
+    );
+
+    if (
+      protocol !== 'https:' ||
+      !hasAllowedHost ||
+      !isPublicSupabaseObject ||
+      !hasAllowedExtension ||
+      Boolean(parsed.username) ||
+      Boolean(parsed.password) ||
+      Boolean(parsed.search) ||
+      Boolean(parsed.hash)
+    ) {
+      return undefined;
+    }
+
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 const AUDIO_STREAM_TIMEOUT_MS = 9000;
 const UNSUPPORTED_AUDIO_PAGE_HOSTS = new Set([
   'youtube.com',
@@ -23629,15 +23675,10 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       : `${trimmedDisplayName} Athletics`;
   }, [appDisplayName]);
   const iosNowPlayingArtworkUrl = useMemo(() => {
-    if (hasResolvedUrl(schoolConfig.logoUrl)) {
-      return schoolConfig.logoUrl;
-    }
-
-    if (hasResolvedUrl(schoolConfig.splashLogoUrl)) {
-      return schoolConfig.splashLogoUrl;
-    }
-
-    return '';
+    return (
+      getSafeIosNowPlayingArtworkUrl(schoolConfig.logoUrl) ||
+      getSafeIosNowPlayingArtworkUrl(schoolConfig.splashLogoUrl)
+    );
   }, [schoolConfig.logoUrl, schoolConfig.splashLogoUrl]);
 
   useEffect(() => {
@@ -23676,12 +23717,13 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     }
 
     try {
-      player.updateLockScreenMetadata({
+      const metadata = {
         title: iosNowPlayingTitle,
         artist: 'Live Stream',
         albumTitle: 'Live Stream',
-        artworkUrl: iosNowPlayingArtworkUrl || undefined,
-      });
+        ...(iosNowPlayingArtworkUrl ? { artworkUrl: iosNowPlayingArtworkUrl } : {}),
+      };
+      player.updateLockScreenMetadata(metadata);
     } catch (error) {
       console.log('iOS lock screen metadata update error:', error);
     }
@@ -25830,12 +25872,13 @@ const handleEnableNotifications = async () => {
         });
       }
       if (Platform.OS === 'ios') {
-        player.setActiveForLockScreen(true, {
+        const metadata = {
           title: iosNowPlayingTitle,
           artist: 'Live Stream',
           albumTitle: 'Live Stream',
-          artworkUrl: iosNowPlayingArtworkUrl || undefined,
-        });
+          ...(iosNowPlayingArtworkUrl ? { artworkUrl: iosNowPlayingArtworkUrl } : {}),
+        };
+        player.setActiveForLockScreen(true, metadata);
       }
 
       console.log('AUDIO_PLAYER_ACTION', 'play');
