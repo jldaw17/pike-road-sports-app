@@ -23617,6 +23617,28 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     hasResolvedUrl(schoolConfig.splashBackgroundUrl) || hasResolvedUrl(schoolConfig.splashLogoUrl);
   const isPlaying = Boolean((playerStatus as any)?.playing);
   const isLoading = Boolean(audioPlayerVisible && audioStartInFlight);
+  const iosNowPlayingTitle = useMemo(() => {
+    const trimmedDisplayName = appDisplayName.trim();
+
+    if (!trimmedDisplayName) {
+      return 'Athletics';
+    }
+
+    return /athletics$/i.test(trimmedDisplayName)
+      ? trimmedDisplayName
+      : `${trimmedDisplayName} Athletics`;
+  }, [appDisplayName]);
+  const iosNowPlayingArtworkUrl = useMemo(() => {
+    if (hasResolvedUrl(schoolConfig.logoUrl)) {
+      return schoolConfig.logoUrl;
+    }
+
+    if (hasResolvedUrl(schoolConfig.splashLogoUrl)) {
+      return schoolConfig.splashLogoUrl;
+    }
+
+    return '';
+  }, [schoolConfig.logoUrl, schoolConfig.splashLogoUrl]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -23647,6 +23669,23 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     console.log('Audio mode setup error:', error);
   });
 }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !activeAudioUrl || !isPlaying) {
+      return;
+    }
+
+    try {
+      player.updateLockScreenMetadata({
+        title: iosNowPlayingTitle,
+        artist: 'Live Stream',
+        albumTitle: 'Live Stream',
+        artworkUrl: iosNowPlayingArtworkUrl || undefined,
+      });
+    } catch (error) {
+      console.log('iOS lock screen metadata update error:', error);
+    }
+  }, [activeAudioUrl, iosNowPlayingArtworkUrl, iosNowPlayingTitle, isPlaying, player]);
 
   useEffect(() => {
     launchSplashDismissedRef.current = false;
@@ -25746,6 +25785,9 @@ const handleEnableNotifications = async () => {
         if (Platform.OS === 'android') {
           player.setActiveForLockScreen(false);
         }
+        if (Platform.OS === 'ios') {
+          player.setActiveForLockScreen(false);
+        }
 
         return;
       }
@@ -25771,6 +25813,9 @@ const handleEnableNotifications = async () => {
           if (Platform.OS === 'android') {
             player.setActiveForLockScreen(false);
           }
+          if (Platform.OS === 'ios') {
+            player.setActiveForLockScreen(false);
+          }
         } catch {}
         setAudioStartInFlight(false);
         setAudioErrorMessage('Audio stream is currently unavailable. Please try again.');
@@ -25784,6 +25829,14 @@ const handleEnableNotifications = async () => {
           albumTitle: 'Live Stream',
         });
       }
+      if (Platform.OS === 'ios') {
+        player.setActiveForLockScreen(true, {
+          title: iosNowPlayingTitle,
+          artist: 'Live Stream',
+          albumTitle: 'Live Stream',
+          artworkUrl: iosNowPlayingArtworkUrl || undefined,
+        });
+      }
 
       console.log('AUDIO_PLAYER_ACTION', 'play');
       player.play();
@@ -25795,6 +25848,11 @@ const handleEnableNotifications = async () => {
       }
       setAudioStartInFlight(false);
       setAudioErrorMessage('Audio stream is currently unavailable. Please try again.');
+      if (Platform.OS === 'ios') {
+        try {
+          player.setActiveForLockScreen(false);
+        } catch {}
+      }
       console.log('AUDIO_PLAYER_ACTION', 'error');
     }
   };
