@@ -92,6 +92,7 @@ const VARIANT_CONFIGS = {
     slug: 'prattville-athletics',
     scheme: 'prattvilleathletics',
     iosBundleIdentifier: 'com.athleticos.prattville',
+    icon: './assets/variants/prattville/prattville-app-icon.png',
   },
   hickory: {
     schoolSlug: 'hickory',

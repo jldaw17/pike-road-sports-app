@@ -12083,7 +12083,7 @@ function HomeScreen({
 
     return (
       <React.Fragment key="sponsors">
-        <OptionalSectionHeader title={isPremiumHome ? '🤝 Supporting Sponsors' : title} theme={theme} />
+        <OptionalSectionHeader title={isPremiumHome ? '🤝 Partners' : title} theme={theme} />
         {hasSponsorCardLink ? (
           <Pressable
             style={[
@@ -12293,7 +12293,7 @@ function HomeScreen({
       return null;
     }
 
-    const displayTitle = isPremiumHome ? '🤝 Supporting Sponsors' : 'Supporting Sponsors';
+    const displayTitle = isPremiumHome ? '🤝 Partners' : 'Supporting Sponsors';
 
     return (
       <React.Fragment key="sponsor_carousel">
