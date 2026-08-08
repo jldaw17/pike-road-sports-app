@@ -417,9 +417,13 @@ export type AthleticOSRosterEntry = {
   height?: string;
   weight?: string;
   bio?: string;
+  sport_headshot_url?: string;
+  hide_sport_headshot?: boolean | string | number;
   sport_photo_url?: string;
   active?: boolean | string | number;
   sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
   [key: string]: unknown;
 };
 
@@ -445,6 +449,8 @@ export type AthleticOSAthlete = {
   last_name?: string;
   default_photo_url?: string;
   photo_url?: string;
+  created_at?: string;
+  updated_at?: string;
   offers?: string[] | string;
   hometown?: string;
   recruitable?: boolean;
@@ -644,6 +650,64 @@ const resolveMediaUrl = (val: unknown) => {
 
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
     return raw.replace(/^http:\/\//i, 'https://');
+  }
+
+  return null;
+};
+
+const appendImageVersion = (url: string | null, version: unknown) => {
+  if (!url) return null;
+
+  const normalizedVersion = typeof version === 'string' ? version.trim() : '';
+  if (!normalizedVersion) {
+    return url;
+  }
+
+  if (url.startsWith('data:') || url.startsWith('file:')) {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (!parsed.protocol || !/^https?:$/i.test(parsed.protocol)) {
+      return url;
+    }
+
+    if (!parsed.searchParams.has('v')) {
+      parsed.searchParams.set('v', normalizedVersion);
+    }
+
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+};
+
+const resolveAthleteHeadshotUrl = ({
+  sportHeadshotUrl,
+  hideSportHeadshot,
+  sportUpdatedAt,
+  defaultPhotoUrl,
+  athleteUpdatedAt,
+}: {
+  sportHeadshotUrl: unknown;
+  hideSportHeadshot?: unknown;
+  sportUpdatedAt?: unknown;
+  defaultPhotoUrl: unknown;
+  athleteUpdatedAt?: unknown;
+}) => {
+  if (pickFirstBoolean({ hideSportHeadshot }, ['hideSportHeadshot']) === true) {
+    return null;
+  }
+
+  const resolvedSportHeadshotUrl = resolveMediaUrl(sportHeadshotUrl);
+  if (resolvedSportHeadshotUrl) {
+    return appendImageVersion(resolvedSportHeadshotUrl, sportUpdatedAt);
+  }
+
+  const resolvedDefaultPhotoUrl = resolveMediaUrl(defaultPhotoUrl);
+  if (resolvedDefaultPhotoUrl) {
+    return appendImageVersion(resolvedDefaultPhotoUrl, athleteUpdatedAt);
   }
 
   return null;
@@ -1629,12 +1693,15 @@ export async function getRosterBySchoolIdAndSportId(
         height,
         weight,
         bio,
+        sport_headshot_url,
+        hide_sport_headshot,
         school_id,
         sport_id,
         season_id,
         sort_order,
         sport_photo_url,
-        active
+        active,
+        updated_at
       `
     )
     .eq('school_id', schoolId)
@@ -1661,7 +1728,7 @@ export async function getRosterBySchoolIdAndSportId(
 
   const { data: athletesData, error: athletesError } = await supabase
     .from('athletes')
-    .select('id, first_name, last_name, default_photo_url, hometown')
+    .select('id, first_name, last_name, default_photo_url, hometown, updated_at')
     .in('id', athleteIds);
 
   if (athletesError) {
@@ -1684,7 +1751,15 @@ export async function getRosterBySchoolIdAndSportId(
       const firstName = athlete?.first_name ?? null;
       const lastName = athlete?.last_name ?? null;
       const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
-      const photoUrl = resolveMediaUrl(athlete?.default_photo_url) ?? null;
+      const photoUrl = resolveAthleteHeadshotUrl({
+        sportHeadshotUrl: pickFirstString(entry, ['sport_headshot_url']) ?? null,
+        hideSportHeadshot: pickFirstBoolean(entry, ['hide_sport_headshot']) ?? null,
+        sportUpdatedAt: pickFirstString(entry, ['updated_at']) ?? null,
+        defaultPhotoUrl: athlete?.default_photo_url ?? null,
+        athleteUpdatedAt:
+          pickFirstString((athlete ?? {}) as Record<string, unknown>, ['updated_at']) ?? null,
+      });
+      const sportPhotoUrl = resolveMediaUrl(pickFirstString(entry, ['sport_photo_url']) ?? null);
       const jerseyNumber = pickFirstString(entry, ['jersey_number']) ?? null;
       const sortOrder = pickFirstNumber(entry, ['sort_order']) ?? 0;
       const active = pickFirstBoolean(entry, ['active']) ?? true;
@@ -1706,7 +1781,7 @@ export async function getRosterBySchoolIdAndSportId(
         hometown: athlete?.hometown ?? null,
         bio: pickFirstString(entry, ['bio']) ?? null,
         photoUrl,
-        sportPhotoUrl: pickFirstString(entry, ['sport_photo_url']) ?? null,
+        sportPhotoUrl,
         active,
         sortOrder,
       } satisfies AthleticOSRosterAthlete;
@@ -2163,6 +2238,56 @@ export async function getRecruitingPlayersBySport(
   schoolId: string,
   sportId: string
 ) {
+  const getRecruitingProfileCompletenessScore = (profile: {
+    first_name?: string | null;
+    last_name?: string | null;
+    position?: string | null;
+    class_year?: string | null;
+    height?: string | null;
+    weight?: string | null;
+    hometown?: string | null;
+    photo_url?: string | null;
+    recruit_profile_slug?: string | null;
+    hudl_url?: string | null;
+    twitter_url?: string | null;
+    instagram_url?: string | null;
+    tiktok_url?: string | null;
+    youtube_url?: string | null;
+    bio?: string | null;
+    offers?: string[] | null;
+  }) => {
+    let score = 0;
+    const scalarFields = [
+      profile.first_name,
+      profile.last_name,
+      profile.position,
+      profile.class_year,
+      profile.height,
+      profile.weight,
+      profile.hometown,
+      profile.photo_url,
+      profile.recruit_profile_slug,
+      profile.hudl_url,
+      profile.twitter_url,
+      profile.instagram_url,
+      profile.tiktok_url,
+      profile.youtube_url,
+      profile.bio,
+    ];
+
+    for (const field of scalarFields) {
+      if (typeof field === 'string' && field.trim()) {
+        score += 1;
+      }
+    }
+
+    if (Array.isArray(profile.offers) && profile.offers.length > 0) {
+      score += 1;
+    }
+
+    return score;
+  };
+
   await requireSchoolById(schoolId);
 
   const { data, error } = await supabase
@@ -2170,6 +2295,12 @@ export async function getRecruitingPlayersBySport(
     .select(
       `
         id,
+        active,
+        sort_order,
+        sport_headshot_url,
+        hide_sport_headshot,
+        sport_photo_url,
+        updated_at,
         position,
         class_year,
         height,
@@ -2181,6 +2312,7 @@ export async function getRecruitingPlayersBySport(
           hometown,
           offers,
           default_photo_url,
+          updated_at,
           recruitable,
           recruit_profile_slug,
           hudl_url,
@@ -2212,7 +2344,7 @@ export async function getRecruitingPlayersBySport(
     }
   >) || [];
 
-  return rosterEntries
+  const profiles = rosterEntries
     .filter((entry) => {
       const athleteValue = (entry.athlete ?? null) as
         | AthleticOSAthlete
@@ -2235,6 +2367,7 @@ export async function getRecruitingPlayersBySport(
 
       return {
         id: pickFirstId((athlete ?? {}) as Record<string, unknown>, ['id']) ?? '',
+        roster_entry_id: pickFirstId(entry, ['id']) ?? '',
         first_name: athlete?.first_name ?? '',
         last_name: athlete?.last_name ?? '',
         position: pickFirstString(entry, ['position']) ?? null,
@@ -2251,7 +2384,24 @@ export async function getRecruitingPlayersBySport(
           pickFirstString(entry, ['weight']) ??
           null,
         hometown: athlete?.hometown ?? null,
-        photo_url: athlete?.default_photo_url ?? null,
+        photo_url: resolveAthleteHeadshotUrl({
+          sportHeadshotUrl: pickFirstString(entry, ['sport_headshot_url']) ?? null,
+          hideSportHeadshot: pickFirstBoolean(entry, ['hide_sport_headshot']) ?? null,
+          sportUpdatedAt: pickFirstString(entry, ['updated_at']) ?? null,
+          defaultPhotoUrl: athlete?.default_photo_url ?? null,
+          athleteUpdatedAt:
+            pickFirstString((athlete ?? {}) as Record<string, unknown>, ['updated_at']) ?? null,
+        }),
+        sport_headshot_url: appendImageVersion(
+          resolveMediaUrl(pickFirstString(entry, ['sport_headshot_url']) ?? null),
+          pickFirstString(entry, ['updated_at']) ?? null
+        ),
+        hide_sport_headshot: pickFirstBoolean(entry, ['hide_sport_headshot']) ?? null,
+        sport_photo_url: resolveMediaUrl(pickFirstString(entry, ['sport_photo_url']) ?? null),
+        default_photo_url: appendImageVersion(
+          resolveMediaUrl(athlete?.default_photo_url ?? null),
+          pickFirstString((athlete ?? {}) as Record<string, unknown>, ['updated_at']) ?? null
+        ),
         recruit_profile_slug: athlete?.recruit_profile_slug ?? null,
         hudl_url: athlete?.hudl_url ?? null,
         twitter_url: athlete?.twitter_url ?? athlete?.x_url ?? null,
@@ -2262,9 +2412,49 @@ export async function getRecruitingPlayersBySport(
         bio:
           pickFirstString((athlete ?? {}) as Record<string, unknown>, ['recruiting_bio']) ??
           null,
+        active: pickFirstBoolean(entry, ['active']) ?? null,
       };
     })
-    .filter((entry) => Boolean(entry.id));
+    .filter((entry) => Boolean(entry.id || entry.recruit_profile_slug));
+
+  const dedupedProfiles = new Map<string, (typeof profiles)[number]>();
+  const dedupeOrder: string[] = [];
+
+  for (const profile of profiles) {
+    const dedupeKey =
+      (typeof profile.id === 'string' && profile.id.trim()) ||
+      (typeof profile.recruit_profile_slug === 'string' && profile.recruit_profile_slug.trim());
+
+    if (!dedupeKey) {
+      continue;
+    }
+
+    const existing = dedupedProfiles.get(dedupeKey);
+    if (!existing) {
+      dedupedProfiles.set(dedupeKey, profile);
+      dedupeOrder.push(dedupeKey);
+      continue;
+    }
+
+    const existingIsActive = existing.active === true;
+    const nextIsActive = profile.active === true;
+    if (existingIsActive !== nextIsActive) {
+      if (nextIsActive) {
+        dedupedProfiles.set(dedupeKey, profile);
+      }
+      continue;
+    }
+
+    const existingScore = getRecruitingProfileCompletenessScore(existing);
+    const nextScore = getRecruitingProfileCompletenessScore(profile);
+    if (nextScore > existingScore) {
+      dedupedProfiles.set(dedupeKey, profile);
+    }
+  }
+
+  return dedupeOrder
+    .map((key) => dedupedProfiles.get(key) ?? null)
+    .filter(Boolean);
 }
 
 export async function getSportConfigBySchoolSlugAndKey(

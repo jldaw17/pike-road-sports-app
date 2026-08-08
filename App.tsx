@@ -364,6 +364,46 @@ function getModernNavEmoji(iconKey?: string, fallbackLabel?: string) {
   }
 }
 
+function getPlayerDetailBackButtonAppearance(theme: AthleticOSResolvedTheme) {
+  if (isPremiumTheme(theme)) {
+    return {
+      backgroundColor: withAlpha(theme.colors.text, 'E6'),
+      borderColor: withAlpha(theme.colors.text, '22'),
+      iconColor: BRAND.white,
+      textColor: BRAND.white,
+      shadowColor: withAlpha(theme.colors.text, '26'),
+    };
+  }
+
+  if (isSchoolPrideTheme(theme)) {
+    return {
+      backgroundColor: withAlpha(theme.colors.primary, 'F0'),
+      borderColor: withAlpha(theme.colors.primary, '26'),
+      iconColor: BRAND.white,
+      textColor: BRAND.white,
+      shadowColor: withAlpha(theme.colors.primary, '26'),
+    };
+  }
+
+  if (isCleanSlateTheme(theme)) {
+    return {
+      backgroundColor: withAlpha(theme.colors.text, 'E8'),
+      borderColor: withAlpha(theme.colors.text, '1C'),
+      iconColor: BRAND.white,
+      textColor: BRAND.white,
+      shadowColor: withAlpha(theme.colors.text, '24'),
+    };
+  }
+
+  return {
+    backgroundColor: 'rgba(11,16,32,0.76)',
+    borderColor: 'rgba(255,255,255,0.16)',
+    iconColor: BRAND.white,
+    textColor: BRAND.white,
+    shadowColor: 'rgba(0,0,0,0.22)',
+  };
+}
+
 function getModernHeroActionEmoji(
   icon: keyof typeof Ionicons.glyphMap,
   label: string
@@ -17400,6 +17440,7 @@ function AthleteProfileScreen({
   const isCleanSlate = isCleanSlateTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const isPremium = isPremiumTheme(theme);
+  const backButtonAppearance = getPlayerDetailBackButtonAppearance(theme);
   const imageUrl = athlete.photoUrl?.trim() || '';
   const numberLabel = athlete.jerseyNumber || athlete.number || '';
   const infoRows = [
@@ -17446,20 +17487,14 @@ function AthleteProfileScreen({
         <Pressable
           style={[
             styles.storyDetailBackButton,
-            isSchoolPride
-              ? {
-                  backgroundColor: withAlpha(theme.colors.primary, '0E'),
-                  borderColor: withAlpha(theme.colors.primary, '18'),
-                  borderRadius: 4,
-                }
-              : null,
+            {
+              backgroundColor: backButtonAppearance.backgroundColor,
+              borderColor: backButtonAppearance.borderColor,
+              shadowColor: backButtonAppearance.shadowColor,
+            },
             isCleanSlateTheme(theme)
               ? {
-                  backgroundColor: theme.colors.cardAlt,
-                  borderColor: theme.colors.border,
                   marginBottom: 10,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
                 }
               : null,
           ]}
@@ -17468,24 +17503,12 @@ function AthleteProfileScreen({
           <Ionicons
             name="arrow-back"
             size={20}
-            color={
-              isSchoolPride
-                ? theme.colors.primary
-                : isCleanSlateTheme(theme)
-                ? theme.colors.text
-                : BRAND.white
-            }
+            color={backButtonAppearance.iconColor}
           />
           <Text
             style={[
               styles.backButtonText,
-              {
-                color: isSchoolPride
-                  ? theme.colors.primary
-                  : isCleanSlateTheme(theme)
-                  ? theme.colors.text
-                  : BRAND.white,
-              },
+              { color: backButtonAppearance.textColor },
             ]}
           >
             Back
@@ -17835,9 +17858,13 @@ function RecruitingScreen({
             No recruiting profiles yet.
           </Text>
         ) : (
-          profiles.map((p, index) => (
+          profiles.map((p) => (
             <Pressable
-              key={`${String(p.id)}-${String(p.sport_id ?? '')}-${String((p as { roster_entry_id?: string | number | null }).roster_entry_id ?? '')}-${index}`}
+              key={
+                String(p.id ?? '').trim() ||
+                String(p.recruit_profile_slug ?? '').trim() ||
+                String((p as { roster_entry_id?: string | number | null }).roster_entry_id ?? '')
+              }
               style={[
                 styles.recruitingProfileCard,
                 {
@@ -17853,10 +17880,10 @@ function RecruitingScreen({
               onPress={() => onOpenPlayer(p)}
             >
               <View style={styles.recruitingProfileTopRow}>
-                {typeof (p.default_photo_url ?? p.photo_url) === 'string' &&
-                String(p.default_photo_url ?? p.photo_url).trim() ? (
+                {typeof (p.photo_url ?? p.default_photo_url) === 'string' &&
+                String(p.photo_url ?? p.default_photo_url).trim() ? (
                   <RemoteImage
-                    uri={String(p.default_photo_url ?? p.photo_url).trim()}
+                    uri={String(p.photo_url ?? p.default_photo_url).trim()}
                     style={[
                       styles.recruitingProfilePhoto,
                       isGradientEliteTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
@@ -17996,7 +18023,7 @@ function RecruitingPlayerScreen({
   const tiktokUrl = String(profile.tiktok_url ?? '').trim();
   const sportSlug = sport.key;
   const recruitProfileSlug = String(profile.recruit_profile_slug ?? '').trim();
-  const headshotUrl = String(profile.default_photo_url ?? profile.photo_url ?? '').trim();
+  const headshotUrl = String(profile.photo_url ?? profile.default_photo_url ?? '').trim();
   const heightValue = String(profile.height ?? '').trim();
   const weightValue = String(profile.weight ?? '').trim();
   const hometownValue = String(profile.hometown ?? '').trim();
@@ -18022,6 +18049,7 @@ function RecruitingPlayerScreen({
     () => getRecruitingExperiencePalette(theme),
     [theme]
   );
+  const backButtonAppearance = getPlayerDetailBackButtonAppearance(theme);
 
   const openProfileLink = (url: string) => {
     Linking.openURL(url).catch((error) => {
@@ -18052,19 +18080,21 @@ function RecruitingPlayerScreen({
           style={[
             styles.backButton,
             {
-              backgroundColor: recruitingPalette.surface,
-              borderColor: recruitingPalette.border,
-              shadowColor: recruitingPalette.accent,
-              shadowOpacity: 0.14,
-              shadowRadius: 12,
+              backgroundColor: backButtonAppearance.backgroundColor,
+              borderColor: backButtonAppearance.borderColor,
+              shadowColor: backButtonAppearance.shadowColor,
+              shadowOpacity: 0.2,
+              shadowRadius: 14,
               shadowOffset: { width: 0, height: 4 },
-              elevation: 4,
+              elevation: 6,
             },
           ]}
           onPress={onBack}
         >
-          <Ionicons name="arrow-back" size={20} color={recruitingPalette.text} />
-          <Text style={[styles.backButtonText, { color: recruitingPalette.text }]}>Back</Text>
+          <Ionicons name="arrow-back" size={20} color={backButtonAppearance.iconColor} />
+          <Text style={[styles.backButtonText, { color: backButtonAppearance.textColor }]}>
+            Back
+          </Text>
         </Pressable>
 
         <View style={styles.teamPageHeader}>
@@ -28007,13 +28037,21 @@ bannerImage: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 26,
     backgroundColor: 'rgba(255,255,255,0.09)',
+    minHeight: 44,
+    minWidth: 44,
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    zIndex: 3,
+    elevation: 6,
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
 
   storyDetailTopActionsRow: {
@@ -30002,11 +30040,21 @@ resultScore: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 18,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    zIndex: 3,
+    elevation: 6,
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
 
   backButtonText: {

@@ -93,6 +93,16 @@ const VARIANT_CONFIGS = {
     scheme: 'prattvilleathletics',
     iosBundleIdentifier: 'com.athleticos.prattville',
     icon: './assets/variants/prattville/prattville-app-icon.png',
+    easProjectId: 'cab6e75a-7f09-4663-82f7-0543487ef18e',
+  },
+  campbell: {
+    schoolSlug: 'campbell',
+    name: 'Campbell Spartans',
+    slug: 'campbell-athletics',
+    scheme: 'campbell',
+    iosBundleIdentifier: 'com.athleticos.campbell',
+    icon: './assets/variants/campbell/campbell-app-icon.png',
+    easProjectId: '6af0b25c-8dc8-4335-ae46-b81fd2d96d97',
   },
   hickory: {
     schoolSlug: 'hickory',
@@ -120,7 +130,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, prattville, hickory.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, prattville, campbell, hickory.'
   );
 }
 

@@ -50,6 +50,17 @@
     "appSlug": "prattville-athletics",
     "scheme": "prattvilleathletics",
     "iosBundleIdentifier": "com.athleticos.prattville",
+    "easProjectId": "cab6e75a-7f09-4663-82f7-0543487ef18e",
+    "launchable": true
+  },
+  "campbell": {
+    "variant": "campbell",
+    "schoolSlug": "campbell",
+    "appSlug": "campbell-athletics",
+    "scheme": "campbell",
+    "iosBundleIdentifier": "com.athleticos.campbell",
+    "easProjectId": "6af0b25c-8dc8-4335-ae46-b81fd2d96d97",
+    "updatesUrl": "https://u.expo.dev/6af0b25c-8dc8-4335-ae46-b81fd2d96d97",
     "launchable": true
   }
 }
