@@ -16578,7 +16578,9 @@ function ScheduleScreen({
 function RosterScreen({
   athletes,
   loading,
+  refreshing = false,
   onBack,
+  onRefresh,
   onOpenAthlete,
   headerTitle,
   headerSubtitle,
@@ -16587,7 +16589,9 @@ function RosterScreen({
 }: {
   athletes: AthleticOSRosterAthlete[];
   loading: boolean;
+  refreshing?: boolean;
   onBack: () => void;
+  onRefresh?: () => void;
   onOpenAthlete: (athlete: AthleticOSRosterAthlete) => void;
   headerTitle: string;
   headerSubtitle?: string;
@@ -16662,6 +16666,15 @@ function RosterScreen({
     <ScrollView
       style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
       contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+          />
+        ) : undefined
+      }
     >
       {renderGradientEliteBackdrop(theme)}
       {isPremium ? (
@@ -23559,6 +23572,8 @@ export default function App() {
   const [rosterLogoUrl, setRosterLogoUrl] = useState('');
   const [rosterItems, setRosterItems] = useState<AthleticOSRosterAthlete[]>([]);
   const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterRefreshing, setRosterRefreshing] = useState(false);
+  const [rosterRefreshNonce, setRosterRefreshNonce] = useState(0);
   const [selectedRecruitingSport, setSelectedRecruitingSport] = useState<SportType | null>(null);
   const [selectedRecruitingSportId, setSelectedRecruitingSportId] = useState('');
   const [selectedRecruitingPlayer, setSelectedRecruitingPlayer] = useState<Record<string, unknown> | null>(null);
@@ -24423,51 +24438,59 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     loadSavedPreferences();
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadRoster() {
-      if (!resolvedSchoolId || !selectedRosterSportId) {
-        if (mounted) {
-          setRosterItems([]);
-          setRosterLoading(false);
-        }
+  const loadRoster = useCallback(
+    async ({ refreshing = false }: { refreshing?: boolean } = {}) => {
+      if (!resolvedSchoolId || !selectedRosterSportId || screenMode !== 'roster') {
+        setRosterItems([]);
+        setRosterLoading(false);
+        setRosterRefreshing(false);
         return;
       }
 
       try {
-        setRosterLoading(true);
+        if (refreshing) {
+          setRosterRefreshing(true);
+        } else {
+          setRosterLoading(true);
+        }
+
         const nextRoster = await getRosterBySchoolIdAndSportId(
           resolvedSchoolId,
           selectedRosterSportId
         );
 
-        if (!mounted) {
-          return;
-        }
-
         setRosterItems(nextRoster);
       } catch (error) {
         console.log('Roster load error:', error);
-
-        if (!mounted) {
-          return;
-        }
-
         setRosterItems([]);
       } finally {
-        if (mounted) {
+        if (refreshing) {
+          setRosterRefreshing(false);
+        } else {
           setRosterLoading(false);
         }
       }
+    },
+    [resolvedSchoolId, screenMode, selectedRosterSportId]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function runRosterLoad() {
+      if (!mounted) {
+        return;
+      }
+
+      await loadRoster();
     }
 
-    loadRoster();
+    runRosterLoad();
 
     return () => {
       mounted = false;
     };
-  }, [resolvedSchoolId, selectedRosterSportId]);
+  }, [loadRoster, rosterRefreshNonce]);
 
   useEffect(() => {
     if (!pushNotificationsEnabled) {
@@ -24648,7 +24671,11 @@ const handleEnableNotifications = async () => {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      await loadHomeFeeds();
+      if (screenMode === 'roster') {
+        await loadRoster({ refreshing: true });
+      } else {
+        await loadHomeFeeds();
+      }
     } finally {
       setRefreshing(false);
   }
@@ -24930,6 +24957,7 @@ const handleEnableNotifications = async () => {
     setRosterHeaderSubtitle(options.headerSubtitle ?? appDisplayName);
     setRosterLogoUrl(options.schoolLogoUrl ?? schoolConfig.logoUrl);
     setSelectedAthlete(null);
+    setRosterRefreshNonce((current) => current + 1);
     setScreenMode('roster');
   };
 
@@ -26330,7 +26358,9 @@ if (showPreroll && prerollConfig) {
       <RosterScreen
         athletes={rosterItems}
         loading={rosterLoading}
+        refreshing={rosterRefreshing}
         onBack={closeRosterScreen}
+        onRefresh={onRefresh}
         onOpenAthlete={openAthleteProfile}
         headerTitle={rosterHeaderTitle}
         headerSubtitle={rosterHeaderSubtitle || appDisplayName}

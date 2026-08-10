@@ -448,6 +448,7 @@ export type AthleticOSAthlete = {
   first_name?: string;
   last_name?: string;
   default_photo_url?: string;
+  is_hidden_from_roster?: boolean;
   photo_url?: string;
   created_at?: string;
   updated_at?: string;
@@ -1705,7 +1706,8 @@ export async function getRosterBySchoolIdAndSportId(
       `
     )
     .eq('school_id', schoolId)
-    .eq('sport_id', sportId);
+    .eq('sport_id', sportId)
+    .eq('active', true);
 
   if (currentSeasonIds.length > 0) {
     rosterQuery = rosterQuery.in('season_id', currentSeasonIds);
@@ -1728,7 +1730,7 @@ export async function getRosterBySchoolIdAndSportId(
 
   const { data: athletesData, error: athletesError } = await supabase
     .from('athletes')
-    .select('id, first_name, last_name, default_photo_url, hometown, updated_at')
+    .select('id, first_name, last_name, default_photo_url, hometown, is_hidden_from_roster, updated_at')
     .in('id', athleteIds);
 
   if (athletesError) {
@@ -1786,11 +1788,13 @@ export async function getRosterBySchoolIdAndSportId(
         sortOrder,
       } satisfies AthleticOSRosterAthlete;
     })
-    .sort((a, b) => {
-      if (a.active !== b.active) {
-        return a.active ? -1 : 1;
-      }
+    .filter((athlete) => {
+      const athleteRecord =
+        athlete.athleteId ? athletesById.get(athlete.athleteId) ?? null : null;
 
+      return athleteRecord?.is_hidden_from_roster !== true;
+    })
+    .sort((a, b) => {
       const aSort = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
       const bSort = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
       if (aSort !== bSort) {
@@ -1810,12 +1814,12 @@ export async function getRosterBySchoolIdAndSportId(
         return aHasNumber ? -1 : 1;
       }
 
-      const lastCompare = a.lastName.localeCompare(b.lastName);
+      const lastCompare = (a.lastName || '').localeCompare(b.lastName || '');
       if (lastCompare !== 0) {
         return lastCompare;
       }
 
-      return a.firstName.localeCompare(b.firstName);
+      return (a.firstName || '').localeCompare(b.firstName || '');
     });
 
   return normalizedRoster;
