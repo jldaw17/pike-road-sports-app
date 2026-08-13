@@ -102,6 +102,45 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "6af0b25c-8dc8-4335-ae46-b81fd2d96d97"
       }
     },
+    "comer": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "comer",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "comer",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "64c5ae97-27ad-4519-a0aa-c72f90b8f2a2"
+      }
+    },
+    "comer-preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "comer",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "comer",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "64c5ae97-27ad-4519-a0aa-c72f90b8f2a2"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "fayetteville": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "fayetteville",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "fayetteville",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "32723a6b-bc85-4a54-9885-aa03b6326757"
+      }
+    },
+    "childersburg": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "childersburg",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "childersburg",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "5c859028-b93a-49e3-a1f4-bccd0c35992a"
+      }
+    },
     "hickory": {
       "channel": "production",
       "autoIncrement": true,
@@ -117,6 +156,9 @@
     "wetumpka": {},
     "opelika": {},
     "prattville": {},
-    "campbell": {}
+    "campbell": {},
+    "comer": {},
+    "fayetteville": {},
+    "childersburg": {}
   }
 }

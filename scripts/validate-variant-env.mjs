@@ -122,6 +122,12 @@ function runExpoConfigValidation(record, expectedEnv) {
     );
   }
 
+  if (record.androidPackage && expoConfig.android?.package !== record.androidPackage) {
+    fail(
+      `Expo config android.package mismatch. Expected "${record.androidPackage}", received "${expoConfig.android?.package}".`
+    );
+  }
+
   if (expoConfig.extra?.schoolSlug !== record.schoolSlug) {
     fail(
       `Expo config extra.schoolSlug mismatch. Expected "${record.schoolSlug}", received "${expoConfig.extra?.schoolSlug}".`
@@ -160,6 +166,7 @@ function main() {
     appSlug: record.appSlug,
     scheme: record.scheme,
     iosBundleIdentifier: record.iosBundleIdentifier,
+    androidPackage: record.androidPackage,
     easProjectId: record.easProjectId,
     updatesUrl: expectedUpdatesUrl,
     expectedEnv,

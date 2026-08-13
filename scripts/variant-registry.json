@@ -5,6 +5,7 @@
     "appSlug": "sylacauga-athletics",
     "scheme": "sylacaugaathletics",
     "iosBundleIdentifier": "com.athleticos.sylacauga",
+    "androidPackage": "com.athleticos.sylacauga",
     "easProjectId": "8673888c-85fd-46b5-adae-d1c603e9acbd",
     "launchable": true
   },
@@ -14,6 +15,7 @@
     "appSlug": "wetumpka-athletics",
     "scheme": "wetumpkaathletics",
     "iosBundleIdentifier": "com.athleticos.wetumpka",
+    "androidPackage": "com.athleticos.wetumpka",
     "easProjectId": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057",
     "launchable": true
   },
@@ -23,6 +25,7 @@
     "appSlug": "pike-road-athletics",
     "scheme": "pikeroadathletics",
     "iosBundleIdentifier": "com.athleticos.pikeroad",
+    "androidPackage": "com.athleticos.pikeroad",
     "easProjectId": "70b794e3-e8d7-4919-ac83-0b034b118ea2",
     "launchable": true
   },
@@ -32,6 +35,7 @@
     "appSlug": "pell-city-athletics",
     "scheme": "pellcityathletics",
     "iosBundleIdentifier": "com.athleticos.pellcity",
+    "androidPackage": "com.athleticos.pellcity",
     "easProjectId": "1fb0bea0-6786-49cb-8844-50e8e75b5dc5",
     "launchable": true
   },
@@ -41,6 +45,7 @@
     "appSlug": "opelika-athletics",
     "scheme": "opelikaathletics",
     "iosBundleIdentifier": "com.athleticos.opelika",
+    "androidPackage": "com.athleticos.opelika",
     "easProjectId": "949be373-10ae-40b4-88b4-2e11d58615d3",
     "launchable": true
   },
@@ -50,6 +55,7 @@
     "appSlug": "prattville-athletics",
     "scheme": "prattvilleathletics",
     "iosBundleIdentifier": "com.athleticos.prattville",
+    "androidPackage": "com.athleticos.prattville",
     "easProjectId": "cab6e75a-7f09-4663-82f7-0543487ef18e",
     "launchable": true
   },
@@ -59,8 +65,42 @@
     "appSlug": "campbell-athletics",
     "scheme": "campbell",
     "iosBundleIdentifier": "com.athleticos.campbell",
+    "androidPackage": "com.athleticos.campbell",
     "easProjectId": "6af0b25c-8dc8-4335-ae46-b81fd2d96d97",
     "updatesUrl": "https://u.expo.dev/6af0b25c-8dc8-4335-ae46-b81fd2d96d97",
+    "launchable": true
+  },
+  "comer": {
+    "variant": "comer",
+    "schoolSlug": "comer",
+    "appSlug": "comer-athletics",
+    "scheme": "comer",
+    "iosBundleIdentifier": "com.athleticos.comer",
+    "androidPackage": "com.athleticos.comer",
+    "easProjectId": "64c5ae97-27ad-4519-a0aa-c72f90b8f2a2",
+    "updatesUrl": "https://u.expo.dev/64c5ae97-27ad-4519-a0aa-c72f90b8f2a2",
+    "launchable": true
+  },
+  "fayetteville": {
+    "variant": "fayetteville",
+    "schoolSlug": "fayetteville",
+    "appSlug": "fayetteville-athletics",
+    "scheme": "fayetteville",
+    "iosBundleIdentifier": "com.athleticos.fayetteville",
+    "androidPackage": "com.athleticos.fayetteville",
+    "easProjectId": "32723a6b-bc85-4a54-9885-aa03b6326757",
+    "updatesUrl": "https://u.expo.dev/32723a6b-bc85-4a54-9885-aa03b6326757",
+    "launchable": true
+  },
+  "childersburg": {
+    "variant": "childersburg",
+    "schoolSlug": "childersburg",
+    "appSlug": "childersburg-athletics",
+    "scheme": "childersburg",
+    "iosBundleIdentifier": "com.athleticos.childersburg",
+    "androidPackage": "com.athleticos.childersburg",
+    "easProjectId": "5c859028-b93a-49e3-a1f4-bccd0c35992a",
+    "updatesUrl": "https://u.expo.dev/5c859028-b93a-49e3-a1f4-bccd0c35992a",
     "launchable": true
   }
 }

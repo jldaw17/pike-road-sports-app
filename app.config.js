@@ -15,6 +15,7 @@ const VARIANT_CONFIGS = {
     slug: 'pike-road-athletics',
     scheme: 'pikeroadathletics',
     iosBundleIdentifier: 'com.athleticos.pikeroad',
+    androidPackage: 'com.athleticos.pikeroad',
     icon: './assets/images/icon.png',
     easProjectId: '70b794e3-e8d7-4919-ac83-0b034b118ea2',
   },
@@ -24,6 +25,7 @@ const VARIANT_CONFIGS = {
     slug: 'pell-city-athletics',
     scheme: 'pellcityathletics',
     iosBundleIdentifier: 'com.athleticos.pellcity',
+    androidPackage: 'com.athleticos.pellcity',
     icon: './assets/icons/pellcity-app-icon.png',
     easProjectId: '1fb0bea0-6786-49cb-8844-50e8e75b5dc5',
   },
@@ -57,6 +59,7 @@ const VARIANT_CONFIGS = {
     slug: 'sylacauga-athletics',
     scheme: 'sylacaugaathletics',
     iosBundleIdentifier: 'com.athleticos.sylacauga',
+    androidPackage: 'com.athleticos.sylacauga',
     icon: './assets/images/schools/sylacauga/app-icon.png',
     easProjectId: '8673888c-85fd-46b5-adae-d1c603e9acbd',
   },
@@ -74,6 +77,7 @@ const VARIANT_CONFIGS = {
     slug: 'wetumpka-athletics',
     scheme: 'wetumpkaathletics',
     iosBundleIdentifier: 'com.athleticos.wetumpka',
+    androidPackage: 'com.athleticos.wetumpka',
     icon: './assets/variants/wetumpka/wetumpka-app-icon.png',
     easProjectId: 'ef5cbd90-cdb0-46ea-b1a6-6d676dee0057',
   },
@@ -83,6 +87,7 @@ const VARIANT_CONFIGS = {
     slug: 'opelika-athletics',
     scheme: 'opelikaathletics',
     iosBundleIdentifier: 'com.athleticos.opelika',
+    androidPackage: 'com.athleticos.opelika',
     icon: './assets/variants/opelika/opelika-app-icon.png',
     easProjectId: '949be373-10ae-40b4-88b4-2e11d58615d3',
   },
@@ -92,6 +97,7 @@ const VARIANT_CONFIGS = {
     slug: 'prattville-athletics',
     scheme: 'prattvilleathletics',
     iosBundleIdentifier: 'com.athleticos.prattville',
+    androidPackage: 'com.athleticos.prattville',
     icon: './assets/variants/prattville/prattville-app-icon.png',
     easProjectId: 'cab6e75a-7f09-4663-82f7-0543487ef18e',
   },
@@ -101,8 +107,39 @@ const VARIANT_CONFIGS = {
     slug: 'campbell-athletics',
     scheme: 'campbell',
     iosBundleIdentifier: 'com.athleticos.campbell',
+    androidPackage: 'com.athleticos.campbell',
     icon: './assets/variants/campbell/campbell-app-icon.png',
     easProjectId: '6af0b25c-8dc8-4335-ae46-b81fd2d96d97',
+  },
+  comer: {
+    schoolSlug: 'comer',
+    name: 'B.B. Comer Tigers',
+    slug: 'comer-athletics',
+    scheme: 'comer',
+    iosBundleIdentifier: 'com.athleticos.comer',
+    androidPackage: 'com.athleticos.comer',
+    icon: './assets/variants/comer/comer-app-icon.png',
+    easProjectId: '64c5ae97-27ad-4519-a0aa-c72f90b8f2a2',
+  },
+  fayetteville: {
+    schoolSlug: 'fayetteville',
+    name: 'Fayetteville Wolves',
+    slug: 'fayetteville-athletics',
+    scheme: 'fayetteville',
+    iosBundleIdentifier: 'com.athleticos.fayetteville',
+    androidPackage: 'com.athleticos.fayetteville',
+    icon: './assets/variants/fayetteville/fayetteville-app-icon.png',
+    easProjectId: '32723a6b-bc85-4a54-9885-aa03b6326757',
+  },
+  childersburg: {
+    schoolSlug: 'childersburg',
+    name: 'Childersburg Tigers',
+    slug: 'childersburg-athletics',
+    scheme: 'childersburg',
+    iosBundleIdentifier: 'com.athleticos.childersburg',
+    androidPackage: 'com.athleticos.childersburg',
+    icon: './assets/variants/childersburg/childersburg-app-icon.png',
+    easProjectId: '5c859028-b93a-49e3-a1f4-bccd0c35992a',
   },
   hickory: {
     schoolSlug: 'hickory',
@@ -130,7 +167,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, prattville, campbell, hickory.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, prattville, campbell, comer, fayetteville, childersburg, hickory.'
   );
 }
 
@@ -259,6 +296,10 @@ module.exports = () => {
         CFBundleDisplayName: variantConfig.name,
         UIBackgroundModes: resolvedUiBackgroundModes,
       },
+    },
+    android: {
+      ...(baseExpoConfig.android || {}),
+      ...(variantConfig.androidPackage ? { package: variantConfig.androidPackage } : {}),
     },
     plugins,
     extra: nextExtra,

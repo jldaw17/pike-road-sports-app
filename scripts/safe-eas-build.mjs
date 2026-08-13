@@ -53,17 +53,44 @@ function loadValidatedRecord(variant) {
   return JSON.parse(output);
 }
 
-function ensureBuildProfileExists(variant) {
+function loadBuildProfile(profileName) {
   const easJson = JSON.parse(fs.readFileSync(easJsonPath, 'utf8'));
-  if (!easJson.build?.[variant]) {
-    fail(`Missing eas.json build profile for variant "${variant}".`);
+  const profile = easJson.build?.[profileName];
+  if (!profile) {
+    fail(`Missing eas.json build profile "${profileName}".`);
   }
+
+  return profile;
+}
+
+function ensureProfileEnvMatchesVariant(profileName, profile, expectedEnv) {
+  const profileEnv = profile.env || {};
+  const conflicts = Object.entries(expectedEnv).filter(([key, expectedValue]) => {
+    const configuredValue = profileEnv[key];
+    return typeof configuredValue === 'string' && configuredValue !== expectedValue;
+  });
+
+  if (conflicts.length > 0) {
+    const summary = conflicts
+      .map(([key, expectedValue]) => `${key}="${profileEnv[key]}" (expected "${expectedValue}")`)
+      .join(', ');
+    fail(`Build profile "${profileName}" conflicts with the selected variant: ${summary}`);
+  }
+}
+
+function resolveAndroidArtifactType(profile) {
+  if (profile.android?.buildType === 'apk' || profile.distribution === 'internal' || profile.developmentClient === true) {
+    return 'apk';
+  }
+
+  return 'aab';
 }
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const variant = String(args.variant || '').trim().toLowerCase();
   const platform = String(args.platform || 'ios').trim().toLowerCase();
+  const profileName = String(args.profile || variant).trim();
 
   if (!variant) {
     fail('Missing required --variant argument.');
@@ -73,25 +100,40 @@ function main() {
     fail(`Unsupported platform "${platform}". Expected ios, android, or all.`);
   }
 
-  ensureBuildProfileExists(variant);
-
   const record = loadValidatedRecord(variant);
+  const profile = loadBuildProfile(profileName);
   if (!record.easProjectId) {
     fail(`Variant "${variant}" is missing an EAS project ID.`);
   }
+
+  ensureProfileEnvMatchesVariant(profileName, profile, record.expectedEnv);
+
+  if ((platform === 'android' || platform === 'all') && !record.androidPackage) {
+    fail(`Variant "${variant}" is missing an Android package.`);
+  }
+
+  const androidArtifactType = platform === 'android' || platform === 'all'
+    ? resolveAndroidArtifactType(profile)
+    : undefined;
 
   console.log(JSON.stringify({
     variant: record.variant,
     schoolSlug: record.schoolSlug,
     easProjectId: record.easProjectId,
     easProjectUrl: `https://expo.dev/accounts/jlaw171/projects/${record.appSlug}`,
+    ...(platform === 'android' || platform === 'all'
+      ? {
+          androidPackage: record.androidPackage,
+          artifactType: androidArtifactType,
+        }
+      : {}),
     platform,
-    profile: variant,
+    profile: profileName,
   }, null, 2));
 
   const result = spawnSync(
     'eas',
-    ['build', '--platform', platform, '--profile', variant],
+    ['build', '--platform', platform, '--profile', profileName],
     {
       cwd: rootDir,
       stdio: 'inherit',
