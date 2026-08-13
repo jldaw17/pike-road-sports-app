@@ -24611,6 +24611,11 @@ const handleEnableNotifications = async () => {
           'Notifications Not Enabled',
           'This build is missing required push configuration. Please reinstall the latest TestFlight build.'
         );
+      } else if (lastRegistrationStatus === 'unsupported') {
+        Alert.alert(
+          'Notifications Enabled',
+          'Notification permission was enabled. Push-token delivery must be tested on a physical Android device.'
+        );
       } else if (lastRegistrationStatus === 'token_missing') {
         Alert.alert(
           'Notifications Not Enabled',

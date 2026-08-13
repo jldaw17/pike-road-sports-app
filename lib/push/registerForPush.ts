@@ -70,12 +70,12 @@ export async function registerForPushNotifications(
       };
     }
 
-    if (!Device.isDevice) {
-      console.log('[PushOS] error', 'unsupported device/platform');
-      return { token: '', status: 'unsupported' };
-    }
-
     if (Platform.OS === 'ios') {
+      if (!Device.isDevice) {
+        console.log('[PushOS] error', 'unsupported device/platform');
+        return { token: '', status: 'unsupported' };
+      }
+
       const existingSettings = await Notifications.getPermissionsAsync();
       let finalStatus = existingSettings.granted ? 'granted' : existingSettings.status;
       console.log('Notification permission status:', finalStatus);
@@ -190,6 +190,11 @@ export async function registerForPushNotifications(
           token: '',
           status: finalStatus === 'denied' ? 'denied' : 'undetermined',
         };
+      }
+
+      if (!Device.isDevice) {
+        console.log('[PushOS] error', 'unsupported device/platform');
+        return { token: '', status: 'unsupported' };
       }
 
       const projectId =
