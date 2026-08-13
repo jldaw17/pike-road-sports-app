@@ -112,6 +112,10 @@ function main() {
     fail(`Variant "${variant}" is missing an Android package.`);
   }
 
+  if ((platform === 'android' || platform === 'all') && !record.googleServicesFile) {
+    fail(`Variant "${variant}" is missing an Android googleServicesFile.`);
+  }
+
   const androidArtifactType = platform === 'android' || platform === 'all'
     ? resolveAndroidArtifactType(profile)
     : undefined;
@@ -124,6 +128,7 @@ function main() {
     ...(platform === 'android' || platform === 'all'
       ? {
           androidPackage: record.androidPackage,
+          googleServicesFile: record.googleServicesFile,
           artifactType: androidArtifactType,
         }
       : {}),

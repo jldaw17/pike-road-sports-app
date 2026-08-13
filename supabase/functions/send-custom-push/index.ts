@@ -1,4 +1,8 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import {
+  dedupeExpoPushTokens,
+  resolvePushScope,
+} from '../_shared/push-targets.mjs';
 
 serve(async (req) => {
   try {
@@ -15,7 +19,7 @@ serve(async (req) => {
     const id = record.id;
     const title = record.title;
     const body = record.body;
-    const appName = record.app_name ?? 'sylacauga';
+    const { schoolSlug, appName } = resolvePushScope(record);
     const sendNow = record.send_now ?? true;
     const alreadySent = record.sent ?? false;
 
@@ -39,6 +43,16 @@ serve(async (req) => {
       );
     }
 
+    if (!schoolSlug && !appName) {
+      return new Response(
+        JSON.stringify({ error: 'Missing school scope for push delivery' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -52,37 +66,57 @@ serve(async (req) => {
       );
     }
 
-    const tokenResponse = await fetch(
-      `${supabaseUrl}/rest/v1/push_tokens?select=expo_push_token&notifications_enabled=eq.true&app_name=eq.${appName}`,
-      {
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-      }
+    const headers = {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    };
+
+    const tokenReads = await Promise.all([
+      appName
+        ? fetch(
+            `${supabaseUrl}/rest/v1/push_tokens?select=expo_push_token&notifications_enabled=eq.true&app_name=eq.${encodeURIComponent(appName)}`,
+            { headers }
+          )
+        : Promise.resolve(null),
+      schoolSlug
+        ? fetch(
+            `${supabaseUrl}/rest/v1/app_push_tokens?select=expo_push_token&school_slug=eq.${encodeURIComponent(schoolSlug)}`,
+            { headers }
+          )
+        : Promise.resolve(null),
+    ]);
+
+    const tokenPayloads = await Promise.all(
+      tokenReads.map(async (response) => {
+        if (!response) {
+          return [];
+        }
+
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      })
     );
 
-    const tokens = await tokenResponse.json();
+    const tokens = dedupeExpoPushTokens(tokenPayloads.flat());
 
-    if (!Array.isArray(tokens) || tokens.length === 0) {
+    if (tokens.length === 0) {
       return new Response(JSON.stringify({ message: 'No tokens found' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const messages = tokens
-      .filter((item) => item.expo_push_token)
-      .map((item) => ({
-        to: item.expo_push_token,
-        sound: 'default',
-        title,
-        body,
-        data: {
-          type: 'custom',
-          app_name: appName,
-        },
-      }));
+    const messages = tokens.map((expoPushToken) => ({
+      to: expoPushToken,
+      sound: 'default',
+      title,
+      body,
+      data: {
+        type: 'custom',
+        app_name: appName || schoolSlug,
+        school_slug: schoolSlug || appName,
+      },
+    }));
 
     const expoResponse = await fetch(
       'https://exp.host/--/api/v2/push/send',

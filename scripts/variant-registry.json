@@ -77,6 +77,7 @@
     "scheme": "comer",
     "iosBundleIdentifier": "com.athleticos.comer",
     "androidPackage": "com.athleticos.comer",
+    "googleServicesFile": "./assets/variants/comer/google-services.json",
     "easProjectId": "64c5ae97-27ad-4519-a0aa-c72f90b8f2a2",
     "updatesUrl": "https://u.expo.dev/64c5ae97-27ad-4519-a0aa-c72f90b8f2a2",
     "launchable": true

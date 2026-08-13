@@ -118,6 +118,7 @@ const VARIANT_CONFIGS = {
     scheme: 'comer',
     iosBundleIdentifier: 'com.athleticos.comer',
     androidPackage: 'com.athleticos.comer',
+    googleServicesFile: './assets/variants/comer/google-services.json',
     icon: './assets/variants/comer/comer-app-icon.png',
     easProjectId: '64c5ae97-27ad-4519-a0aa-c72f90b8f2a2',
   },
@@ -300,6 +301,9 @@ module.exports = () => {
     android: {
       ...(baseExpoConfig.android || {}),
       ...(variantConfig.androidPackage ? { package: variantConfig.androidPackage } : {}),
+      ...(variantConfig.googleServicesFile
+        ? { googleServicesFile: variantConfig.googleServicesFile }
+        : {}),
     },
     plugins,
     extra: nextExtra,

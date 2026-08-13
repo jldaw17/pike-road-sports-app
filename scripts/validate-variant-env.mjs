@@ -92,6 +92,19 @@ function getExpectedEnv(record) {
   };
 }
 
+function validateGoogleServicesFile(record) {
+  if (!record.googleServicesFile) {
+    return;
+  }
+
+  const absolutePath = path.join(rootDir, record.googleServicesFile.replace(/^\.\//, ''));
+  if (!fs.existsSync(absolutePath)) {
+    fail(
+      `Configured googleServicesFile is missing for variant "${record.variant}": ${record.googleServicesFile}`
+    );
+  }
+}
+
 function runExpoConfigValidation(record, expectedEnv) {
   const raw = execFileSync(
     'npx',
@@ -128,6 +141,12 @@ function runExpoConfigValidation(record, expectedEnv) {
     );
   }
 
+  if (record.googleServicesFile && expoConfig.android?.googleServicesFile !== record.googleServicesFile) {
+    fail(
+      `Expo config android.googleServicesFile mismatch. Expected "${record.googleServicesFile}", received "${expoConfig.android?.googleServicesFile}".`
+    );
+  }
+
   if (expoConfig.extra?.schoolSlug !== record.schoolSlug) {
     fail(
       `Expo config extra.schoolSlug mismatch. Expected "${record.schoolSlug}", received "${expoConfig.extra?.schoolSlug}".`
@@ -152,6 +171,7 @@ function main() {
   const registry = loadRegistry();
   const record = getVariantRecord(registry, args.variant);
   validateExistingEnv(record);
+  validateGoogleServicesFile(record);
 
   const expectedEnv = getExpectedEnv(record);
   const expectedUpdatesUrl = `https://u.expo.dev/${record.easProjectId}`;
@@ -167,6 +187,7 @@ function main() {
     scheme: record.scheme,
     iosBundleIdentifier: record.iosBundleIdentifier,
     androidPackage: record.androidPackage,
+    googleServicesFile: record.googleServicesFile,
     easProjectId: record.easProjectId,
     updatesUrl: expectedUpdatesUrl,
     expectedEnv,

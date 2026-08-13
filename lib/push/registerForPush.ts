@@ -70,103 +70,203 @@ export async function registerForPushNotifications(
       };
     }
 
-    if (!Device.isDevice || Platform.OS !== 'ios') {
+    if (!Device.isDevice) {
       console.log('[PushOS] error', 'unsupported device/platform');
       return { token: '', status: 'unsupported' };
     }
 
-    const existingSettings = await Notifications.getPermissionsAsync();
-    let finalStatus = existingSettings.granted ? 'granted' : existingSettings.status;
-    console.log('Notification permission status:', finalStatus);
-    console.log('PUSH_PERMISSION_INITIAL_STATUS', finalStatus);
-
-    if (finalStatus === 'undetermined') {
-      const requestSettings = await Notifications.requestPermissionsAsync();
-      finalStatus = requestSettings.granted ? 'granted' : requestSettings.status;
+    if (Platform.OS === 'ios') {
+      const existingSettings = await Notifications.getPermissionsAsync();
+      let finalStatus = existingSettings.granted ? 'granted' : existingSettings.status;
       console.log('Notification permission status:', finalStatus);
-      console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
-    } else {
-      console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
-    }
+      console.log('PUSH_PERMISSION_INITIAL_STATUS', finalStatus);
 
-    if (finalStatus !== 'granted') {
-      return {
-        token: '',
-        status: finalStatus === 'denied' ? 'denied' : 'undetermined',
-      };
-    }
-
-    const projectId =
-      Constants.easConfig?.projectId ??
-      Constants.expoConfig?.extra?.eas?.projectId;
-    const finalSchoolSlug = schoolSlug.trim().toLowerCase();
-
-    console.log('[PushOS] resolved schoolSlug', finalSchoolSlug || '(missing)');
-    console.log('[PushOS] projectId', projectId || '(missing)');
-    console.log('PUSH_SCHOOL_SLUG', finalSchoolSlug || '(missing)');
-    console.log('PUSH_PROJECT_ID', projectId || '(missing)');
-
-    if (!projectId) {
-      console.log('[PushOS] error', 'missing projectId');
-      return {
-        token: '',
-        status: 'project_id_missing',
-      };
-    }
-
-    const tokenResponse = await Notifications.getExpoPushTokenAsync(
-      { projectId }
-    );
-    const expoPushToken = tokenResponse.data?.trim() ?? '';
-
-    console.log('[PushOS] token', maskPushToken(expoPushToken) || '(missing)');
-    console.log(
-      'PUSH_TOKEN_GENERATED_MASKED',
-      maskPushToken(expoPushToken) || '(missing)'
-    );
-
-    if (!finalSchoolSlug || !expoPushToken || !isValidExpoPushToken(expoPushToken)) {
-      return {
-        token: '',
-        status: 'token_missing',
-      };
-    }
-
-    const { error } = await supabase.from('app_push_tokens').upsert(
-      [
-        {
-          school_slug: finalSchoolSlug,
-          expo_push_token: expoPushToken,
-          platform: Platform.OS,
-          updated_at: new Date().toISOString(),
-        },
-      ],
-      {
-        onConflict: 'expo_push_token',
-        ignoreDuplicates: false,
+      if (finalStatus === 'undetermined') {
+        const requestSettings = await Notifications.requestPermissionsAsync();
+        finalStatus = requestSettings.granted ? 'granted' : requestSettings.status;
+        console.log('Notification permission status:', finalStatus);
+        console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
+      } else {
+        console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
       }
-    );
 
-    if (error) {
-      console.log('[PushOS] error', error.message ?? error);
-      console.log('PUSH_TOKEN_SAVE_ERROR', error.message ?? String(error));
-      console.log('PUSH_TOKEN_SAVE_RESULT', 'save_failed');
+      if (finalStatus !== 'granted') {
+        return {
+          token: '',
+          status: finalStatus === 'denied' ? 'denied' : 'undetermined',
+        };
+      }
+
+      const projectId =
+        Constants.easConfig?.projectId ??
+        Constants.expoConfig?.extra?.eas?.projectId;
+      const finalSchoolSlug = schoolSlug.trim().toLowerCase();
+
+      console.log('[PushOS] resolved schoolSlug', finalSchoolSlug || '(missing)');
+      console.log('[PushOS] projectId', projectId || '(missing)');
+      console.log('PUSH_SCHOOL_SLUG', finalSchoolSlug || '(missing)');
+      console.log('PUSH_PROJECT_ID', projectId || '(missing)');
+
+      if (!projectId) {
+        console.log('[PushOS] error', 'missing projectId');
+        return {
+          token: '',
+          status: 'project_id_missing',
+        };
+      }
+
+      const tokenResponse = await Notifications.getExpoPushTokenAsync(
+        { projectId }
+      );
+      const expoPushToken = tokenResponse.data?.trim() ?? '';
+
+      console.log('[PushOS] token', maskPushToken(expoPushToken) || '(missing)');
+      console.log(
+        'PUSH_TOKEN_GENERATED_MASKED',
+        maskPushToken(expoPushToken) || '(missing)'
+      );
+
+      if (!finalSchoolSlug || !expoPushToken || !isValidExpoPushToken(expoPushToken)) {
+        return {
+          token: '',
+          status: 'token_missing',
+        };
+      }
+
+      const { error } = await supabase.from('app_push_tokens').upsert(
+        [
+          {
+            school_slug: finalSchoolSlug,
+            expo_push_token: expoPushToken,
+            platform: Platform.OS,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        {
+          onConflict: 'expo_push_token',
+          ignoreDuplicates: false,
+        }
+      );
+
+      if (error) {
+        console.log('[PushOS] error', error.message ?? error);
+        console.log('PUSH_TOKEN_SAVE_ERROR', error.message ?? String(error));
+        console.log('PUSH_TOKEN_SAVE_RESULT', 'save_failed');
+        return {
+          token: expoPushToken,
+          status: 'save_failed',
+        };
+      }
+
+      console.log('[PushOS] saved', maskPushToken(expoPushToken));
+      console.log('PUSH_TOKEN_SAVE_RESULT', {
+        status: 'saved',
+        schoolSlug: finalSchoolSlug,
+        token: maskPushToken(expoPushToken),
+      });
       return {
         token: expoPushToken,
-        status: 'save_failed',
+        status: 'saved',
       };
     }
 
-    console.log('[PushOS] saved', maskPushToken(expoPushToken));
-    console.log('PUSH_TOKEN_SAVE_RESULT', {
-      status: 'saved',
-      schoolSlug: finalSchoolSlug,
-      token: maskPushToken(expoPushToken),
-    });
-    return {
-      token: expoPushToken,
-      status: 'saved',
-    };
+    if (Platform.OS === 'android') {
+      const existingSettings = await Notifications.getPermissionsAsync();
+      let finalStatus = existingSettings.granted ? 'granted' : existingSettings.status;
+      console.log('Notification permission status:', finalStatus);
+      console.log('PUSH_PERMISSION_INITIAL_STATUS', finalStatus);
+
+      if (finalStatus === 'undetermined') {
+        const requestSettings = await Notifications.requestPermissionsAsync();
+        finalStatus = requestSettings.granted ? 'granted' : requestSettings.status;
+        console.log('Notification permission status:', finalStatus);
+        console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
+      } else {
+        console.log('PUSH_PERMISSION_REQUEST_RESULT', finalStatus);
+      }
+
+      if (finalStatus !== 'granted') {
+        return {
+          token: '',
+          status: finalStatus === 'denied' ? 'denied' : 'undetermined',
+        };
+      }
+
+      const projectId =
+        Constants.easConfig?.projectId ??
+        Constants.expoConfig?.extra?.eas?.projectId;
+      const finalSchoolSlug = schoolSlug.trim().toLowerCase();
+
+      console.log('[PushOS] resolved schoolSlug', finalSchoolSlug || '(missing)');
+      console.log('[PushOS] projectId', projectId || '(missing)');
+      console.log('PUSH_SCHOOL_SLUG', finalSchoolSlug || '(missing)');
+      console.log('PUSH_PROJECT_ID', projectId || '(missing)');
+
+      if (!projectId) {
+        console.log('[PushOS] error', 'missing projectId');
+        return {
+          token: '',
+          status: 'project_id_missing',
+        };
+      }
+
+      const tokenResponse = await Notifications.getExpoPushTokenAsync(
+        { projectId }
+      );
+      const expoPushToken = tokenResponse.data?.trim() ?? '';
+
+      console.log('[PushOS] token', maskPushToken(expoPushToken) || '(missing)');
+      console.log(
+        'PUSH_TOKEN_GENERATED_MASKED',
+        maskPushToken(expoPushToken) || '(missing)'
+      );
+
+      if (!finalSchoolSlug || !expoPushToken || !isValidExpoPushToken(expoPushToken)) {
+        return {
+          token: '',
+          status: 'token_missing',
+        };
+      }
+
+      const { error } = await supabase.from('app_push_tokens').upsert(
+        [
+          {
+            school_slug: finalSchoolSlug,
+            expo_push_token: expoPushToken,
+            platform: Platform.OS,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        {
+          onConflict: 'expo_push_token',
+          ignoreDuplicates: false,
+        }
+      );
+
+      if (error) {
+        console.log('[PushOS] error', error.message ?? error);
+        console.log('PUSH_TOKEN_SAVE_ERROR', error.message ?? String(error));
+        console.log('PUSH_TOKEN_SAVE_RESULT', 'save_failed');
+        return {
+          token: expoPushToken,
+          status: 'save_failed',
+        };
+      }
+
+      console.log('[PushOS] saved', maskPushToken(expoPushToken));
+      console.log('PUSH_TOKEN_SAVE_RESULT', {
+        status: 'saved',
+        schoolSlug: finalSchoolSlug,
+        token: maskPushToken(expoPushToken),
+      });
+      return {
+        token: expoPushToken,
+        status: 'saved',
+      };
+    }
+
+    console.log('[PushOS] error', 'unsupported device/platform');
+    return { token: '', status: 'unsupported' };
   } catch (error) {
     console.log('[PushOS] error', error);
     console.log('PUSH_TOKEN_SAVE_ERROR', String(error));
