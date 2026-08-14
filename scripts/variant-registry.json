@@ -6,6 +6,7 @@
     "scheme": "sylacaugaathletics",
     "iosBundleIdentifier": "com.athleticos.sylacauga",
     "androidPackage": "com.athleticos.sylacauga",
+    "googleServicesFile": "./assets/variants/sylacauga/google-services.json",
     "easProjectId": "8673888c-85fd-46b5-adae-d1c603e9acbd",
     "launchable": true
   },
@@ -16,6 +17,7 @@
     "scheme": "wetumpkaathletics",
     "iosBundleIdentifier": "com.athleticos.wetumpka",
     "androidPackage": "com.athleticos.wetumpka",
+    "googleServicesFile": "./assets/variants/wetumpka/google-services.json",
     "easProjectId": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057",
     "launchable": true
   },

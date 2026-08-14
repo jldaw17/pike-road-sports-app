@@ -58,6 +58,18 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "8673888c-85fd-46b5-adae-d1c603e9acbd"
       }
     },
+    "sylacauga-preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "sylacauga",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "sylacauga",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "8673888c-85fd-46b5-adae-d1c603e9acbd"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "hoover": {
       "channel": "production",
       "autoIncrement": true,
@@ -73,6 +85,18 @@
         "APP_VARIANT": "wetumpka",
         "EXPO_PUBLIC_SCHOOL_SLUG": "wetumpka",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057"
+      }
+    },
+    "wetumpka-preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "wetumpka",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "wetumpka",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "opelika": {
