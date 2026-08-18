@@ -42,7 +42,8 @@
       [
         "expo-audio",
         {
-          "enableBackgroundPlayback": true
+          "enableBackgroundPlayback": true,
+          "microphonePermission": false
         }
       ],
       "expo-notifications",
