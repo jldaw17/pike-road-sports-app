@@ -117,6 +117,18 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "cab6e75a-7f09-4663-82f7-0543487ef18e"
       }
     },
+    "prattville-preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "prattville",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "prattville",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "cab6e75a-7f09-4663-82f7-0543487ef18e"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "campbell": {
       "channel": "production",
       "autoIncrement": true,
@@ -124,6 +136,18 @@
         "APP_VARIANT": "campbell",
         "EXPO_PUBLIC_SCHOOL_SLUG": "campbell",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "6af0b25c-8dc8-4335-ae46-b81fd2d96d97"
+      }
+    },
+    "campbell-preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "campbell",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "campbell",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "6af0b25c-8dc8-4335-ae46-b81fd2d96d97"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "comer": {
@@ -156,6 +180,18 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "32723a6b-bc85-4a54-9885-aa03b6326757"
       }
     },
+    "fayetteville-preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "fayetteville",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "fayetteville",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "32723a6b-bc85-4a54-9885-aa03b6326757"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "childersburg": {
       "channel": "production",
       "autoIncrement": true,
@@ -163,6 +199,18 @@
         "APP_VARIANT": "childersburg",
         "EXPO_PUBLIC_SCHOOL_SLUG": "childersburg",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "5c859028-b93a-49e3-a1f4-bccd0c35992a"
+      }
+    },
+    "childersburg-preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "childersburg",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "childersburg",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "5c859028-b93a-49e3-a1f4-bccd0c35992a"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "hickory": {

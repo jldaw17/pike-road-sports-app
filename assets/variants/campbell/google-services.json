@@ -1,0 +1,124 @@
+{
+  "project_info": {
+    "project_number": "460851485069",
+    "project_id": "athleticos-71cc8",
+    "storage_bucket": "athleticos-71cc8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460851485069:android:e3a33939eedf8002fb85c4",
+        "android_client_info": {
+          "package_name": "com.athleticos.campbell"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0zsF2IJ6XNh7F7CX6PMFWvS3hCrVupX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460851485069:android:047b53811aa960b2fb85c4",
+        "android_client_info": {
+          "package_name": "com.athleticos.childersburg"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0zsF2IJ6XNh7F7CX6PMFWvS3hCrVupX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460851485069:android:4c09d7f22e9497fdfb85c4",
+        "android_client_info": {
+          "package_name": "com.athleticos.comer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0zsF2IJ6XNh7F7CX6PMFWvS3hCrVupX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460851485069:android:ea3d6abb19609d79fb85c4",
+        "android_client_info": {
+          "package_name": "com.athleticos.fayetteville"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0zsF2IJ6XNh7F7CX6PMFWvS3hCrVupX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460851485069:android:3bf4b06e6d92510cfb85c4",
+        "android_client_info": {
+          "package_name": "com.athleticos.sylacauga"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0zsF2IJ6XNh7F7CX6PMFWvS3hCrVupX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460851485069:android:a357ded15242bebafb85c4",
+        "android_client_info": {
+          "package_name": "com.athleticos.wetumpka"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0zsF2IJ6XNh7F7CX6PMFWvS3hCrVupX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
