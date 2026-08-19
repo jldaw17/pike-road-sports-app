@@ -2412,10 +2412,253 @@ type StoryBodySegment = {
   href?: string;
 };
 
+type StoryBodyBlock =
+  | {
+      type: 'paragraph';
+      segments: StoryBodySegment[];
+    }
+  | {
+      type: 'embed';
+      provider: 'youtube' | 'vimeo';
+      embedUrl: string;
+      originalUrl: string;
+    };
+
+const STORY_BODY_EMBED_BLOCK_PATTERN =
+  /<div\b[^>]*class=(["'])[^"'<>]*\bstory-embed\b[^"'<>]*\1[^>]*>[\s\S]*?<iframe\b[^>]*src=(["'])(.*?)\2[^>]*>[\s\S]*?<\/iframe>[\s\S]*?<\/div>\s*<\/div>/gi;
+const STORY_BODY_IFRAME_PATTERN = /<iframe\b[^>]*src=(["'])(.*?)\1[^>]*>[\s\S]*?<\/iframe>/gi;
+const STORY_BODY_EMBED_OR_IFRAME_PATTERN =
+  /<div\b[^>]*class=(["'])[^"'<>]*\bstory-embed\b[^"'<>]*\1[^>]*>[\s\S]*?<iframe\b[^>]*src=(["'])(.*?)\2[^>]*>[\s\S]*?<\/iframe>[\s\S]*?<\/div>\s*<\/div>|<iframe\b[^>]*src=(["'])(.*?)\4[^>]*>[\s\S]*?<\/iframe>/gi;
+const STORY_BODY_RAW_EMBED_ARTIFACT_PATTERN =
+  /(^|\n)\s*"?\s*(?:class|data-story-embed|data-embed-[\w-]+|src|href|title|loading|frameborder|allow|allowfullscreen|referrerpolicy)\s*=\s*(?:"[^"]*"|'[^']*')\s*>?/gi;
+const STORY_INLINE_ALLOWED_TOP_LEVEL_HOSTS = new Set([
+  'www.youtube.com',
+  'm.youtube.com',
+  'youtube.com',
+  'www.youtube-nocookie.com',
+  'youtube-nocookie.com',
+  'player.vimeo.com',
+  'vimeo.com',
+]);
+const STORY_INLINE_EMBED_ALLOW =
+  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+
+function getStoryInlineEmbedClientReferrer() {
+  const androidPackage = Constants?.expoConfig?.android?.package?.trim();
+  const iosBundleIdentifier = Constants?.expoConfig?.ios?.bundleIdentifier?.trim();
+  const appIdentifier =
+    (Platform.OS === 'android' ? androidPackage : iosBundleIdentifier) ||
+    androidPackage ||
+    iosBundleIdentifier ||
+    '';
+
+  if (appIdentifier) {
+    return `https://${appIdentifier.toLowerCase()}`;
+  }
+
+  return 'https://athleticos.ai';
+}
+
+const STORY_INLINE_EMBED_CLIENT_REFERRER = getStoryInlineEmbedClientReferrer();
+
+function escapeStoryInlineEmbedAttribute(value = '') {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function withStoryInlineEmbedQueryParams(provider: 'youtube' | 'vimeo', embedUrl: string) {
+  if (provider !== 'youtube') {
+    return embedUrl;
+  }
+
+  try {
+    const parsed = new URL(embedUrl);
+    parsed.searchParams.set('playsinline', '1');
+    parsed.searchParams.set('origin', STORY_INLINE_EMBED_CLIENT_REFERRER);
+    parsed.searchParams.set('widget_referrer', STORY_INLINE_EMBED_CLIENT_REFERRER);
+    return parsed.toString();
+  } catch {
+    return embedUrl;
+  }
+}
+
+function buildStoryInlineEmbedHtml({
+  embedUrl,
+  title,
+}: {
+  embedUrl: string;
+  title: string;
+}) {
+  const safeTitle = escapeStoryInlineEmbedAttribute(title);
+  const safeUrl = escapeStoryInlineEmbedAttribute(embedUrl);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+
+      .story-inline-embed-shell {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+      }
+
+      .story-inline-embed-shell iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="story-inline-embed-shell">
+      <iframe
+        src="${safeUrl}"
+        title="${safeTitle}"
+        loading="lazy"
+        frameborder="0"
+        allow="${STORY_INLINE_EMBED_ALLOW}"
+        allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+    </div>
+  </body>
+</html>`;
+}
+
+function shouldAllowStoryInlineEmbedNavigation(url?: string, isTopFrame?: boolean) {
+  const trimmed = (url ?? '').trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  if (!isTopFrame) {
+    return true;
+  }
+
+  if (trimmed === 'about:blank' || trimmed.startsWith(STORY_INLINE_EMBED_CLIENT_REFERRER)) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return STORY_INLINE_ALLOWED_TOP_LEVEL_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function extractYouTubeVideoId(value = '') {
+  const trimmed = decodeHtml(value).trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    const segments = parsed.pathname.split('/').filter(Boolean);
+
+    if (hostname === 'youtu.be') {
+      return segments[0] ?? '';
+    }
+
+    if (
+      hostname === 'youtube.com' ||
+      hostname === 'm.youtube.com' ||
+      hostname === 'youtube-nocookie.com' ||
+      hostname === 'www.youtube-nocookie.com'
+    ) {
+      if (parsed.pathname === '/watch') {
+        return parsed.searchParams.get('v')?.trim() ?? '';
+      }
+
+      if (segments[0] === 'embed' || segments[0] === 'shorts' || segments[0] === 'live') {
+        return segments[1] ?? '';
+      }
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
+}
+
+function extractVimeoVideoId(value = '') {
+  const trimmed = decodeHtml(value).trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+
+    if (hostname === 'vimeo.com' || hostname === 'player.vimeo.com') {
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const videoSegment = [...segments].reverse().find((segment) => /^\d+$/.test(segment));
+      return videoSegment ?? '';
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
+}
+
+function normalizeStoryEmbedUrl(value = '') {
+  const trimmed = decodeHtml(value).trim();
+  const youTubeId = extractYouTubeVideoId(trimmed);
+  if (youTubeId) {
+    return {
+      provider: 'youtube' as const,
+      embedUrl: withStoryInlineEmbedQueryParams(
+        'youtube',
+        `https://www.youtube-nocookie.com/embed/${youTubeId}`
+      ),
+      originalUrl: trimmed,
+    };
+  }
+
+  const vimeoId = extractVimeoVideoId(trimmed);
+  if (vimeoId) {
+    return {
+      provider: 'vimeo' as const,
+      embedUrl: `https://player.vimeo.com/video/${vimeoId}`,
+      originalUrl: trimmed,
+    };
+  }
+
+  return null;
+}
+
 function htmlToStoryDisplayText(value = '') {
   return decodeHtml(value)
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(STORY_BODY_EMBED_BLOCK_PATTERN, '\n\n')
+    .replace(STORY_BODY_IFRAME_PATTERN, '\n\n')
+    .replace(STORY_BODY_RAW_EMBED_ARTIFACT_PATTERN, '$1')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|section|article|blockquote|h[1-6]|ul|ol)>/gi, '\n\n')
     .replace(/<li[^>]*>/gi, '• ')
@@ -2431,7 +2674,9 @@ function htmlToStoryDisplayText(value = '') {
 function parseStoryBodySegments(value = '') {
   const sanitized = value
     .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '');
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(STORY_BODY_EMBED_BLOCK_PATTERN, '\n\n')
+    .replace(STORY_BODY_IFRAME_PATTERN, '\n\n');
   const anchorPattern = /<a\b[^>]*href=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
   const segments: StoryBodySegment[] = [];
   let lastIndex = 0;
@@ -2463,39 +2708,49 @@ function parseStoryBodySegments(value = '') {
   return segments;
 }
 
-function renderStoryBodyContent(
-  articleText: string,
-  theme: AthleticOSResolvedTheme
-) {
-  const isSchoolPride = isSchoolPrideTheme(theme);
-  const segments = parseStoryBodySegments(articleText);
+function buildStoryParagraphBlocks(value = ''): StoryBodyBlock[] {
+  const segments = parseStoryBodySegments(value);
 
   if (!segments.length) {
-    const plainText = stripHtml(articleText);
+    const plainText = stripHtml(value);
     if (!plainText) {
-      return null;
+      return [];
     }
 
-    return (
-      <Text
-        style={[
-          styles.storyDetailBodyParagraph,
-          { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
-        ]}
-      >
-        {plainText}
-      </Text>
-    );
+    const embed = normalizeStoryEmbedUrl(plainText.trim());
+    if (embed && plainText.trim() === embed.originalUrl) {
+      return [{ type: 'embed', ...embed }];
+    }
+
+    return [
+      {
+        type: 'paragraph',
+        segments: [{ text: plainText }],
+      },
+    ];
   }
 
-  const paragraphs: StoryBodySegment[][] = [];
+  const paragraphs: StoryBodyBlock[] = [];
   let currentParagraph: StoryBodySegment[] = [];
 
   const pushCurrentParagraph = () => {
-    if (currentParagraph.length) {
-      paragraphs.push(currentParagraph);
-      currentParagraph = [];
+    if (!currentParagraph.length) {
+      return;
     }
+
+    const paragraphText = currentParagraph.map((segment) => segment.text).join(' ').trim();
+    const hasLink = currentParagraph.some((segment) => Boolean(segment.href));
+    const embed = !hasLink ? normalizeStoryEmbedUrl(paragraphText) : null;
+    if (embed && paragraphText === embed.originalUrl) {
+      paragraphs.push({ type: 'embed', ...embed });
+    } else {
+      paragraphs.push({
+        type: 'paragraph',
+        segments: currentParagraph,
+      });
+    }
+
+    currentParagraph = [];
   };
 
   segments.forEach((segment) => {
@@ -2517,39 +2772,142 @@ function renderStoryBodyContent(
   });
 
   pushCurrentParagraph();
+  return paragraphs;
+}
 
-  return paragraphs.map((paragraph, paragraphIndex) => (
-    <Text
-      key={`story-body-paragraph-${paragraphIndex}`}
-      style={[
-        styles.storyDetailBodyParagraph,
-        { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
-      ]}
-    >
-      {paragraph.map((segment, segmentIndex) =>
-        segment.href ? (
-          <Text
-            key={`story-body-segment-${paragraphIndex}-${segmentIndex}`}
-            style={[
-              styles.storyDetailBodyLink,
-              { color: theme.colors.primary },
-            ]}
-            onPress={() => {
-              Linking.openURL(segment.href!).catch((error) => {
-                console.warn('Unable to open story body link', error);
+function parseStoryBodyBlocks(value = '') {
+  const sanitized = value
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
+  const blocks: StoryBodyBlock[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = STORY_BODY_EMBED_OR_IFRAME_PATTERN.exec(sanitized))) {
+    const precedingHtml = sanitized.slice(lastIndex, match.index);
+    blocks.push(...buildStoryParagraphBlocks(precedingHtml));
+
+    const rawSrc = decodeHtml(match[3] ?? match[5] ?? '').trim();
+    const embed = normalizeStoryEmbedUrl(rawSrc);
+    if (embed) {
+      blocks.push({ type: 'embed', ...embed });
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  blocks.push(...buildStoryParagraphBlocks(sanitized.slice(lastIndex)));
+  return blocks;
+}
+
+function StoryInlineEmbed({
+  embedUrl,
+  provider,
+  title,
+}: {
+  embedUrl: string;
+  provider: 'youtube' | 'vimeo';
+  title: string;
+}) {
+  const source =
+    provider === 'youtube'
+      ? {
+          html: buildStoryInlineEmbedHtml({ embedUrl, title }),
+          baseUrl: STORY_INLINE_EMBED_CLIENT_REFERRER,
+        }
+      : {
+          uri: embedUrl,
+        };
+
+  return (
+    <View style={styles.storyDetailEmbedCard}>
+      <View style={styles.storyDetailEmbedFrame}>
+        <WebView
+          source={source}
+          style={styles.storyDetailEmbedWebView}
+          javaScriptEnabled
+          domStorageEnabled
+          scrollEnabled={false}
+          bounces={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          originWhitelist={['*']}
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          allowsFullscreenVideo
+          onShouldStartLoadWithRequest={(request) => {
+            const allowed = shouldAllowStoryInlineEmbedNavigation(request.url, request.isTopFrame);
+            if (!allowed && hasResolvedUrl(request.url)) {
+              Linking.openURL(request.url).catch((error) => {
+                console.warn('Unable to open inline story embed link', error);
               });
-            }}
-          >
-            {segment.text}
-          </Text>
-        ) : (
-          <Text key={`story-body-segment-${paragraphIndex}-${segmentIndex}`}>
-            {segment.text}
-          </Text>
-        )
-      )}
-    </Text>
-  ));
+            }
+
+            return allowed;
+          }}
+          accessibilityLabel={title}
+        />
+      </View>
+    </View>
+  );
+}
+
+function renderStoryBodyContent(
+  articleText: string,
+  theme: AthleticOSResolvedTheme
+) {
+  const isSchoolPride = isSchoolPrideTheme(theme);
+  const blocks = parseStoryBodyBlocks(articleText);
+
+  if (!blocks.length) {
+    return null;
+  }
+
+  return blocks.map((block, blockIndex) => {
+    if (block.type === 'embed') {
+      return (
+        <StoryInlineEmbed
+          key={`story-body-embed-${blockIndex}`}
+          embedUrl={block.embedUrl}
+          provider={block.provider}
+          title={`Embedded ${block.provider} video`}
+        />
+      );
+    }
+
+    return (
+      <Text
+        key={`story-body-paragraph-${blockIndex}`}
+        style={[
+          styles.storyDetailBodyParagraph,
+          { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
+        ]}
+      >
+        {block.segments.map((segment, segmentIndex) =>
+          segment.href ? (
+            <Text
+              key={`story-body-segment-${blockIndex}-${segmentIndex}`}
+              style={[
+                styles.storyDetailBodyLink,
+                { color: theme.colors.primary },
+              ]}
+              onPress={() => {
+                Linking.openURL(segment.href!).catch((error) => {
+                  console.warn('Unable to open story body link', error);
+                });
+              }}
+            >
+              {segment.text}
+            </Text>
+          ) : (
+            <Text key={`story-body-segment-${blockIndex}-${segmentIndex}`}>
+              {segment.text}
+            </Text>
+          )
+        )}
+      </Text>
+    );
+  });
 }
 
 function getTagValue(xml: string, tag: string) {
@@ -28172,6 +28530,24 @@ bannerImage: {
 
   storyDetailBodyLink: {
     textDecorationLine: 'underline',
+  },
+
+  storyDetailEmbedCard: {
+    marginBottom: 18,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+  },
+
+  storyDetailEmbedFrame: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#000000',
+  },
+
+  storyDetailEmbedWebView: {
+    flex: 1,
+    backgroundColor: '#000000',
   },
 
   liveCoverageSponsorBadge: {
