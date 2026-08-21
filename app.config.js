@@ -31,7 +31,7 @@ const VARIANT_CONFIGS = {
   },
   athleticos: {
     schoolSlug: 'athleticos',
-    name: 'AthleticOS App',
+    name: 'AdminOS',
     slug: 'athleticos-app',
     scheme: 'athleticosapp',
     iosBundleIdentifier: 'com.athleticos.athleticos',
@@ -55,7 +55,7 @@ const VARIANT_CONFIGS = {
   },
   sylacauga: {
     schoolSlug: 'sylacauga',
-    name: 'Sylacauga Athletics',
+    name: 'Sylacauga Aggies',
     slug: 'sylacauga-athletics',
     scheme: 'sylacaugaathletics',
     iosBundleIdentifier: 'com.athleticos.sylacauga',
@@ -106,7 +106,7 @@ const VARIANT_CONFIGS = {
   },
   campbell: {
     schoolSlug: 'campbell',
-    name: 'Campbell Spartans',
+    name: 'Spartans',
     slug: 'campbell-athletics',
     scheme: 'campbell',
     iosBundleIdentifier: 'com.athleticos.campbell',

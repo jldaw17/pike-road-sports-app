@@ -2373,6 +2373,79 @@ const SPORTS: SportType[] = [
     shortLabel: 'Girls XC',
   },
 ];
+
+function getAthleticOSSportIdValue(sport: AthleticOSSport) {
+  if (sport.id === undefined || sport.id === null) {
+    return '';
+  }
+
+  return String(sport.id).trim();
+}
+
+function getAthleticOSSportSlugValue(sport: AthleticOSSport) {
+  return typeof sport.slug === 'string' && sport.slug.trim() ? sport.slug.trim() : '';
+}
+
+function getAthleticOSSportNameValue(sport: AthleticOSSport) {
+  return typeof sport.name === 'string' && sport.name.trim() ? sport.name.trim() : '';
+}
+
+function formatFallbackSportLabel(slug: string) {
+  return slug
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function buildDynamicSportType(sport: AthleticOSSport): SportType | null {
+  const sportId = getAthleticOSSportIdValue(sport);
+  const sportSlug = getAthleticOSSportSlugValue(sport);
+  const sportName = getAthleticOSSportNameValue(sport);
+  const key = sportSlug || normalizeSportMatchToken(sportName) || sportId;
+  const label = sportName || formatFallbackSportLabel(sportSlug);
+
+  if (!key || !label) {
+    return null;
+  }
+
+  return {
+    key,
+    label,
+  };
+}
+
+function resolveAppSportVisibility(
+  sport: AthleticOSSport,
+  config?: AthleticOSSportAppConfig | null
+) {
+  if (typeof config?.is_visible === 'boolean') {
+    return config.is_visible;
+  }
+
+  if (typeof sport.is_visible === 'boolean') {
+    return sport.is_visible;
+  }
+
+  return true;
+}
+
+function resolveAppSportSortOrder(
+  sport: AthleticOSSport,
+  config: AthleticOSSportAppConfig | null | undefined,
+  index: number
+) {
+  if (typeof config?.sort_order === 'number' && Number.isFinite(config.sort_order)) {
+    return config.sort_order;
+  }
+
+  if (typeof sport.sort_order === 'number' && Number.isFinite(sport.sort_order)) {
+    return sport.sort_order;
+  }
+
+  return index;
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () =>
     ({
@@ -24365,7 +24438,6 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       sportsData,
       stories,
       scheduleEvents,
-      resolvedSports,
     ] = await Promise.all([
       getSchoolConfigById(resolvedSchoolId, schoolSlug),
       getSchoolAppConfigById(resolvedSchoolId),
@@ -24373,12 +24445,6 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       getSportsBySchoolId(resolvedSchoolId),
       getStoriesBySchoolId(resolvedSchoolId),
       getScheduleEventsBySchoolId(resolvedSchoolId),
-      Promise.all(
-        SPORTS.map(async (sport) => ({
-          sport,
-          record: await getSportBySchoolIdAndKey(resolvedSchoolId, sport.key),
-        }))
-      ),
     ]);
 
     const {
@@ -24625,23 +24691,26 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         .filter(Boolean) as [string, AthleticOSSportAppConfig][]
     );
 
-    const orderedHomeSports = resolvedSports
-      .flatMap(({ sport, record }, index) => {
-        if (!record?.id) {
-          return [];
+    const orderedSchoolSports = sportsData
+      .map((sport, index) => {
+        const sportId = getAthleticOSSportIdValue(sport);
+        const mappedSport = buildDynamicSportType(sport);
+
+        if (!sportId || !mappedSport) {
+          return null;
         }
 
-        const config = sportConfigById.get(String(record.id));
+        const config = sportConfigById.get(sportId) ?? null;
 
-        return [
-          {
-            sport,
-            index,
-            sortOrder: getSafeSortOrder(config?.sort_order ?? index),
-            isVisible: config?.is_visible !== false,
-          },
-        ];
+        return {
+          sport: mappedSport,
+          sportId,
+          index,
+          sortOrder: getSafeSortOrder(resolveAppSportSortOrder(sport, config, index)),
+          isVisible: resolveAppSportVisibility(sport, config),
+        };
       })
+      .filter(Boolean)
       .filter((item) => item.isVisible)
       .sort((a, b) => {
         const orderDiff = a.sortOrder - b.sortOrder;
@@ -24650,46 +24719,31 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
         }
 
         return a.index - b.index;
-      })
-      .map((item) => item.sport);
+      }) as Array<{
+      sport: SportType;
+      sportId: string;
+      index: number;
+      sortOrder: number;
+      isVisible: boolean;
+    }>;
 
-    const nextHeroQuickActionSports = resolvedSports
-      .map(({ sport, record }) => {
-        const sportId =
-          record?.id === undefined || record.id === null ? '' : String(record.id).trim();
+    const orderedHomeSports = orderedSchoolSports.map((item) => item.sport);
 
+    const nextHeroQuickActionSports = orderedSchoolSports
+      .map(({ sport, sportId }) => {
         return sportId ? ({ sportId, sport } satisfies HeroQuickActionSportRecord) : null;
       })
       .filter(Boolean) as HeroQuickActionSportRecord[];
 
-    const nextFollowableSports = sportsData
-      .map((sport) => {
-        const id =
-          typeof sport.slug === 'string' && sport.slug.trim()
-            ? sport.slug.trim()
-            : typeof sport.id === 'string' || typeof sport.id === 'number'
-            ? String(sport.id)
-            : '';
-        const label =
-          typeof sport.name === 'string' && sport.name.trim() ? sport.name.trim() : '';
-        const matchedLocalSport = resolvedSports.find(({ sport: localSport, record }) => {
-          const recordId =
-            record?.id === undefined || record.id === null ? '' : String(record.id).trim();
-          const recordSlug =
-            typeof record?.slug === 'string' && record.slug.trim() ? record.slug.trim() : '';
-          const recordName =
-            typeof record?.name === 'string' && record.name.trim() ? record.name.trim() : '';
-
-          return (
-            (recordId && recordId === id) ||
-            (recordSlug && recordSlug === id) ||
-            (recordName && label && recordName === label) ||
-            localSport.key === id
-          );
-        });
-        const teamKey = matchedLocalSport?.sport.key || id;
-
-        return id && label ? ({ id, label, teamKey } satisfies FollowableSport) : null;
+    const nextFollowableSports = orderedSchoolSports
+      .map(({ sport, sportId }) => {
+        return sportId
+          ? ({
+              id: sportId,
+              label: sport.label,
+              teamKey: sport.key,
+            } satisfies FollowableSport)
+          : null;
       })
       .filter(Boolean) as FollowableSport[];
 
