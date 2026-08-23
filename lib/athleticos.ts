@@ -3408,6 +3408,144 @@ export function mapStoryToHomeNewsItem(
   };
 }
 
+type AthleticOSPerspectiveSide = 'home' | 'away' | 'neutral' | 'unknown';
+type AthleticOSResultCode = 'W' | 'L' | 'T';
+
+function normalizeResultCode(value?: string | null): AthleticOSResultCode | null {
+  const normalized = (value ?? '').trim().toUpperCase();
+  return normalized === 'W' || normalized === 'L' || normalized === 'T' ? normalized : null;
+}
+
+function resolveSchoolPerspectiveSide(
+  event: AthleticOSScheduleEvent,
+  schoolId: string | number | null | undefined
+): AthleticOSPerspectiveSide {
+  const homeAway = normalizeToken(pickFirstString(event, ['home_away', 'home_away_neutral']) ?? '');
+
+  if (homeAway === 'home' || homeAway === 'vs') {
+    return 'home';
+  }
+
+  if (homeAway === 'away' || homeAway === 'at') {
+    return 'away';
+  }
+
+  if (homeAway === 'neutral') {
+    return 'neutral';
+  }
+
+  const schoolIdNorm = normalizeId(schoolId);
+  const homeSchoolIdNorm = normalizeId(
+    pickFirstId(event, ['home_school_id', 'homeSchoolId'])
+  );
+  const awaySchoolIdNorm = normalizeId(
+    pickFirstId(event, ['away_school_id', 'awaySchoolId'])
+  );
+
+  if (schoolIdNorm && homeSchoolIdNorm && schoolIdNorm === homeSchoolIdNorm) {
+    return 'home';
+  }
+
+  if (schoolIdNorm && awaySchoolIdNorm && schoolIdNorm === awaySchoolIdNorm) {
+    return 'away';
+  }
+
+  return 'unknown';
+}
+
+function deriveResultFromScores(
+  teamScore: number | null,
+  opponentScore: number | null
+): AthleticOSResultCode | null {
+  if (teamScore == null || opponentScore == null) {
+    return null;
+  }
+
+  if (teamScore > opponentScore) {
+    return 'W';
+  }
+
+  if (teamScore < opponentScore) {
+    return 'L';
+  }
+
+  return 'T';
+}
+
+function reorderScoresFromResult(
+  resultCode: AthleticOSResultCode | null,
+  homeScore: number | null,
+  awayScore: number | null
+) {
+  if (homeScore == null || awayScore == null || !resultCode) {
+    return {
+      teamScore: null,
+      opponentScore: null,
+    };
+  }
+
+  if (resultCode === 'T' || homeScore === awayScore) {
+    return {
+      teamScore: homeScore,
+      opponentScore: awayScore,
+    };
+  }
+
+  const higherScore = Math.max(homeScore, awayScore);
+  const lowerScore = Math.min(homeScore, awayScore);
+
+  return resultCode === 'W'
+    ? {
+        teamScore: higherScore,
+        opponentScore: lowerScore,
+      }
+    : {
+        teamScore: lowerScore,
+        opponentScore: higherScore,
+      };
+}
+
+function deriveGameResultFromSchoolPerspective(
+  event: AthleticOSScheduleEvent,
+  schoolId: string | number | null | undefined
+) {
+  const perspectiveSide = resolveSchoolPerspectiveSide(event, schoolId);
+  const homeScore = pickFirstNumber(event, ['home_score']) ?? null;
+  const awayScore = pickFirstNumber(event, ['away_score']) ?? null;
+  const directTeamScore = pickFirstNumber(event, ['team_score']) ?? null;
+  const directOpponentScore = pickFirstNumber(event, ['opponent_score']) ?? null;
+  const providedResult = normalizeResultCode(pickFirstString(event, ['result']) ?? null);
+
+  let teamScore: number | null = null;
+  let opponentScore: number | null = null;
+
+  if (perspectiveSide === 'home') {
+    teamScore = homeScore;
+    opponentScore = awayScore;
+  } else if (perspectiveSide === 'away') {
+    teamScore = awayScore;
+    opponentScore = homeScore;
+  } else if (directTeamScore != null && directOpponentScore != null) {
+    teamScore = directTeamScore;
+    opponentScore = directOpponentScore;
+  } else if (perspectiveSide === 'neutral' || perspectiveSide === 'unknown') {
+    const reorderedScores = reorderScoresFromResult(providedResult, homeScore, awayScore);
+    teamScore = reorderedScores.teamScore;
+    opponentScore = reorderedScores.opponentScore;
+  }
+
+  const computedResult = deriveResultFromScores(teamScore, opponentScore);
+
+  return {
+    perspectiveSide,
+    homeScore,
+    awayScore,
+    teamScore,
+    opponentScore,
+    resultLabel: computedResult ?? providedResult ?? undefined,
+  };
+}
+
 export function mapScheduleEventToHomeEventItem(
   event: AthleticOSScheduleEvent,
   fallbackLink: string,
@@ -3448,57 +3586,14 @@ export function mapScheduleEventToHomeEventItem(
 
   const homeTeamId = pickFirstId(event, ['homeTeamId', 'home_team_id']);
   const awayTeamId = pickFirstId(event, ['awayTeamId', 'away_team_id']);
-  const schoolIdNorm = normalizeId(schoolId);
-  const homeTeamIdNorm = normalizeId(homeTeamId);
-  const awayTeamIdNorm = normalizeId(awayTeamId);
+  const perspectiveResult = deriveGameResultFromSchoolPerspective(event, schoolId);
+  const homeScore = perspectiveResult.homeScore;
+  const awayScore = perspectiveResult.awayScore;
+  const teamScore = perspectiveResult.teamScore;
+  const opponentScore = perspectiveResult.opponentScore;
+  const resultLabel = isFinal ? perspectiveResult.resultLabel : undefined;
 
-  let isHome = false;
-  let isAway = false;
-
-  if (homeTeamIdNorm && schoolIdNorm) {
-    isHome = homeTeamIdNorm === schoolIdNorm;
-  }
-
-  if (awayTeamIdNorm && schoolIdNorm) {
-    isAway = awayTeamIdNorm === schoolIdNorm;
-  }
-
-  const homeScore = pickFirstNumber(event, ['home_score']);
-  const awayScore = pickFirstNumber(event, ['away_score']);
-  let fallbackIsHome = false;
-
-  if (!isHome && !isAway) {
-    const matchup = (event?.home_away || '').toLowerCase();
-
-    if (matchup === 'home' || matchup === 'vs') {
-      fallbackIsHome = true;
-    } else if (matchup === 'away' || matchup === 'at') {
-      fallbackIsHome = false;
-    }
-  }
-
-  let teamScore = null;
-  let opponentScore = null;
-
-  if (isHome) {
-    teamScore = homeScore ?? null;
-    opponentScore = awayScore ?? null;
-  } else if (isAway) {
-    teamScore = awayScore ?? null;
-    opponentScore = homeScore ?? null;
-  } else {
-    teamScore = fallbackIsHome ? (homeScore ?? null) : (awayScore ?? null);
-    opponentScore = fallbackIsHome ? (awayScore ?? null) : (homeScore ?? null);
-  }
-
-  let resultLabel = null;
-
-  if (isFinal && teamScore != null && opponentScore != null) {
-    resultLabel =
-      teamScore > opponentScore ? 'W' : teamScore < opponentScore ? 'L' : 'T';
-  }
-
-  const hasScore = homeScore !== undefined && awayScore !== undefined;
+  const hasScore = homeScore != null && awayScore != null;
   const scoreText = hasScore ? `${homeScore}-${awayScore}` : '';
   const resultPrefix = result || (isFinal ? 'Final' : '');
   const resultSuffix = [resultPrefix, scoreText].filter(Boolean).join(' ').trim();
@@ -3534,7 +3629,7 @@ export function mapScheduleEventToHomeEventItem(
     awayScore,
     teamScore,
     opponentScore,
-    resultLabel: resultLabel ?? undefined,
+    resultLabel,
     location,
     stadiumName,
     locationCity,

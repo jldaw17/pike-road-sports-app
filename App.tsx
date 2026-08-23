@@ -791,6 +791,95 @@ function isLightColor(color?: string, threshold = 0.72) {
   return luminance !== null ? luminance >= threshold : false;
 }
 
+function getContrastRatio(foregroundColor?: string, backgroundColor?: string) {
+  const foregroundLuminance = getColorLuminance(foregroundColor);
+  const backgroundLuminance = getColorLuminance(backgroundColor);
+
+  if (foregroundLuminance === null || backgroundLuminance === null) {
+    return null;
+  }
+
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function pickMostContrastingColor(
+  backgroundColor: string | undefined,
+  candidates: Array<string | undefined>,
+  fallbackColor: string
+) {
+  let bestColor = fallbackColor;
+  let bestContrast = -1;
+
+  candidates.forEach((candidate) => {
+    if (!candidate) {
+      return;
+    }
+
+    const contrast = getContrastRatio(candidate, backgroundColor);
+    if (contrast !== null && contrast > bestContrast) {
+      bestColor = candidate;
+      bestContrast = contrast;
+    }
+  });
+
+  return bestColor;
+}
+
+function getRecentResultCardBackground(theme: AthleticOSResolvedTheme) {
+  if (isSchoolPrideTheme(theme)) {
+    return getSchoolPrideSurfaceColor();
+  }
+
+  if (isPremiumTheme(theme)) {
+    return theme.colors.surface;
+  }
+
+  if (isGamedayTheme(theme)) {
+    return withAlpha(theme.colors.surface, '16');
+  }
+
+  return theme.colors.card;
+}
+
+function getRecentResultBadgeColors(theme: AthleticOSResolvedTheme) {
+  const badgeBackground = theme.colors.primary;
+  const badgeText = isLightColor(badgeBackground, 0.6) ? BRAND.black : BRAND.white;
+
+  return {
+    backgroundColor: badgeBackground,
+    borderColor: badgeBackground,
+    textColor: badgeText,
+  };
+}
+
+function getRecentResultSportLabelColor(theme: AthleticOSResolvedTheme, backgroundColor: string) {
+  if (isSchoolPrideTheme(theme)) {
+    return getSchoolPrideDepthColor(theme);
+  }
+
+  const preferred = theme.colors.text;
+  const preferredContrast = getContrastRatio(preferred, backgroundColor);
+
+  if (preferredContrast !== null && preferredContrast >= 4.5) {
+    return preferred;
+  }
+
+  return pickMostContrastingColor(
+    backgroundColor,
+    [
+      theme.colors.text,
+      theme.colors.accent,
+      theme.colors.primary,
+      theme.colors.secondary,
+      BRAND.white,
+      BRAND.black,
+    ],
+    theme.colors.text
+  );
+}
+
 function getGamedayReadableTextColor(
   theme: AthleticOSResolvedTheme,
   backgroundColor?: string
@@ -9411,6 +9500,12 @@ function EventCard({
   const isPremium = isPremiumTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const schoolPrideDepthColor = isSchoolPride ? getSchoolPrideDepthColor(theme) : '';
+  const resultCardBackground = getRecentResultCardBackground(theme);
+  const recentResultBadgeColors = getRecentResultBadgeColors(theme);
+  const recentResultSportLabelColor = getRecentResultSportLabelColor(
+    theme,
+    resultCardBackground
+  );
 
   const resultLabel =
     normalized.result === 'W' || normalized.result === 'L'
@@ -9499,14 +9594,30 @@ function EventCard({
       {!normalized.hasScore ? (
         <>
           {isPremium ? (
-            normalized.homeAway ? (
-              <View style={[styles.eventTopRow, { marginBottom: 8, justifyContent: 'flex-start' }]}>
+            <View style={[styles.eventTopRow, { marginBottom: 8, justifyContent: 'flex-start' }]}>
+              <Text
+                style={[
+                  styles.eventSportLine,
+                  {
+                    color: recentResultSportLabelColor,
+                    fontSize: 11,
+                    letterSpacing: 0.75,
+                    textTransform: 'uppercase' as const,
+                    marginBottom: 2,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {normalized.sport}
+              </Text>
+              {normalized.homeAway ? (
                 <Text
                   style={[
                     styles.eventMetaSecondary,
                     {
                       color: theme.colors.mutedText,
                       marginTop: 0,
+                      marginLeft: 8,
                       fontSize: 12,
                       lineHeight: 16,
                       fontWeight: '600',
@@ -9515,24 +9626,20 @@ function EventCard({
                 >
                   {normalized.homeAway}
                 </Text>
-              </View>
-            ) : null
+              ) : null}
+            </View>
           ) : (
             <View style={styles.eventTopRow}>
               <Text
-                style={[
-                  styles.eventSportLine,
-                  {
-                    color: isSchoolPride
-                      ? schoolPrideDepthColor
-                      : isCleanSlateTheme(theme)
-                      ? theme.colors.primary
-                      : theme.colors.pillBackground,
-                    ...(isModern || isSchoolPride || isPremium
-                      ? {
-                          fontSize: 11,
-                          letterSpacing: 0.75,
-                          textTransform: 'uppercase' as const,
+              style={[
+                styles.eventSportLine,
+                {
+                  color: recentResultSportLabelColor,
+                  ...(isModern || isSchoolPride || isPremium
+                    ? {
+                        fontSize: 11,
+                        letterSpacing: 0.75,
+                        textTransform: 'uppercase' as const,
                           marginBottom: 2,
                         }
                       : isGameday
@@ -9739,7 +9846,7 @@ function EventCard({
               style={[
                 styles.eventSportLine,
                 {
-                  color: isSchoolPride ? schoolPrideDepthColor : theme.colors.pillBackground,
+                  color: recentResultSportLabelColor,
                   ...(isModern || isSchoolPride || isPremium
                     ? {
                         fontSize: 11,
@@ -9759,9 +9866,24 @@ function EventCard({
               {normalized.sport}
             </Text>
 
-            {resultLabel ? (
-              <View style={styles.resultBadgeTopRight}>
-                <Text style={styles.resultBadgeText}>{resultLabel}</Text>
+              {resultLabel ? (
+              <View
+                style={[
+                  styles.resultBadgeTopRight,
+                  {
+                    borderColor: recentResultBadgeColors.borderColor,
+                    backgroundColor: recentResultBadgeColors.backgroundColor,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.resultBadgeText,
+                    { color: recentResultBadgeColors.textColor },
+                  ]}
+                >
+                  {resultLabel}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -16447,7 +16569,25 @@ function ScheduleScreen({
                 </View>
 
                 <View style={styles.teamScheduleCenterColumn}>
-                  {!isPremium ? (
+                  {isPremium ? (
+                    <Text
+                      style={[
+                        styles.teamScheduleStatus,
+                        {
+                          color: theme.colors.text,
+                          fontSize: 11,
+                          lineHeight: 15,
+                          fontWeight: '800',
+                          letterSpacing: 0.75,
+                          marginTop: 0,
+                          marginBottom: 6,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.sport}
+                    </Text>
+                  ) : (
                     <View
                       style={[
                         styles.scheduleSportTag,
@@ -16480,7 +16620,7 @@ function ScheduleScreen({
                         {item.sport}
                       </Text>
                     </View>
-                  ) : null}
+                  )}
 
                   <Text
                     style={[
@@ -16777,7 +16917,25 @@ function ScheduleScreen({
                   </View>
 
                   <View style={styles.teamScheduleCenterColumn}>
-                    {!isPremium ? (
+                    {isPremium ? (
+                      <Text
+                        style={[
+                          styles.teamScheduleStatus,
+                          {
+                            color: theme.colors.text,
+                            fontSize: 11,
+                            lineHeight: 15,
+                            fontWeight: '800',
+                            letterSpacing: 0.75,
+                            marginTop: 0,
+                            marginBottom: 6,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.sport}
+                      </Text>
+                    ) : (
                       <View
                       style={[
                         styles.scheduleSportTag,
@@ -16810,7 +16968,7 @@ function ScheduleScreen({
                           {item.sport}
                         </Text>
                       </View>
-                    ) : null}
+                    )}
 
                     <Text
                       style={[
