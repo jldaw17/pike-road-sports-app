@@ -3877,6 +3877,19 @@ function normalizeScheduleItem(item: EventItem) {
   };
 }
 
+function getRosterJerseySortValue(value?: string | number | null) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  const normalized = String(value ?? '').trim();
+  if (!normalized || !/^\d+$/.test(normalized)) {
+    return null;
+  }
+
+  return Number(normalized);
+}
+
 function normalizeSportMatchToken(value?: string | null) {
   return (value ?? '')
     .toLowerCase()
@@ -17229,10 +17242,10 @@ function RosterScreen({
     }
 
     return items.sort((a, b) => {
-      const aNumber = Number(a.jerseyNumber ?? a.number ?? '');
-      const bNumber = Number(b.jerseyNumber ?? b.number ?? '');
-      const aHasNumber = Number.isFinite(aNumber);
-      const bHasNumber = Number.isFinite(bNumber);
+      const aNumber = getRosterJerseySortValue(a.jerseyNumber ?? a.number ?? null);
+      const bNumber = getRosterJerseySortValue(b.jerseyNumber ?? b.number ?? null);
+      const aHasNumber = aNumber !== null;
+      const bHasNumber = bNumber !== null;
 
       if (aHasNumber && bHasNumber && aNumber !== bNumber) {
         return aNumber - bNumber;
@@ -17608,13 +17621,11 @@ function RosterScreen({
               [athlete.firstName, athlete.lastName].filter(Boolean).join(' ').trim() ||
               'Unknown Athlete';
             const premiumPositionLabel = athlete.position?.trim() || '';
-            const premiumMetaSecondary = [
-              athlete.classYear,
-              athlete.height,
-              athlete.weight,
-            ]
+            const premiumNumberLabel = numberLabel ? `#${numberLabel}` : '';
+            const premiumMetaPrimary = [premiumNumberLabel, premiumPositionLabel]
               .filter(Boolean)
-              .join(' • ');
+              .join('   ');
+            const premiumMetaSecondary = athlete.classYear?.trim() || '';
 
             return (
               <Pressable
@@ -17842,12 +17853,12 @@ function RosterScreen({
                             flexDirection: 'column',
                             gap: 2,
                           }
-                        : isPremium
+                      : isPremium
                           ? {
                               alignItems: 'flex-start',
-                              justifyContent: 'space-between',
-                              flexDirection: 'row',
-                              gap: 8,
+                              justifyContent: 'flex-start',
+                              flexDirection: 'column',
+                              gap: 0,
                             }
                         : null,
                     ]}
@@ -17884,94 +17895,75 @@ function RosterScreen({
                           : null,
                       ]}
                       numberOfLines={2}
+                      ellipsizeMode="tail"
                     >
                       {displayName}
                     </Text>
-                    {numberLabel ? (
+                    {!isPremium && numberLabel ? (
                       <Text
-                      style={[
-                        styles.rosterNumber,
-                        isSchoolPride
-                          ? {
-                              color: theme.colors.primary,
-                              fontSize: 12,
-                              lineHeight: 15,
-                              marginTop: 1,
-                            }
-                        : isPremium
-                          ? {
-                              color: theme.colors.primary,
-                              fontSize: 11,
-                              lineHeight: 14,
-                              marginTop: 0,
-                              flexShrink: 0,
-                              maxWidth: 38,
-                              textAlign: 'right',
-                              paddingRight: 1,
-                            }
-                        : isCleanSlate
-                          ? {
-                              color: theme.colors.primary,
-                            }
-                        : isGradientEliteTheme(theme) || isModern
-                          ? { color: theme.colors.primary }
-                          : null,
-                      ]}
-                    >
-                      #{numberLabel}
+                        style={[
+                          styles.rosterNumber,
+                          isSchoolPride
+                            ? {
+                                color: theme.colors.primary,
+                                fontSize: 12,
+                                lineHeight: 15,
+                                marginTop: 1,
+                              }
+                            : isCleanSlate
+                              ? {
+                                  color: theme.colors.primary,
+                                }
+                              : isGradientEliteTheme(theme) || isModern
+                                ? { color: theme.colors.primary }
+                                : null,
+                        ]}
+                      >
+                        #{numberLabel}
                       </Text>
                     ) : null}
                   </View>
 
-                  {metaBits ? (
-                    isPremium ? (
-                      premiumPositionLabel ? (
-                        <Text
-                          style={[
-                            styles.rosterMeta,
-                            {
-                              color: theme.colors.primary,
-                              fontSize: 11,
-                              lineHeight: 14,
-                              fontWeight: '800',
-                              marginTop: 6,
-                            },
-                          ]}
-                        >
-                          {premiumPositionLabel}
-                        </Text>
-                      ) : null
-                    ) : (
+                  {isPremium ? (
+                    premiumMetaPrimary ? (
                       <Text
                         style={[
                           styles.rosterMeta,
-                          isSchoolPride
-                            ? {
-                                color: getSchoolPrideMutedTextColor(),
-                                fontSize: 11,
-                                lineHeight: 13,
-                                marginTop: 4,
-                              }
-                          : isPremium
-                            ? {
-                                color: theme.colors.mutedText,
-                                fontSize: 12,
-                                lineHeight: 16,
-                                marginTop: 4,
-                              }
+                          {
+                            color: theme.colors.primary,
+                            fontSize: 11,
+                            lineHeight: 14,
+                            fontWeight: '800',
+                            marginTop: 6,
+                          },
+                        ]}
+                      >
+                        {premiumMetaPrimary}
+                      </Text>
+                    ) : null
+                  ) : metaBits ? (
+                    <Text
+                      style={[
+                        styles.rosterMeta,
+                        isSchoolPride
+                          ? {
+                              color: getSchoolPrideMutedTextColor(),
+                              fontSize: 11,
+                              lineHeight: 13,
+                              marginTop: 4,
+                            }
                           : isCleanSlate
                             ? {
                                 color: theme.colors.text,
                                 marginTop: 4,
                               }
-                          : isGradientEliteTheme(theme) || isModern
-                            ? { color: theme.colors.mutedText }
-                            : null,
-                        ]}
-                      >
-                        {metaBits}
-                      </Text>
-                    )
+                            : isGradientEliteTheme(theme) || isModern
+                              ? { color: theme.colors.mutedText }
+                              : null,
+                      ]}
+                    >
+                      {metaBits}
+                    </Text>
                   ) : null}
                   {(isPremium ? premiumMetaSecondary : sizeBits) ? (
                     <Text
