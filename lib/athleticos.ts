@@ -563,6 +563,12 @@ export type AthleticOSScheduleEvent = {
   location_state?: string;
   external_url?: string;
   url?: string;
+  app_cta_type?: string | null;
+  tv_url?: string | null;
+  tv_label?: string | null;
+  radio_url?: string | null;
+  radio_label?: string | null;
+  tickets_url?: string | null;
   [key: string]: unknown;
 };
 
@@ -630,6 +636,55 @@ export type AthleticOSNativeGamecastRouteTarget = {
   publicUrl?: string | null;
   status?: string | null;
 };
+
+function hasHttpUrl(value: string | null | undefined): value is string {
+  return /^https?:\/\//i.test((value ?? '').trim());
+}
+
+function resolveScheduleEventAppCta(event: AthleticOSScheduleEvent): {
+  type: 'tickets' | 'tv' | 'radio';
+  label: string;
+  url: string;
+} | null {
+  const appCtaType = pickFirstString(event, ['app_cta_type'])?.trim().toLowerCase();
+
+  if (appCtaType === 'tickets') {
+    const ticketsUrl = pickFirstString(event, ['tickets_url'])?.trim() ?? '';
+    return hasHttpUrl(ticketsUrl)
+      ? {
+          type: 'tickets',
+          label: 'Tickets',
+          url: ticketsUrl,
+        }
+      : null;
+  }
+
+  if (appCtaType === 'tv') {
+    const tvUrl = pickFirstString(event, ['tv_url'])?.trim() ?? '';
+    const tvLabel = pickFirstString(event, ['tv_label'])?.trim() ?? '';
+    return hasHttpUrl(tvUrl)
+      ? {
+          type: 'tv',
+          label: tvLabel || 'Watch',
+          url: tvUrl,
+        }
+      : null;
+  }
+
+  if (appCtaType === 'radio') {
+    const radioUrl = pickFirstString(event, ['radio_url'])?.trim() ?? '';
+    const radioLabel = pickFirstString(event, ['radio_label'])?.trim() ?? '';
+    return hasHttpUrl(radioUrl)
+      ? {
+          type: 'radio',
+          label: radioLabel || 'Listen',
+          url: radioUrl,
+        }
+      : null;
+  }
+
+  return null;
+}
 
 type AthleticOSSeason = {
   id?: string | number;
@@ -3551,6 +3606,7 @@ export function mapScheduleEventToHomeEventItem(
   fallbackLink: string,
   sports: AthleticOSSport[] = []
 ) {
+  const resolvedAppCta = resolveScheduleEventAppCta(event);
   const schoolId = pickFirstId(event, ['school_id']) ?? '';
   const sportId = pickFirstId(event, ['sport_id']) ?? '';
   const matchedSport =
@@ -3634,5 +3690,8 @@ export function mapScheduleEventToHomeEventItem(
     stadiumName,
     locationCity,
     locationState,
+    appCtaType: resolvedAppCta?.type,
+    appCtaLabel: resolvedAppCta?.label,
+    appCtaUrl: resolvedAppCta?.url,
   };
 }

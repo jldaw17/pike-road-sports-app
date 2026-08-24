@@ -2310,6 +2310,9 @@ type EventItem = {
   stadiumName?: string;
   locationCity?: string;
   locationState?: string;
+  appCtaType?: 'tickets' | 'tv' | 'radio';
+  appCtaLabel?: string;
+  appCtaUrl?: string;
 };
 
 type ScheduleScreenVariant = 'school' | 'team';
@@ -9500,11 +9503,15 @@ function EventCard({
   item,
   onPress,
   showTime = true,
+  showAppCta = false,
+  onOpenExternal,
   theme = DEFAULT_APP_THEME,
 }: {
   item: EventItem;
   onPress: () => void;
   showTime?: boolean;
+  showAppCta?: boolean;
+  onOpenExternal?: (url: string) => void;
   theme?: AthleticOSResolvedTheme;
 }) {
   const normalized = normalizeScheduleItem(item);
@@ -9528,6 +9535,14 @@ function EventCard({
     normalized.homeAway && normalized.opponent
       ? `${normalized.homeAway} ${normalized.opponent}`
       : normalized.opponent;
+  const appCtaLabel = item.appCtaLabel?.trim() ?? '';
+  const appCtaUrl = item.appCtaUrl?.trim() ?? '';
+  const shouldShowAppCta =
+    showAppCta &&
+    !normalized.hasScore &&
+    Boolean(appCtaLabel) &&
+    hasResolvedUrl(appCtaUrl) &&
+    typeof onOpenExternal === 'function';
 
   return (
     <Pressable
@@ -9749,6 +9764,44 @@ function EventCard({
                 >
                   {normalized.locationLabel}
                 </Text>
+              ) : null}
+              {shouldShowAppCta ? (
+                <Pressable
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={(event) => {
+                    event.stopPropagation?.();
+                    onOpenExternal?.(appCtaUrl);
+                  }}
+                  style={({ pressed }) => [
+                    styles.eventAppCtaButton,
+                    {
+                      backgroundColor: isPremium
+                        ? withAlpha(theme.colors.primary, pressed ? '22' : '16')
+                        : isSchoolPride
+                        ? withAlpha(theme.colors.primary, pressed ? '20' : '14')
+                        : isGameday
+                        ? withAlpha(theme.colors.primary, pressed ? '24' : '18')
+                        : isModern
+                        ? withAlpha(theme.colors.primary, pressed ? '18' : '12')
+                        : withAlpha(theme.colors.primary, pressed ? '18' : '10'),
+                      borderColor: withAlpha(theme.colors.primary, pressed ? '8A' : '72'),
+                    },
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={[
+                      styles.eventAppCtaButtonText,
+                      {
+                        color: theme.colors.primary,
+                      },
+                    ]}
+                  >
+                    {appCtaLabel}
+                  </Text>
+                </Pressable>
               ) : null}
             </View>
 
@@ -12544,6 +12597,8 @@ function HomeScreen({
               key={item.id}
               item={item}
               theme={theme}
+              showAppCta
+              onOpenExternal={onOpenExternal}
               onPress={() => onOpenSchedule()}
             />
 		          ))}
@@ -12559,6 +12614,8 @@ function HomeScreen({
               key={item.id}
               item={item}
               theme={theme}
+              showAppCta
+              onOpenExternal={onOpenExternal}
               onPress={() => onOpenSchedule()}
             />
 		          ))}
@@ -28852,6 +28909,22 @@ bannerImage: {
     borderColor: BRAND.border,
     padding: 16,
     marginRight: 12,
+  },
+
+  eventAppCtaButton: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    maxWidth: '100%',
+  },
+
+  eventAppCtaButtonText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
   },
 
   resultEventCard: {
