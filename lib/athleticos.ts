@@ -11,6 +11,19 @@ export type AthleticOSSchool = {
   [key: string]: unknown;
 };
 
+export type AthleticOSSchoolCustomDomainRecord = {
+  school_id: string | null;
+  domain: string | null;
+  site_mode: string | null;
+  is_primary: boolean | null;
+  active: boolean | null;
+};
+
+export type AthleticOSPreferredPublicOrigins = {
+  school: string | null;
+  recruiting: string | null;
+};
+
 export type AthleticOSSchoolConfig = {
   displayName: string;
   logoUrl: string;
@@ -1243,6 +1256,108 @@ export async function getSchoolConfigById(
   return getSchoolConfigFromRecord(school, fallbackConfig);
 }
 
+export async function getPreferredPublicOriginsBySchoolId(
+  schoolId: string | number
+): Promise<AthleticOSPreferredPublicOrigins> {
+  const normalizedSchoolId = String(schoolId ?? '').trim();
+
+  if (!normalizedSchoolId) {
+    return {
+      school: null,
+      recruiting: null,
+    };
+  }
+
+  const cached = preferredPublicOriginsCache.get(normalizedSchoolId);
+  if (cached) {
+    return cached;
+  }
+
+  const pending = (async () => {
+    const { data, error } = await supabase
+      .from('school_custom_domains')
+      .select('school_id, domain, site_mode, is_primary, active')
+      .eq('school_id', normalizedSchoolId)
+      .eq('active', true);
+
+    if (error) {
+      console.log('SCHOOL_CUSTOM_DOMAIN_FETCH_ERROR', {
+        schoolId: normalizedSchoolId,
+        message: error.message,
+      });
+
+      return {
+        school: null,
+        recruiting: null,
+      };
+    }
+
+    const rows = ((data ?? []) as AthleticOSSchoolCustomDomainRecord[]).filter(
+      (row) => row.school_id && row.domain?.trim()
+    );
+
+    return {
+      school: resolvePreferredSchoolCustomDomainOrigin(rows, 'school'),
+      recruiting: resolvePreferredSchoolCustomDomainOrigin(rows, 'recruiting'),
+    };
+  })();
+
+  preferredPublicOriginsCache.set(normalizedSchoolId, pending);
+
+  return pending;
+}
+
+export function buildPublicSchoolStoryUrl(args: {
+  schoolSlug: string;
+  storySlug: string;
+  preferredSchoolOrigin?: string | null;
+}) {
+  const safeSchoolSlug = String(args.schoolSlug || '').trim().toLowerCase();
+  const safeStorySlug = String(args.storySlug || '').trim();
+  const origin =
+    String(args.preferredSchoolOrigin || '').trim() ||
+    buildAthleticOSSchoolSiteUrl(safeSchoolSlug);
+
+  if (!safeSchoolSlug || !safeStorySlug || !origin) {
+    return '';
+  }
+
+  return buildAbsolutePublicUrl({
+    origin,
+    schoolSlug: safeSchoolSlug,
+    path: `/${safeSchoolSlug}/news/${safeStorySlug}`,
+    siteMode: 'school',
+  });
+}
+
+export function buildPublicRecruitingAthleteUrl(args: {
+  schoolSlug: string;
+  sportSlug: string;
+  athleteSlug: string;
+  preferredSchoolOrigin?: string | null;
+  preferredRecruitingOrigin?: string | null;
+}) {
+  const safeSchoolSlug = String(args.schoolSlug || '').trim().toLowerCase();
+  const safeSportSlug = String(args.sportSlug || '').trim().toLowerCase();
+  const safeAthleteSlug = String(args.athleteSlug || '').trim().toLowerCase();
+  const recruitingOrigin = String(args.preferredRecruitingOrigin || '').trim();
+  const schoolOrigin = String(args.preferredSchoolOrigin || '').trim();
+  const origin =
+    recruitingOrigin || schoolOrigin || buildAthleticOSSchoolSiteUrl(safeSchoolSlug);
+  const siteMode = recruitingOrigin ? 'recruiting' : 'school';
+
+  if (!safeSchoolSlug || !safeSportSlug || !safeAthleteSlug || !origin) {
+    return '';
+  }
+
+  return buildAbsolutePublicUrl({
+    origin,
+    schoolSlug: safeSchoolSlug,
+    path: `/${safeSchoolSlug}/${safeSportSlug}/recruiting/${safeAthleteSlug}`,
+    siteMode,
+  });
+}
+
 function getSchoolConfigFromRecord(
   school: AthleticOSSchool | null,
   fallbackConfig: AthleticOSSchoolConfig
@@ -1361,6 +1476,244 @@ function buildStoryPath(baseUrl: string, storyIdentifier: string) {
   const trimmedBase = baseUrl.replace(/\/+$/, '');
   return `${trimmedBase}/news/${storyIdentifier}`;
 }
+
+function normalizePublicRequestHost(value?: string | null) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, '');
+}
+
+function normalizeSchoolCustomDomainHost(value?: string | null) {
+  return normalizePublicRequestHost(value).replace(/^www\./, '');
+}
+
+function normalizeSchoolCustomDomainSiteMode(value?: string | null) {
+  return value === 'recruiting' ? 'recruiting' : 'school';
+}
+
+function isAthleticOsPlatformHost(value?: string | null) {
+  const normalizedHost = normalizePublicRequestHost(value);
+
+  return (
+    normalizedHost === '' ||
+    normalizedHost === 'athleticos.ai' ||
+    normalizedHost === 'www.athleticos.ai' ||
+    normalizedHost === 'localhost' ||
+    normalizedHost === '127.0.0.1' ||
+    normalizedHost === '::1' ||
+    normalizedHost === '[::1]'
+  );
+}
+
+function normalizePathSuffix(path?: string | null) {
+  const trimmed = String(path || '').trim();
+
+  if (!trimmed || trimmed === '/') {
+    return '/';
+  }
+
+  if (
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('?') ||
+    trimmed.startsWith('#')
+  ) {
+    return trimmed;
+  }
+
+  return `/${trimmed}`;
+}
+
+function normalizeSchoolRelativePath({
+  schoolSlug,
+  path,
+}: {
+  schoolSlug: string;
+  path?: string | null;
+}) {
+  const normalizedPath = normalizePathSuffix(path);
+  const normalizedSlug = String(schoolSlug || '').trim().toLowerCase();
+
+  if (!normalizedSlug) {
+    return normalizedPath;
+  }
+
+  const schoolPrefix = `/${normalizedSlug}`;
+  const lowerPath = normalizedPath.toLowerCase();
+
+  if (
+    lowerPath === schoolPrefix ||
+    lowerPath.startsWith(`${schoolPrefix}/`) ||
+    lowerPath.startsWith(`${schoolPrefix}?`) ||
+    lowerPath.startsWith(`${schoolPrefix}#`)
+  ) {
+    const strippedPath = normalizedPath.slice(schoolPrefix.length);
+    return strippedPath || '/';
+  }
+
+  return normalizedPath;
+}
+
+function splitPathAndSuffix(path: string) {
+  const match = path.match(/^([^?#]*)(.*)$/);
+
+  return {
+    pathname: match?.[1] || path,
+    suffix: match?.[2] || '',
+  };
+}
+
+function buildRecruitingCustomDomainPath({
+  schoolSlug,
+  path,
+}: {
+  schoolSlug: string;
+  path?: string | null;
+}) {
+  const withoutSchoolSlug = normalizeSchoolRelativePath({
+    schoolSlug,
+    path,
+  });
+  const { pathname, suffix } = splitPathAndSuffix(withoutSchoolSlug);
+
+  if (!pathname || pathname === '/') {
+    return `/${suffix}`.replace(/\/(?=[?#])/, '');
+  }
+
+  if (pathname === '/recruiting') {
+    return `/${suffix}`.replace(/\/(?=[?#])/, '') || '/';
+  }
+
+  if (pathname.startsWith('/recruiting/')) {
+    const remainder = pathname.slice('/recruiting'.length) || '/';
+    return `${remainder}${suffix}`;
+  }
+
+  const sportRecruitingMatch = pathname.match(
+    /^\/([^/?#]+)\/recruiting(?:(\/.*)?)?$/
+  );
+
+  if (sportRecruitingMatch) {
+    const sportSlug = sportRecruitingMatch[1];
+    const remainder = sportRecruitingMatch[2] || '';
+    return `/${sportSlug}${remainder}${suffix}` || '/';
+  }
+
+  return `${pathname}${suffix}`;
+}
+
+function buildSchoolSitePath({
+  schoolSlug,
+  path,
+  origin,
+  siteMode,
+}: {
+  schoolSlug: string;
+  path?: string | null;
+  origin: string;
+  siteMode: 'school' | 'recruiting';
+}) {
+  const normalizedOrigin = String(origin || '').trim();
+  const host = normalizedOrigin ? new URL(normalizedOrigin).host : '';
+  const schoolBasePath = isAthleticOsPlatformHost(host) ? `/${schoolSlug}` : '';
+  const suffix =
+    !schoolBasePath && siteMode === 'recruiting'
+      ? buildRecruitingCustomDomainPath({ schoolSlug, path })
+      : normalizeSchoolRelativePath({ schoolSlug, path });
+
+  if (!schoolBasePath) {
+    return suffix;
+  }
+
+  if (suffix === '/') {
+    return schoolBasePath;
+  }
+
+  if (suffix.startsWith('?') || suffix.startsWith('#')) {
+    return `${schoolBasePath}${suffix}`;
+  }
+
+  return `${schoolBasePath}${suffix.startsWith('/') ? suffix : `/${suffix}`}`;
+}
+
+function buildAbsolutePublicUrl({
+  origin,
+  schoolSlug,
+  path,
+  siteMode,
+}: {
+  origin: string;
+  schoolSlug: string;
+  path: string;
+  siteMode: 'school' | 'recruiting';
+}) {
+  const finalPath = buildSchoolSitePath({
+    schoolSlug,
+    path,
+    origin,
+    siteMode,
+  });
+
+  return new URL(finalPath, origin).toString();
+}
+
+function rankSchoolCustomDomainRecords(
+  rows: AthleticOSSchoolCustomDomainRecord[],
+  preferredMode: 'school' | 'recruiting'
+) {
+  return [...rows].sort((left, right) => {
+    const leftMode = normalizeSchoolCustomDomainSiteMode(left.site_mode);
+    const rightMode = normalizeSchoolCustomDomainSiteMode(right.site_mode);
+
+    if (leftMode !== rightMode) {
+      if (leftMode === preferredMode) {
+        return -1;
+      }
+
+      if (rightMode === preferredMode) {
+        return 1;
+      }
+    }
+
+    if ((left.is_primary === true) !== (right.is_primary === true)) {
+      return left.is_primary === true ? -1 : 1;
+    }
+
+    return String(left.domain || '').localeCompare(String(right.domain || ''), undefined, {
+      sensitivity: 'base',
+    });
+  });
+}
+
+function resolvePreferredSchoolCustomDomainOrigin(
+  rows: AthleticOSSchoolCustomDomainRecord[],
+  preferredMode: 'school' | 'recruiting'
+) {
+  const activeRows = rows.filter((row) => row.active === true && row.domain?.trim());
+  const rankedRows = rankSchoolCustomDomainRecords(activeRows, preferredMode);
+
+  const exactMatch =
+    rankedRows.find(
+      (row) => normalizeSchoolCustomDomainSiteMode(row.site_mode) === preferredMode
+    ) || null;
+
+  const fallbackMatch =
+    preferredMode === 'recruiting'
+      ? rankedRows.find(
+          (row) => normalizeSchoolCustomDomainSiteMode(row.site_mode) === 'school'
+        ) || null
+      : null;
+
+  const resolvedRow = exactMatch || fallbackMatch || null;
+  const normalizedHost = normalizeSchoolCustomDomainHost(resolvedRow?.domain);
+
+  return normalizedHost ? `https://${normalizedHost}` : null;
+}
+
+const preferredPublicOriginsCache = new Map<
+  string,
+  Promise<AthleticOSPreferredPublicOrigins>
+>();
 
 function sportRecordMatchesKey(sport: AthleticOSSport, sportKey: string) {
   const aliases = getSportAliases(sportKey).map(normalizeToken);

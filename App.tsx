@@ -39,6 +39,7 @@ import {
   type AthleticOSHeroQuickAction,
   type AthleticOSAppThemeConfig,
   type AthleticOSBottomNavItem,
+  type AthleticOSPreferredPublicOrigins,
   type AthleticOSRosterAthlete,
   type AthleticOSResolvedTheme,
   type AthleticOSTeamNavItem,
@@ -52,8 +53,11 @@ import {
   type AthleticOSAppSponsorPlacement,
   type AthleticOSSport,
   type AthleticOSSportAppConfig,
+  buildPublicRecruitingAthleteUrl,
+  buildPublicSchoolStoryUrl,
   getAppHomeDataBySchoolId,
   getAppPrerollConfigBySchoolId,
+  getPreferredPublicOriginsBySchoolId,
   getTeamNavBySportId,
   getDefaultSchoolConfig,
   getNativeGamecastBySchoolIdAndGameId,
@@ -6007,12 +6011,14 @@ function StoryDetailScreen({
   onBack,
   appDisplayName,
   schoolSlug,
+  preferredSchoolOrigin,
   theme = DEFAULT_APP_THEME,
 }: {
   item: NewsItem;
   onBack: () => void;
   appDisplayName?: string;
   schoolSlug?: string;
+  preferredSchoolOrigin?: string | null;
   theme?: AthleticOSResolvedTheme;
 }) {
   const summary = item.summary?.trim() || item.description?.trim() || '';
@@ -6042,7 +6048,11 @@ function StoryDetailScreen({
     '';
   const generatedShareUrl =
     schoolSlug?.trim() && item.slug?.trim()
-      ? `https://athleticos.ai/${schoolSlug.trim()}/news/${item.slug.trim()}`
+      ? buildPublicSchoolStoryUrl({
+          schoolSlug: schoolSlug.trim(),
+          storySlug: item.slug.trim(),
+          preferredSchoolOrigin,
+        })
       : '';
   const shareUrl = hasResolvedUrl(generatedShareUrl)
     ? generatedShareUrl
@@ -18648,6 +18658,8 @@ function RecruitingPlayerScreen({
   profile,
   sport,
   schoolSlug,
+  preferredSchoolOrigin,
+  preferredRecruitingOrigin,
   onBack,
   headerSubtitle,
   schoolLogoUrl,
@@ -18656,6 +18668,8 @@ function RecruitingPlayerScreen({
   profile: Record<string, unknown>;
   sport: SportType;
   schoolSlug: string;
+  preferredSchoolOrigin?: string | null;
+  preferredRecruitingOrigin?: string | null;
   onBack: () => void;
   headerSubtitle?: string;
   schoolLogoUrl?: string;
@@ -18688,9 +18702,13 @@ function RecruitingPlayerScreen({
     .filter((offer): offer is string => typeof offer === 'string')
     .map((offer) => offer.trim())
     .filter(Boolean);
-  const generatedLink = `https://athleticos.ai/${schoolSlug}/${sportSlug}/recruiting/${String(
-    recruitProfileSlug || profile.id || ''
-  )}`;
+  const generatedLink = buildPublicRecruitingAthleteUrl({
+    schoolSlug,
+    sportSlug,
+    athleteSlug: String(recruitProfileSlug || profile.id || ''),
+    preferredSchoolOrigin,
+    preferredRecruitingOrigin,
+  });
   const factRows = [
     { label: 'Height', value: heightValue },
     { label: 'Weight', value: weightValue },
@@ -24269,6 +24287,11 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   >([]);
   const [homeSports, setHomeSports] = useState<SportType[]>([]);
   const [followableSports, setFollowableSports] = useState<FollowableSport[]>([]);
+  const [preferredPublicOrigins, setPreferredPublicOrigins] =
+    useState<AthleticOSPreferredPublicOrigins>({
+      school: null,
+      recruiting: null,
+    });
   const [resolvedSchoolId, setResolvedSchoolId] = useState<string | number | null>(
     null
   );
@@ -24633,6 +24656,10 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       setRecentEvents([]);
       setUpcomingEvents([]);
       setAllEvents([]);
+      setPreferredPublicOrigins({
+        school: null,
+        recruiting: null,
+      });
       setSchoolAccentColor(BRAND.primary);
       setThemeConfigLoaded(true);
       return;
@@ -24645,6 +24672,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       sportsData,
       stories,
       scheduleEvents,
+      nextPreferredPublicOrigins,
     ] = await Promise.all([
       getSchoolConfigById(resolvedSchoolId, schoolSlug),
       getSchoolAppConfigById(resolvedSchoolId),
@@ -24652,6 +24680,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
       getSportsBySchoolId(resolvedSchoolId),
       getStoriesBySchoolId(resolvedSchoolId),
       getScheduleEventsBySchoolId(resolvedSchoolId),
+      getPreferredPublicOriginsBySchoolId(resolvedSchoolId),
     ]);
 
     const {
@@ -24974,6 +25003,7 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     setVideoItems(nextVideoItems);
     setFollowableSports(nextFollowableSports);
     setHomeSports(orderedHomeSports);
+    setPreferredPublicOrigins(nextPreferredPublicOrigins);
   } catch (error) {
     console.log('Home feed load error:', error);
     setHomeModules([]);
@@ -24994,6 +25024,10 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     setRecentEvents([]);
     setUpcomingEvents([]);
     setAllEvents([]);
+    setPreferredPublicOrigins({
+      school: null,
+      recruiting: null,
+    });
     setSchoolAccentColor(BRAND.primary);
   } finally {
     setThemeConfigLoaded(true);
@@ -26974,6 +27008,7 @@ if (showPreroll && prerollConfig) {
         onBack={closeStoryDetail}
         appDisplayName={appDisplayName}
         schoolSlug={schoolSlug}
+        preferredSchoolOrigin={preferredPublicOrigins.school}
         theme={resolvedTheme}
       />
     );
@@ -27015,6 +27050,8 @@ if (showPreroll && prerollConfig) {
         profile={selectedRecruitingPlayer}
         sport={selectedRecruitingSport}
         schoolSlug={schoolSlug}
+        preferredSchoolOrigin={preferredPublicOrigins.school}
+        preferredRecruitingOrigin={preferredPublicOrigins.recruiting}
         onBack={closeRecruitingPlayerScreen}
         headerSubtitle={recruitingHeaderSubtitle || appDisplayName}
         schoolLogoUrl={recruitingLogoUrl || schoolConfig.logoUrl}
