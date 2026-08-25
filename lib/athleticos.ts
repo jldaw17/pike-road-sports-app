@@ -3527,39 +3527,6 @@ function deriveResultFromScores(
   return 'T';
 }
 
-function reorderScoresFromResult(
-  resultCode: AthleticOSResultCode | null,
-  homeScore: number | null,
-  awayScore: number | null
-) {
-  if (homeScore == null || awayScore == null || !resultCode) {
-    return {
-      teamScore: null,
-      opponentScore: null,
-    };
-  }
-
-  if (resultCode === 'T' || homeScore === awayScore) {
-    return {
-      teamScore: homeScore,
-      opponentScore: awayScore,
-    };
-  }
-
-  const higherScore = Math.max(homeScore, awayScore);
-  const lowerScore = Math.min(homeScore, awayScore);
-
-  return resultCode === 'W'
-    ? {
-        teamScore: higherScore,
-        opponentScore: lowerScore,
-      }
-    : {
-        teamScore: lowerScore,
-        opponentScore: higherScore,
-      };
-}
-
 function deriveGameResultFromSchoolPerspective(
   event: AthleticOSScheduleEvent,
   schoolId: string | number | null | undefined
@@ -3574,22 +3541,23 @@ function deriveGameResultFromSchoolPerspective(
   let teamScore: number | null = null;
   let opponentScore: number | null = null;
 
-  if (perspectiveSide === 'home') {
+  if (directTeamScore != null && directOpponentScore != null) {
+    teamScore = directTeamScore;
+    opponentScore = directOpponentScore;
+  } else if (perspectiveSide === 'home' || perspectiveSide === 'neutral') {
     teamScore = homeScore;
     opponentScore = awayScore;
   } else if (perspectiveSide === 'away') {
     teamScore = awayScore;
     opponentScore = homeScore;
-  } else if (directTeamScore != null && directOpponentScore != null) {
-    teamScore = directTeamScore;
-    opponentScore = directOpponentScore;
-  } else if (perspectiveSide === 'neutral' || perspectiveSide === 'unknown') {
-    const reorderedScores = reorderScoresFromResult(providedResult, homeScore, awayScore);
-    teamScore = reorderedScores.teamScore;
-    opponentScore = reorderedScores.opponentScore;
   }
 
   const computedResult = deriveResultFromScores(teamScore, opponentScore);
+  const resultLabel =
+    computedResult ??
+    (teamScore != null || opponentScore != null || perspectiveSide !== 'unknown'
+      ? providedResult ?? undefined
+      : undefined);
 
   return {
     perspectiveSide,
@@ -3597,7 +3565,7 @@ function deriveGameResultFromSchoolPerspective(
     awayScore,
     teamScore,
     opponentScore,
-    resultLabel: computedResult ?? providedResult ?? undefined,
+    resultLabel,
   };
 }
 
@@ -3649,8 +3617,8 @@ export function mapScheduleEventToHomeEventItem(
   const opponentScore = perspectiveResult.opponentScore;
   const resultLabel = isFinal ? perspectiveResult.resultLabel : undefined;
 
-  const hasScore = homeScore != null && awayScore != null;
-  const scoreText = hasScore ? `${homeScore}-${awayScore}` : '';
+  const hasScore = teamScore != null && opponentScore != null;
+  const scoreText = hasScore ? `${teamScore}-${opponentScore}` : '';
   const resultPrefix = result || (isFinal ? 'Final' : '');
   const resultSuffix = [resultPrefix, scoreText].filter(Boolean).join(' ').trim();
 
