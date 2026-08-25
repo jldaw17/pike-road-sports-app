@@ -1683,37 +1683,69 @@ function getThemeEditorialButtonStyle(theme: AthleticOSResolvedTheme): ViewStyle
 }
 
 function getRecruitingExperiencePalette(theme: AthleticOSResolvedTheme) {
+  const resolvedPrimary = theme.colors.primary || BRAND.primary;
   const resolvedAccent = theme.colors.accent || theme.colors.primary;
   const resolvedSecondary = theme.colors.secondary || theme.colors.primary;
+  const highlightCandidates = [resolvedAccent, resolvedSecondary, resolvedPrimary].filter(
+    Boolean
+  ) as string[];
+  const highlightColor =
+    highlightCandidates.find((candidate) => {
+      const luminance = getColorLuminance(candidate);
+      return luminance !== null ? luminance > 0.42 : false;
+    }) ||
+    highlightCandidates[0] ||
+    BRAND.white;
+  const darkBaseCandidates = [
+    resolvedSecondary,
+    resolvedPrimary,
+    theme.colors.cardAlt,
+    theme.colors.surface,
+    BRAND.black,
+  ].filter(Boolean) as string[];
+  const brandedBackground =
+    darkBaseCandidates.find((candidate) => {
+      const luminance = getColorLuminance(candidate);
+      return luminance !== null ? luminance < 0.28 : false;
+    }) ||
+    darkBaseCandidates.find((candidate) => {
+      const luminance = getColorLuminance(candidate);
+      return luminance !== null ? luminance < 0.4 : false;
+    }) ||
+    BRAND.black;
 
   if (isGradientEliteTheme(theme)) {
     return {
       background: '#000000',
-      surface: '#050505',
-      surfaceAlt: '#0A0A0A',
-      border: 'rgba(255,255,255,0.22)',
-      borderSoft: 'rgba(255,255,255,0.14)',
+      surface: withAlpha(highlightColor, '10'),
+      surfaceAlt: withAlpha(highlightColor, '16'),
+      border: withAlpha(highlightColor, '3C'),
+      borderSoft: withAlpha(highlightColor, '22'),
       text: '#FFFFFF',
-      mutedText: 'rgba(255,255,255,0.72)',
-      accent: resolvedAccent,
-      accentSoft: withAlpha(resolvedAccent, '16'),
-      secondarySoft: withAlpha(resolvedAccent, '12'),
-      heroGradient: ['#05070C', withAlpha(resolvedSecondary, '26'), withAlpha(resolvedAccent, '1E')],
+      mutedText: withAlpha(BRAND.white, 'C8'),
+      accent: highlightColor,
+      accentSoft: withAlpha(highlightColor, '1A'),
+      secondarySoft: withAlpha(resolvedSecondary, '18'),
+      heroGradient: ['#05070C', withAlpha(resolvedPrimary, '94'), withAlpha(highlightColor, '5C')],
     };
   }
 
   return {
-    background: '#080B12',
-    surface: withAlpha(resolvedSecondary, '12'),
-    surfaceAlt: withAlpha(resolvedAccent, '10'),
-    border: withAlpha(resolvedAccent, '34'),
-    borderSoft: withAlpha(resolvedAccent, '1E'),
+    background: brandedBackground,
+    surface: withAlpha(BRAND.white, '08'),
+    surfaceAlt: withAlpha(BRAND.white, '0D'),
+    border: withAlpha(highlightColor, '42'),
+    borderSoft: withAlpha(BRAND.white, '14'),
     text: BRAND.white,
-    mutedText: 'rgba(229,231,235,0.72)',
-    accent: resolvedAccent,
-    accentSoft: withAlpha(resolvedAccent, '16'),
-    secondarySoft: withAlpha(resolvedSecondary, '14'),
-    heroGradient: ['#05070C', withAlpha(resolvedSecondary, '26'), withAlpha(resolvedAccent, '1E')],
+    mutedText: withAlpha(BRAND.white, 'C8'),
+    accent: highlightColor,
+    accentSoft: withAlpha(highlightColor, '18'),
+    secondarySoft: withAlpha(resolvedSecondary, '18'),
+    heroGradient: [
+      withAlpha(brandedBackground, 'FC'),
+      withAlpha(resolvedPrimary, 'D8'),
+      withAlpha(highlightColor, '72'),
+    ],
   };
 }
 
