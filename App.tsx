@@ -42,6 +42,7 @@ import {
   type AthleticOSPreferredPublicOrigins,
   type AthleticOSRosterAthlete,
   type AthleticOSResolvedTheme,
+  type AthleticOSSportStaffMember,
   type AthleticOSTeamNavItem,
   type AthleticOSAthleteOfTheWeek,
   type AthleticOSNativeGamecastData,
@@ -68,6 +69,7 @@ import {
   getRecruitingPlayersBySport,
   getSchoolAppConfigById,
   getSportAppConfigBySchoolId,
+  getSportStaffBySchoolIdAndSportId,
   getSportBySchoolIdAndKey,
   getSportConfigBySchoolIdAndKey,
   getSportScheduleEventsBySchoolId,
@@ -2243,6 +2245,7 @@ type ScreenMode =
   | 'media'
   | 'sportDetail'
   | 'roster'
+  | 'coaches'
   | 'recruiting'
   | 'recruitingPlayer'
   | 'athleteProfile'
@@ -2394,6 +2397,13 @@ type OpenRosterOptions = {
 };
 
 type OpenRecruitingOptions = {
+  sport: SportType;
+  sportId: string;
+  headerSubtitle?: string;
+  schoolLogoUrl?: string;
+};
+
+type OpenCoachesOptions = {
   sport: SportType;
   sportId: string;
   headerSubtitle?: string;
@@ -14695,6 +14705,7 @@ function TeamsScreen({
   onOpenSport,
   onOpenRoster,
   onOpenSchedule,
+  onOpenCoaches,
   onOpenRecruiting,
   sports,
   schoolId,
@@ -14715,6 +14726,7 @@ function TeamsScreen({
     accentColor?: string;
     sportFilter?: ScheduleSportFilter | null;
   }) => void;
+  onOpenCoaches: (options: OpenCoachesOptions) => void;
   onOpenRecruiting: (options: OpenRecruitingOptions) => void;
   sports: SportType[];
   schoolId?: string | number | null;
@@ -14737,7 +14749,7 @@ function TeamsScreen({
   const visibleSports = sports;
   const [expandedSportKey, setExpandedSportKey] = useState('');
   const [premiumTeamNavBySport, setPremiumTeamNavBySport] = useState<
-    Record<string, { sportId: string; navItems: AthleticOSTeamNavItem[] }>
+    Record<string, { sportId: string; navItems: AthleticOSTeamNavItem[]; hasCoaches: boolean }>
   >({});
 
   useEffect(() => {
@@ -14770,15 +14782,22 @@ function TeamsScreen({
             );
 
             if (!matchedSport?.id) {
-              return [sport.key, { sportId: '', navItems: [] }] as const;
+              return [sport.key, { sportId: '', navItems: [], hasCoaches: false }] as const;
             }
 
             const navItems = await getTeamNavBySportId(schoolId, matchedSport.id);
+            const hasConfiguredCoaches = navItems.some(
+              (item) => item.isEnabled !== false && item.navKey.trim().toLowerCase() === 'coaches'
+            );
+            const hasCoaches = hasConfiguredCoaches
+              ? (await getSportStaffBySchoolIdAndSportId(schoolId, matchedSport.id)).length > 0
+              : false;
             return [
               sport.key,
               {
                 sportId: String(matchedSport.id),
                 navItems,
+                hasCoaches,
               },
             ] as const;
           })
@@ -14807,6 +14826,7 @@ function TeamsScreen({
       const teamMeta = premiumTeamNavBySport[sport.key];
       const sportId = teamMeta?.sportId?.trim() || '';
       const configuredItems = teamMeta?.navItems ?? [];
+      const hasCoaches = teamMeta?.hasCoaches === true;
 
       const openTeamSchedule = async () => {
         if (!schoolId) {
@@ -14933,10 +14953,23 @@ function TeamsScreen({
                       }),
                   }
                 : null;
+            case 'coaches':
+              return sportId && hasCoaches
+                ? {
+                    key: 'coaches',
+                    label,
+                    onPress: () =>
+                      onOpenCoaches({
+                        sport,
+                        sportId,
+                        headerSubtitle: schoolDisplayName,
+                        schoolLogoUrl,
+                      }),
+                  }
+                : null;
             case 'news':
             case 'stats':
             case 'standings':
-            case 'coaches':
             case 'tickets':
               return {
                 key: navKey,
@@ -14951,6 +14984,7 @@ function TeamsScreen({
     },
     [
       onOpenRecruiting,
+      onOpenCoaches,
       onOpenRoster,
       onOpenSchedule,
       onOpenSport,
@@ -14958,6 +14992,7 @@ function TeamsScreen({
       schoolDisplayName,
       schoolId,
       schoolLogoUrl,
+      onOpenCoaches,
     ]
   );
 
@@ -18450,6 +18485,393 @@ function AthleteProfileScreen({
   );
 }
 
+function CoachingStaffScreen({
+  schoolId,
+  sportId,
+  sport,
+  onBack,
+  headerSubtitle,
+  schoolLogoUrl,
+  theme = DEFAULT_APP_THEME,
+}: {
+  schoolId: string;
+  sportId: string;
+  sport: SportType;
+  onBack: () => void;
+  headerSubtitle?: string;
+  schoolLogoUrl?: string;
+  theme?: AthleticOSResolvedTheme;
+}) {
+  const [staffMembers, setStaffMembers] = useState<AthleticOSSportStaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const isPremium = isPremiumTheme(theme);
+  const isSchoolPride = isSchoolPrideTheme(theme);
+  const isModern = isModernTheme(theme);
+  const isCleanSlate = isCleanSlateTheme(theme);
+  const isGameday = isGamedayTheme(theme);
+  const primaryTextColor = isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text;
+  const mutedTextColor = isSchoolPride ? getSchoolPrideMutedTextColor() : theme.colors.mutedText;
+  const accentColor = isSchoolPride ? getSchoolPrideAccentColor(theme) : theme.colors.primary;
+  const surfaceColor = isSchoolPride ? getSchoolPrideSurfaceColor() : theme.colors.surface;
+  const surfaceAltColor = isSchoolPride
+    ? getSchoolPrideSoftSurfaceColor()
+    : theme.colors.cardAlt;
+  const borderColor = isSchoolPride
+    ? getSchoolPrideBorderColor()
+    : withAlpha(theme.colors.text, '0C');
+  const subtitleText = headerSubtitle?.trim() || '';
+  const title = `${sport.shortLabel || sport.label} Coaching Staff`;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadStaff() {
+      try {
+        setLoading(true);
+        const nextStaff = schoolId && sportId
+          ? await getSportStaffBySchoolIdAndSportId(schoolId, sportId)
+          : [];
+
+        if (mounted) {
+          setStaffMembers(nextStaff);
+        }
+      } catch (error) {
+        console.log('Coaching staff load error:', error);
+        if (mounted) {
+          setStaffMembers([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadStaff();
+
+    return () => {
+      mounted = false;
+    };
+  }, [schoolId, sportId]);
+
+  const openContactUrl = (url: string) => {
+    Linking.openURL(url).catch((error) => {
+      console.log('Coaching staff contact open error:', error);
+    });
+  };
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
+      contentContainerStyle={[
+        styles.screenContent,
+        { backgroundColor: getThemeBaseBackgroundColor(theme) },
+      ]}
+    >
+      {renderGradientEliteBackdrop(theme)}
+      {isPremium ? (
+        renderPremiumScreenHeader({
+          theme,
+          eyebrow: 'Coaching Staff',
+          title: sport.shortLabel || sport.label,
+          subtitle: subtitleText || 'Sport-specific staff assignments and contacts.',
+          logoUrl: schoolLogoUrl,
+          logoLabel: title,
+          onBack,
+        })
+      ) : (
+        <LinearGradient
+          colors={getThemeDarkHeroGradient(theme)}
+          style={[
+            styles.scheduleHero,
+            getThemeHeroShellStyle(theme),
+            getThemeCompactInnerHeroStyle(theme),
+            isSchoolPride
+              ? {
+                  paddingTop: 6,
+                  paddingBottom: 10,
+                  borderRadius: 6,
+                  marginBottom: 10,
+                  overflow: 'hidden',
+                }
+              : null,
+          ]}
+        >
+          {isSchoolPride ? (
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 10,
+                backgroundColor: withAlpha(theme.colors.primary, 'E8'),
+              }}
+            />
+          ) : null}
+          <Pressable
+            style={[
+              styles.backButton,
+              isSchoolPride
+                ? {
+                    marginBottom: 6,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    backgroundColor: withAlpha(theme.colors.primary, '0E'),
+                    borderWidth: 1,
+                    borderColor: withAlpha(theme.colors.primary, '18'),
+                    borderRadius: 4,
+                  }
+                : null,
+              isModern
+                ? {
+                    marginBottom: 10,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    backgroundColor: theme.colors.cardAlt,
+                    borderWidth: 1,
+                    borderColor: withAlpha(theme.colors.primary, '18'),
+                  }
+                : null,
+              isGameday
+                ? {
+                    marginBottom: 10,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    backgroundColor: withAlpha(theme.colors.primary, '18'),
+                    borderWidth: 1,
+                    borderColor: withAlpha(theme.colors.primary, '30'),
+                    borderRadius: 10,
+                  }
+                : null,
+              isCleanSlate
+                ? {
+                    backgroundColor: theme.colors.cardAlt,
+                    borderColor: theme.colors.border,
+                  }
+                : null,
+            ]}
+            onPress={onBack}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={20}
+              color={
+                isSchoolPride || isCleanSlate || isModern || isGameday
+                  ? primaryTextColor
+                  : BRAND.white
+              }
+            />
+            <Text
+              style={[
+                styles.backButtonText,
+                {
+                  color:
+                    isSchoolPride || isCleanSlate || isModern || isGameday
+                      ? primaryTextColor
+                      : BRAND.white,
+                },
+              ]}
+            >
+              Back
+            </Text>
+          </Pressable>
+
+          {hasResolvedUrl(schoolLogoUrl) ? (
+            <View
+              style={[
+                styles.scheduleHeroLogoWrap,
+                isSchoolPride ? { marginBottom: 1 } : null,
+                isModern ? { marginBottom: 5 } : null,
+                isGameday ? { marginBottom: 6 } : null,
+              ]}
+            >
+              <RemoteImage
+                uri={schoolLogoUrl}
+                style={[
+                  styles.scheduleHeroLogo,
+                  isGameday ? { width: 92, height: 62 } : null,
+                  getModernInnerHeaderLogoStyle(theme),
+                ]}
+                contentFit="contain"
+                mode="logo"
+                label={title}
+                theme={theme}
+              />
+            </View>
+          ) : null}
+
+          <Text
+            style={[
+              styles.scheduleHeroTitle,
+              { color: isSchoolPride ? getSchoolPrideTextColor() : primaryTextColor },
+              isSchoolPride ? { fontSize: 24, lineHeight: 28, fontWeight: '900' as const } : null,
+              isModern ? { fontSize: 22, lineHeight: 26, fontWeight: '800' as const } : null,
+            ]}
+          >
+            {sport.shortLabel || sport.label}
+          </Text>
+          <Text
+            style={[
+              styles.scheduleHeroSub,
+              {
+                color: mutedTextColor,
+                fontSize: isSchoolPride || isModern ? 11 : undefined,
+                lineHeight: isSchoolPride ? 14 : undefined,
+                marginTop: isSchoolPride || isModern ? 2 : undefined,
+                fontWeight: isModern ? ('600' as const) : undefined,
+              },
+            ]}
+          >
+            Coaching Staff
+            {subtitleText ? ` • ${subtitleText}` : ''}
+          </Text>
+        </LinearGradient>
+      )}
+
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={accentColor} />
+          <Text style={[styles.scheduleLoadingText, { color: mutedTextColor }]}>
+            Loading coaching staff...
+          </Text>
+        </View>
+      ) : staffMembers.length === 0 ? (
+        <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
+          <Text style={[styles.emptyTitle, { color: primaryTextColor }]}>
+            No coaching staff available.
+          </Text>
+          <Text style={[styles.emptyText, { color: mutedTextColor }]}>
+            Check back soon for sport-specific staff assignments.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.coachesList}>
+          {staffMembers.map((member) => {
+            const displayTitle =
+              member.assignmentTitle?.trim() ||
+              member.directoryTitle?.trim() ||
+              member.roleLabel?.trim() ||
+              '';
+            const displayRoleLabel =
+              member.roleLabel?.trim() &&
+              member.roleLabel.trim().toLowerCase() !== displayTitle.toLowerCase()
+                ? member.roleLabel.trim()
+                : '';
+            const imageUrl = member.headshotUrl?.trim() || '';
+            const isHeadCoach = member.roleType?.trim().toLowerCase() === 'head_coach';
+
+            return (
+              <View
+                key={member.id}
+                style={[
+                  styles.coachCard,
+                  getThemeSoftCardStyle(theme),
+                  {
+                    backgroundColor: surfaceColor,
+                    borderColor,
+                    borderRadius: isSchoolPride ? 6 : 22,
+                    borderTopWidth: isHeadCoach ? 6 : 1,
+                    borderTopColor: isHeadCoach ? withAlpha(accentColor, 'DE') : borderColor,
+                  },
+                ]}
+              >
+                <View style={styles.coachCardTopRow}>
+                  {imageUrl ? (
+                    <RemoteImage
+                      uri={imageUrl}
+                      style={[
+                        styles.coachPhoto,
+                        isGradientEliteTheme(theme) ? { backgroundColor: accentColor } : null,
+                      ]}
+                      contentFit="cover"
+                      mode="athlete"
+                      label={member.displayName}
+                      theme={theme}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.coachPhotoFallback,
+                        {
+                          backgroundColor: isGradientEliteTheme(theme)
+                            ? accentColor
+                            : surfaceAltColor,
+                          borderColor,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="person-outline" size={28} color={primaryTextColor} />
+                    </View>
+                  )}
+
+                  <View style={styles.coachCardBody}>
+                    {isHeadCoach ? (
+                      <View
+                        style={[
+                          styles.coachRolePill,
+                          {
+                            backgroundColor: withAlpha(accentColor, '12'),
+                            borderColor: withAlpha(accentColor, '30'),
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.coachRolePillText, { color: accentColor }]}>
+                          Head Coach
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    <Text style={[styles.coachName, { color: primaryTextColor }]}>
+                      {member.displayName}
+                    </Text>
+
+                    {displayTitle ? (
+                      <Text style={[styles.coachTitle, { color: primaryTextColor }]}>
+                        {displayTitle}
+                      </Text>
+                    ) : null}
+
+                    {displayRoleLabel ? (
+                      <Text style={[styles.coachMeta, { color: mutedTextColor }]}>
+                        {displayRoleLabel}
+                      </Text>
+                    ) : null}
+
+                    {member.email?.trim() ? (
+                      <Pressable
+                        style={styles.coachContactRow}
+                        onPress={() => openContactUrl(`mailto:${member.email!.trim()}`)}
+                      >
+                        <Ionicons name="mail-outline" size={14} color={accentColor} />
+                        <Text style={[styles.coachContactText, { color: mutedTextColor }]}>
+                          {member.email.trim()}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+
+                    {member.phone?.trim() ? (
+                      <Pressable
+                        style={styles.coachContactRow}
+                        onPress={() => openContactUrl(`tel:${member.phone!.trim()}`)}
+                      >
+                        <Ionicons name="call-outline" size={14} color={accentColor} />
+                        <Text style={[styles.coachContactText, { color: mutedTextColor }]}>
+                          {member.phone.trim()}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
 function RecruitingScreen({
   schoolId,
   sportId,
@@ -19247,6 +19669,7 @@ function SportDetailScreen({
   onBack,
   onOpenRecruiting,
   onOpenRoster,
+  onOpenCoaches,
   onOpenSchedule,
   onOpenStoryDetail,
   followedTeams,
@@ -19266,6 +19689,7 @@ function SportDetailScreen({
   onBack: () => void;
   onOpenRecruiting: (options: OpenRecruitingOptions) => void;
   onOpenRoster: (options: OpenRosterOptions) => void;
+  onOpenCoaches: (options: OpenCoachesOptions) => void;
   onOpenSchedule: (options?: {
     events?: EventItem[];
     headerTitle?: string;
@@ -19286,6 +19710,7 @@ function SportDetailScreen({
   const [allTeamScheduleEvents, setAllTeamScheduleEvents] = useState<EventItem[]>([]);
   const [teamNavItems, setTeamNavItems] = useState<AthleticOSTeamNavItem[]>([]);
   const [teamSportId, setTeamSportId] = useState('');
+  const [hasCoachesAccess, setHasCoachesAccess] = useState(false);
   const [sportConfig, setSportConfig] = useState(() => ({
     key: sport.key,
     name: sport.shortLabel || sport.label,
@@ -19493,13 +19918,28 @@ function SportDetailScreen({
           });
           break;
         case 'coaches':
-          actions.push({
-            key: 'coaches',
-            label,
-            icon: 'clipboard-outline',
-            onPress: () => {},
-            disabled: true,
-          });
+          if (teamSportId && hasCoachesAccess) {
+            actions.push({
+              key: 'coaches',
+              label,
+              icon: 'clipboard-outline',
+              onPress: () =>
+                onOpenCoaches({
+                  sport,
+                  sportId: teamSportId,
+                  headerSubtitle: schoolConfig.displayName,
+                  schoolLogoUrl: schoolConfig.logoUrl,
+                }),
+            });
+          } else {
+            actions.push({
+              key: 'coaches',
+              label,
+              icon: 'clipboard-outline',
+              onPress: () => {},
+              disabled: true,
+            });
+          }
           break;
         case 'stats':
           actions.push({
@@ -19540,12 +19980,14 @@ function SportDetailScreen({
     hasNativeRosterAccess,
     hasScheduleAccess,
     onOpenRecruiting,
+    onOpenCoaches,
     onOpenSchedule,
     openSchoolTickets,
     scheduleAccentColor,
     schoolConfig.displayName,
     schoolConfig.logoUrl,
     schoolConfig.ticketsUrl,
+    hasCoachesAccess,
     sport.label,
     sport.shortLabel,
     teamSportId,
@@ -19577,6 +20019,7 @@ function SportDetailScreen({
           setAllTeamScheduleEvents([]);
           setTeamNavItems([]);
           setTeamSportId('');
+          setHasCoachesAccess(false);
           return;
         }
 
@@ -19626,6 +20069,10 @@ function SportDetailScreen({
           teamSportRecord?.id !== undefined && teamSportRecord?.id !== null
             ? await getTeamNavBySportId(schoolId, teamSportRecord.id)
             : [];
+        const nextTeamStaff =
+          teamSportRecord?.id !== undefined && teamSportRecord?.id !== null
+            ? await getSportStaffBySchoolIdAndSportId(schoolId, teamSportRecord.id)
+            : [];
 
         console.log('WORKING_SPORT_SCHEDULE_RESULT_COUNT', mappedEvents.length);
         console.log(
@@ -19649,6 +20096,7 @@ function SportDetailScreen({
         setEvents(filterNextFourGames(mappedEvents));
         setAllTeamScheduleEvents(sortedTeamScheduleEvents);
         setTeamNavItems(nextTeamNavItems);
+        setHasCoachesAccess(nextTeamStaff.length > 0);
       } catch (error) {
         console.log(`Failed loading sport data for ${sport.key}:`, error);
 
@@ -19669,6 +20117,7 @@ function SportDetailScreen({
         setAllTeamScheduleEvents([]);
         setTeamNavItems([]);
         setTeamSportId('');
+        setHasCoachesAccess(false);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -24262,6 +24711,10 @@ export default function App() {
   const [rosterLoading, setRosterLoading] = useState(false);
   const [rosterRefreshing, setRosterRefreshing] = useState(false);
   const [rosterRefreshNonce, setRosterRefreshNonce] = useState(0);
+  const [selectedCoachingSport, setSelectedCoachingSport] = useState<SportType | null>(null);
+  const [selectedCoachingSportId, setSelectedCoachingSportId] = useState('');
+  const [coachingHeaderSubtitle, setCoachingHeaderSubtitle] = useState('');
+  const [coachingLogoUrl, setCoachingLogoUrl] = useState('');
   const [selectedRecruitingSport, setSelectedRecruitingSport] = useState<SportType | null>(null);
   const [selectedRecruitingSportId, setSelectedRecruitingSportId] = useState('');
   const [selectedRecruitingPlayer, setSelectedRecruitingPlayer] = useState<Record<string, unknown> | null>(null);
@@ -25651,6 +26104,22 @@ const handleEnableNotifications = async () => {
     setScreenMode('roster');
   };
 
+  const openCoachesScreen = ({
+    sport,
+    sportId,
+    headerSubtitle,
+    schoolLogoUrl,
+  }: OpenCoachesOptions) => {
+    setActiveEmbeddedBottomNavSlot(null);
+    setSelectedGamecast(null);
+    setPreviousScreenMode(screenMode);
+    setSelectedCoachingSport(sport);
+    setSelectedCoachingSportId(sportId);
+    setCoachingHeaderSubtitle(headerSubtitle?.trim() || '');
+    setCoachingLogoUrl(schoolLogoUrl?.trim() || '');
+    setScreenMode('coaches');
+  };
+
   const handleOpenStoryDetail = (item: NewsItem) => {
     setActiveEmbeddedBottomNavSlot(null);
     setSelectedGamecast(null);
@@ -25695,6 +26164,10 @@ const handleEnableNotifications = async () => {
     setSelectedGamecast(null);
     setActiveTab('home');
     setScreenMode('newsList');
+    setSelectedCoachingSport(null);
+    setSelectedCoachingSportId('');
+    setCoachingHeaderSubtitle('');
+    setCoachingLogoUrl('');
     setSelectedRosterSport(null);
     setSelectedRosterSportId('');
     setRosterItems([]);
@@ -25710,6 +26183,10 @@ const handleEnableNotifications = async () => {
     setSelectedGamecast(null);
     setActiveTab('media');
     setScreenMode('media');
+    setSelectedCoachingSport(null);
+    setSelectedCoachingSportId('');
+    setCoachingHeaderSubtitle('');
+    setCoachingLogoUrl('');
     setSelectedRecruitingSport(null);
     setSelectedRecruitingSportId('');
     setSelectedRecruitingPlayer(null);
@@ -25734,6 +26211,10 @@ const handleEnableNotifications = async () => {
     setSelectedGamecast(null);
     setActiveTab(tab);
     setScreenMode('tabs');
+    setSelectedCoachingSport(null);
+    setSelectedCoachingSportId('');
+    setCoachingHeaderSubtitle('');
+    setCoachingLogoUrl('');
     setSelectedRecruitingSport(null);
     setSelectedRecruitingSportId('');
     setSelectedRecruitingPlayer(null);
@@ -26485,6 +26966,10 @@ const handleEnableNotifications = async () => {
     setScheduleScreenLogoUrl('');
     setScheduleScreenVariant('school');
     setScheduleScreenAccentColor(schoolAccentColor);
+    setSelectedCoachingSport(null);
+    setSelectedCoachingSportId('');
+    setCoachingHeaderSubtitle('');
+    setCoachingLogoUrl('');
     setSelectedRecruitingSport(null);
     setSelectedRecruitingSportId('');
     setSelectedRecruitingPlayer(null);
@@ -26507,6 +26992,14 @@ const handleEnableNotifications = async () => {
   const closeRosterScreen = () => {
     setScreenMode(previousScreenMode);
     setSelectedAthlete(null);
+  };
+
+  const closeCoachesScreen = () => {
+    setScreenMode(previousScreenMode);
+    setSelectedCoachingSport(null);
+    setSelectedCoachingSportId('');
+    setCoachingHeaderSubtitle('');
+    setCoachingLogoUrl('');
   };
 
   const closeRecruitingScreen = () => {
@@ -27059,6 +27552,18 @@ if (showPreroll && prerollConfig) {
         theme={resolvedTheme}
       />
     );
+  } else if (screenMode === 'coaches' && selectedCoachingSport) {
+    mainContent = (
+      <CoachingStaffScreen
+        schoolId={String(resolvedSchoolId ?? '')}
+        sportId={selectedCoachingSportId}
+        sport={selectedCoachingSport}
+        onBack={closeCoachesScreen}
+        headerSubtitle={coachingHeaderSubtitle || appDisplayName}
+        schoolLogoUrl={coachingLogoUrl || schoolConfig.logoUrl}
+        theme={resolvedTheme}
+      />
+    );
   } else if (screenMode === 'recruiting' && selectedRecruitingSport) {
     mainContent = (
       <RecruitingScreen
@@ -27182,6 +27687,7 @@ if (showPreroll && prerollConfig) {
         onBack={closeSpecialScreen}
         onOpenRecruiting={openRecruitingScreen}
         onOpenRoster={openRosterScreen}
+        onOpenCoaches={openCoachesScreen}
         onOpenSchedule={openScheduleScreen}
         onOpenStoryDetail={handleOpenStoryDetail}
         followedTeams={followedTeams}
@@ -27246,6 +27752,7 @@ if (showPreroll && prerollConfig) {
             onOpenSport={openSport}
             onOpenRoster={openRosterScreen}
             onOpenSchedule={openScheduleScreen}
+            onOpenCoaches={openCoachesScreen}
             onOpenRecruiting={openRecruitingScreen}
             sports={homeSports}
             schoolId={resolvedSchoolId}
@@ -30061,6 +30568,99 @@ heroStatusText: {
     fontSize: 15,
     lineHeight: 24,
     marginTop: 12,
+  },
+
+  coachesList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 28,
+    gap: 12,
+  },
+
+  coachCard: {
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+
+  coachCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  coachPhoto: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
+    marginRight: 16,
+    backgroundColor: BRAND.surfaceAlt,
+  },
+
+  coachPhotoFallback: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
+    marginRight: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  coachCardBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  coachRolePill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+
+  coachRolePillText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+
+  coachName: {
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+
+  coachTitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+
+  coachMeta: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+
+  coachContactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+
+  coachContactText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    flexShrink: 1,
   },
 
   recruitingPanel: {

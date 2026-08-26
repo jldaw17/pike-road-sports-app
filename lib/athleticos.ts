@@ -504,6 +504,25 @@ export type AthleticOSRosterAthlete = {
   sortOrder: number | null;
 };
 
+export type AthleticOSSportStaffMember = {
+  id: string;
+  staffId: string | null;
+  schoolId: string | null;
+  sportId: string | null;
+  displayName: string;
+  firstName: string | null;
+  lastName: string | null;
+  roleType: string | null;
+  roleLabel: string | null;
+  assignmentTitle: string | null;
+  directoryTitle: string | null;
+  headshotUrl: string | null;
+  email: string | null;
+  phone: string | null;
+  bio: string | null;
+  displayOrder: number | null;
+};
+
 export type AthleticOSStory = {
   id?: string | number;
   slug?: string;
@@ -781,6 +800,84 @@ const resolveAthleteHeadshotUrl = ({
 
   return null;
 };
+
+const STAFF_ROLE_LABELS: Record<string, string> = {
+  head_coach: 'Head Coach',
+  assistant_coach: 'Assistant Coach',
+  admin: 'Admin',
+  athletic_trainer: 'Athletic Trainer',
+  team_staff: 'Team Staff',
+};
+
+const STAFF_ROLE_RANK: Record<string, number> = {
+  head_coach: 0,
+  assistant_coach: 1,
+  admin: 2,
+  athletic_trainer: 3,
+  team_staff: 4,
+};
+
+function normalizeStaffRoleType(value: unknown) {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return normalized || '';
+}
+
+function getStaffRoleLabel(roleType: unknown) {
+  const normalized = normalizeStaffRoleType(roleType);
+
+  if (!normalized) {
+    return null;
+  }
+
+  return (
+    STAFF_ROLE_LABELS[normalized] ??
+    normalized
+      .split('_')
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ')
+  );
+}
+
+function buildSportStaffDisplayName(staff: Record<string, unknown>) {
+  const displayName = pickFirstString(staff, ['display_name'])?.trim();
+  if (displayName) {
+    return displayName;
+  }
+
+  const firstName = pickFirstString(staff, ['first_name'])?.trim() ?? '';
+  const lastName = pickFirstString(staff, ['last_name'])?.trim() ?? '';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+  return fullName || 'Staff Member';
+}
+
+function compareSportStaffMembers(
+  a: AthleticOSSportStaffMember,
+  b: AthleticOSSportStaffMember
+) {
+  const aRoleType = normalizeStaffRoleType(a.roleType);
+  const bRoleType = normalizeStaffRoleType(b.roleType);
+  const aRoleRank = STAFF_ROLE_RANK[aRoleType] ?? Number.MAX_SAFE_INTEGER;
+  const bRoleRank = STAFF_ROLE_RANK[bRoleType] ?? Number.MAX_SAFE_INTEGER;
+
+  if (aRoleRank !== bRoleRank) {
+    return aRoleRank - bRoleRank;
+  }
+
+  const aLastName = (a.lastName ?? '').trim();
+  const bLastName = (b.lastName ?? '').trim();
+  const lastNameCompare = aLastName.localeCompare(bLastName, undefined, {
+    sensitivity: 'base',
+  });
+  if (lastNameCompare !== 0) {
+    return lastNameCompare;
+  }
+
+  return a.displayName.localeCompare(b.displayName, undefined, {
+    sensitivity: 'base',
+  });
+}
 
 const SPORT_NAME_FIELDS = ['name'] as const;
 const STORY_DATE_FIELDS = ['published_at', 'created_at'] as const;
@@ -2073,6 +2170,94 @@ export async function getTeamNavBySportId(
       }))
       .filter((item) => item.navKey)
       .sort((a, b) => a.sortOrder - b.sortOrder);
+  } catch (error) {
+    if (isMissingAppOSRelationError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export async function getSportStaffBySchoolIdAndSportId(
+  schoolId: string | number,
+  sportId: string | number
+) {
+  try {
+    await requireSchoolById(schoolId);
+
+    const { data, error } = await supabase
+      .from('sport_staff_assignments')
+      .select(
+        `
+          id,
+          school_id,
+          staff_id,
+          sport_id,
+          role_type,
+          assignment_title,
+          display_order,
+          is_active,
+          staff:staff_directory!inner(
+            id,
+            school_id,
+            first_name,
+            last_name,
+            display_name,
+            title,
+            email,
+            phone,
+            headshot_url,
+            bio,
+            is_active
+          )
+        `
+      )
+      .eq('school_id', schoolId)
+      .eq('sport_id', sportId)
+      .eq('is_active', true);
+
+    if (error) {
+      throw error;
+    }
+
+    return (((data ?? []) as Array<
+      Record<string, unknown> & {
+        staff?: Record<string, unknown> | Array<Record<string, unknown>> | null;
+      }
+    >) || [])
+      .map((assignment) => {
+        const staffValue = assignment.staff ?? null;
+        const staff = Array.isArray(staffValue) ? (staffValue[0] ?? null) : staffValue;
+
+        if (!staff || pickFirstBoolean(staff, ['is_active']) === false) {
+          return null;
+        }
+
+        const displayName = buildSportStaffDisplayName(staff);
+        const roleType = pickFirstString(assignment, ['role_type']) ?? null;
+
+        return {
+          id: pickFirstId(assignment, ['id']) ?? '',
+          staffId: pickFirstId(assignment, ['staff_id']) ?? pickFirstId(staff, ['id']) ?? null,
+          schoolId: pickFirstId(assignment, ['school_id']) ?? pickFirstId(staff, ['school_id']) ?? null,
+          sportId: pickFirstId(assignment, ['sport_id']) ?? null,
+          displayName,
+          firstName: pickFirstString(staff, ['first_name']) ?? null,
+          lastName: pickFirstString(staff, ['last_name']) ?? null,
+          roleType,
+          roleLabel: getStaffRoleLabel(roleType),
+          assignmentTitle: pickFirstString(assignment, ['assignment_title']) ?? null,
+          directoryTitle: pickFirstString(staff, ['title']) ?? null,
+          headshotUrl: resolveMediaUrl(pickFirstString(staff, ['headshot_url']) ?? null),
+          email: pickFirstString(staff, ['email']) ?? null,
+          phone: pickFirstString(staff, ['phone']) ?? null,
+          bio: pickFirstString(staff, ['bio']) ?? null,
+          displayOrder: pickFirstNumber(assignment, ['display_order']) ?? null,
+        } satisfies AthleticOSSportStaffMember;
+      })
+      .filter((member): member is AthleticOSSportStaffMember => Boolean(member?.id))
+      .sort(compareSportStaffMembers);
   } catch (error) {
     if (isMissingAppOSRelationError(error)) {
       return [];
