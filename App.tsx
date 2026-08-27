@@ -17642,15 +17642,15 @@ function RosterScreen({
               ? {
                   flexDirection: 'row',
                   flexWrap: 'wrap',
-                  justifyContent: 'space-between',
-                  gap: 10,
+                  justifyContent: 'flex-start',
+                  columnGap: 10,
                 }
               : isPremium
                 ? {
                     flexDirection: 'row',
                     flexWrap: 'wrap',
-                    justifyContent: 'space-between',
-                    gap: 10,
+                    justifyContent: 'flex-start',
+                    columnGap: 10,
                   }
               : null,
           ]}
@@ -18973,32 +18973,35 @@ function RecruitingScreen({
             No recruiting profiles yet.
           </Text>
         ) : (
-          profiles.map((p) => (
-            <Pressable
-              key={
-                String(p.id ?? '').trim() ||
-                String(p.recruit_profile_slug ?? '').trim() ||
-                String((p as { roster_entry_id?: string | number | null }).roster_entry_id ?? '')
-              }
-              style={[
-                styles.recruitingProfileCard,
-                {
-                  backgroundColor: recruitingPalette.surface,
-                  borderColor: recruitingPalette.border,
-                  shadowColor: recruitingPalette.accent,
-                  shadowOpacity: 0.14,
-                  shadowRadius: 12,
-                  shadowOffset: { width: 0, height: 4 },
-                  elevation: 4,
-                },
-              ]}
-              onPress={() => onOpenPlayer(p)}
-            >
-              <View style={styles.recruitingProfileTopRow}>
-                {typeof (p.photo_url ?? p.default_photo_url) === 'string' &&
-                String(p.photo_url ?? p.default_photo_url).trim() ? (
+          profiles.map((p) => {
+            const recruitingHeadshotUrl =
+              typeof p.photo_url === 'string' ? p.photo_url.trim() : '';
+
+            return (
+              <Pressable
+                key={
+                  String(p.id ?? '').trim() ||
+                  String(p.recruit_profile_slug ?? '').trim() ||
+                  String((p as { roster_entry_id?: string | number | null }).roster_entry_id ?? '')
+                }
+                style={[
+                  styles.recruitingProfileCard,
+                  {
+                    backgroundColor: recruitingPalette.surface,
+                    borderColor: recruitingPalette.border,
+                    shadowColor: recruitingPalette.accent,
+                    shadowOpacity: 0.14,
+                    shadowRadius: 12,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 4,
+                  },
+                ]}
+                onPress={() => onOpenPlayer(p)}
+              >
+                <View style={styles.recruitingProfileTopRow}>
+                  {recruitingHeadshotUrl ? (
                   <RemoteImage
-                    uri={String(p.photo_url ?? p.default_photo_url).trim()}
+                    uri={recruitingHeadshotUrl}
                     style={[
                       styles.recruitingProfilePhoto,
                       isGradientEliteTheme(theme) ? { backgroundColor: theme.colors.primary } : null,
@@ -19008,100 +19011,101 @@ function RecruitingScreen({
                     label={`${String(p.first_name ?? '')} ${String(p.last_name ?? '')}`.trim()}
                     theme={theme}
                   />
-                ) : (
+                  ) : (
+                    <View
+                      style={[
+                        styles.recruitingProfilePhotoFallback,
+                        {
+                          backgroundColor: isGradientEliteTheme(theme)
+                            ? theme.colors.primary
+                            : recruitingPalette.surfaceAlt,
+                          borderColor: recruitingPalette.border,
+                          shadowColor: recruitingPalette.accent,
+                          shadowOpacity: 0.12,
+                          shadowRadius: 8,
+                          shadowOffset: { width: 0, height: 2 },
+                          elevation: 2,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="person-outline" size={26} color={recruitingPalette.text} />
+                    </View>
+                  )}
+
+                  <View style={styles.recruitingProfileBody}>
+                    <Text style={[styles.recruitingProfileName, { color: recruitingPalette.text }]}>
+                      {`${String(p.first_name ?? '')} ${String(p.last_name ?? '')}`.trim()}
+                    </Text>
+
+                    {`${String(p.position ?? '')} • ${String(p.class_year ?? '')}`.replace(
+                      /^ • | • $/g,
+                      ''
+                    ) ? (
+                      <Text
+                        style={[
+                          styles.recruitingProfileMeta,
+                          { color: recruitingPalette.mutedText },
+                        ]}
+                      >
+                        {`${String(p.position ?? '')} • ${String(p.class_year ?? '')}`.replace(
+                          /^ • | • $/g,
+                          ''
+                        )}
+                      </Text>
+                    ) : null}
+
+                    {`${String(p.height ?? '')} • ${String(p.weight ?? '')}`.replace(
+                      /^ • | • $/g,
+                      ''
+                    ) ? (
+                      <Text
+                        style={[
+                          styles.recruitingProfileDetail,
+                          { color: recruitingPalette.text },
+                        ]}
+                      >
+                        {`${String(p.height ?? '')} • ${String(p.weight ?? '')}`.replace(
+                          /^ • | • $/g,
+                          ''
+                        )}
+                      </Text>
+                    ) : null}
+
+                    {String(p.hometown ?? '').trim() ? (
+                      <Text
+                        style={[
+                          styles.recruitingProfileDetail,
+                          { color: recruitingPalette.mutedText },
+                        ]}
+                      >
+                        {String(p.hometown ?? '').trim()}
+                      </Text>
+                    ) : null}
+                  </View>
                   <View
                     style={[
-                      styles.recruitingProfilePhotoFallback,
+                      styles.recruitingProfileChevronWrap,
                       {
-                        backgroundColor: isGradientEliteTheme(theme)
-                          ? theme.colors.primary
-                          : recruitingPalette.surfaceAlt,
-                        borderColor: recruitingPalette.border,
+                        backgroundColor: recruitingPalette.surfaceAlt,
+                        borderColor: recruitingPalette.borderSoft,
                         shadowColor: recruitingPalette.accent,
-                        shadowOpacity: 0.12,
-                        shadowRadius: 8,
+                        shadowOpacity: 0.08,
+                        shadowRadius: 6,
                         shadowOffset: { width: 0, height: 2 },
-                        elevation: 2,
+                        elevation: 1,
                       },
                     ]}
                   >
-                    <Ionicons name="person-outline" size={26} color={recruitingPalette.text} />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={recruitingPalette.accent}
+                    />
                   </View>
-                )}
-
-                <View style={styles.recruitingProfileBody}>
-                  <Text style={[styles.recruitingProfileName, { color: recruitingPalette.text }]}>
-                    {`${String(p.first_name ?? '')} ${String(p.last_name ?? '')}`.trim()}
-                  </Text>
-
-                  {`${String(p.position ?? '')} • ${String(p.class_year ?? '')}`.replace(
-                    /^ • | • $/g,
-                    ''
-                  ) ? (
-                    <Text
-                      style={[
-                        styles.recruitingProfileMeta,
-                        { color: recruitingPalette.mutedText },
-                      ]}
-                    >
-                      {`${String(p.position ?? '')} • ${String(p.class_year ?? '')}`.replace(
-                        /^ • | • $/g,
-                        ''
-                      )}
-                    </Text>
-                  ) : null}
-
-                  {`${String(p.height ?? '')} • ${String(p.weight ?? '')}`.replace(
-                    /^ • | • $/g,
-                    ''
-                  ) ? (
-                    <Text
-                      style={[
-                        styles.recruitingProfileDetail,
-                        { color: recruitingPalette.text },
-                      ]}
-                    >
-                      {`${String(p.height ?? '')} • ${String(p.weight ?? '')}`.replace(
-                        /^ • | • $/g,
-                        ''
-                      )}
-                    </Text>
-                  ) : null}
-
-                  {String(p.hometown ?? '').trim() ? (
-                    <Text
-                      style={[
-                        styles.recruitingProfileDetail,
-                        { color: recruitingPalette.mutedText },
-                      ]}
-                    >
-                      {String(p.hometown ?? '').trim()}
-                    </Text>
-                  ) : null}
                 </View>
-                <View
-                  style={[
-                    styles.recruitingProfileChevronWrap,
-                    {
-                      backgroundColor: recruitingPalette.surfaceAlt,
-                      borderColor: recruitingPalette.borderSoft,
-                      shadowColor: recruitingPalette.accent,
-                      shadowOpacity: 0.08,
-                      shadowRadius: 6,
-                      shadowOffset: { width: 0, height: 2 },
-                      elevation: 1,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={recruitingPalette.accent}
-                  />
-                </View>
-              </View>
-            </Pressable>
-          ))
+              </Pressable>
+            );
+          })
         )}
       </View>
     </ScrollView>
@@ -19142,7 +19146,7 @@ function RecruitingPlayerScreen({
   const tiktokUrl = String(profile.tiktok_url ?? '').trim();
   const sportSlug = sport.key;
   const recruitProfileSlug = String(profile.recruit_profile_slug ?? '').trim();
-  const headshotUrl = String(profile.photo_url ?? profile.default_photo_url ?? '').trim();
+  const headshotUrl = String(profile.photo_url ?? '').trim();
   const heightValue = String(profile.height ?? '').trim();
   const weightValue = String(profile.weight ?? '').trim();
   const hometownValue = String(profile.hometown ?? '').trim();
