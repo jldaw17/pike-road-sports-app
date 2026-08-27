@@ -156,9 +156,20 @@ export type AthleticOSAppTeamNavItem = {
   school_id?: string | number;
   sport_id?: string | number;
   nav_key?: string;
+  item_type?: string;
   label?: string;
   is_enabled?: boolean;
   sort_order?: number;
+  target_sport?:
+    | {
+        id?: string | number;
+        slug?: string;
+        name?: string;
+        [key: string]: unknown;
+      }
+    | null;
+  destination_type?: string;
+  destination_value?: string;
   created_at?: string;
   updated_at?: string;
   [key: string]: unknown;
@@ -169,6 +180,22 @@ export type AthleticOSTeamNavItem = {
   label: string;
   isEnabled: boolean;
   sortOrder: number;
+  itemType: string;
+  targetSport: {
+    id: string;
+    slug: string;
+    name: string;
+  } | null;
+  destinationType: string;
+  destinationValue: string;
+};
+
+type AthleticOSPublicAppTeamNavigationSport = {
+  sport_id?: string | number;
+  sport_slug?: string;
+  sport_name?: string;
+  items?: AthleticOSAppTeamNavItem[] | null;
+  [key: string]: unknown;
 };
 
 export type AthleticOSAppSponsorPlacement = {
@@ -411,6 +438,8 @@ export type AthleticOSSport = {
   school_id?: string | number;
   name?: string;
   slug?: string;
+  is_visible?: boolean;
+  show_in_nav?: boolean;
   url?: string;
   schedule_url?: string;
   roster_url?: string;
@@ -1811,6 +1840,74 @@ const preferredPublicOriginsCache = new Map<
   string,
   Promise<AthleticOSPreferredPublicOrigins>
 >();
+const teamNavigationConfigCache = new Map<
+  string,
+  Promise<AthleticOSPublicAppTeamNavigationSport[] | null>
+>();
+
+function normalizeSchoolSlug(value: string) {
+  return value.trim().toLowerCase();
+}
+
+export function invalidateTeamNavigationConfigCache(schoolSlug?: string | null) {
+  const normalizedSchoolSlug = normalizeSchoolSlug(schoolSlug ?? '');
+
+  if (!normalizedSchoolSlug) {
+    teamNavigationConfigCache.clear();
+    return;
+  }
+
+  teamNavigationConfigCache.delete(normalizedSchoolSlug);
+}
+
+async function getTeamNavigationConfigBySchoolSlug(
+  schoolSlug: string
+): Promise<AthleticOSPublicAppTeamNavigationSport[] | null> {
+  const normalizedSchoolSlug = normalizeSchoolSlug(schoolSlug);
+
+  if (!normalizedSchoolSlug) {
+    return null;
+  }
+
+  const cached = teamNavigationConfigCache.get(normalizedSchoolSlug);
+  if (cached) {
+    return cached;
+  }
+
+  const request = (async () => {
+    try {
+      const response = await fetch(
+        `https://athleticos.ai/api/appos/config/${encodeURIComponent(normalizedSchoolSlug)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`AppOS config request failed: ${response.status}`);
+      }
+
+      const payload = (await response.json()) as {
+        data?: { team_navigation?: unknown } | null;
+        team_navigation?: unknown;
+      };
+
+      const teamNavigation = Array.isArray(payload?.data?.team_navigation)
+        ? payload.data.team_navigation
+        : Array.isArray(payload?.team_navigation)
+          ? payload.team_navigation
+          : null;
+
+      return (teamNavigation as AthleticOSPublicAppTeamNavigationSport[] | null) ?? null;
+    } catch (error) {
+      console.warn('APPOS_TEAM_NAV_CONFIG_FETCH_FAILED', {
+        schoolSlug: normalizedSchoolSlug,
+        error,
+      });
+      return null;
+    }
+  })();
+
+  teamNavigationConfigCache.set(normalizedSchoolSlug, request);
+  return request;
+}
 
 function sportRecordMatchesKey(sport: AthleticOSSport, sportKey: string) {
   const aliases = getSportAliases(sportKey).map(normalizeToken);
@@ -2143,10 +2240,67 @@ export function resolveAthleticOSTheme(
 
 export async function getTeamNavBySportId(
   schoolId: string | number,
-  sportId: string | number
+  sportId: string | number,
+  schoolSlug?: string | null
 ) {
   try {
     await requireSchoolById(schoolId);
+
+    if (schoolSlug) {
+      const configuredTeamNavigation = await getTeamNavigationConfigBySchoolSlug(schoolSlug);
+      const matchedSportNavigation = configuredTeamNavigation?.find((sport) => {
+        const configuredSportId =
+          sport?.sport_id === undefined || sport?.sport_id === null
+            ? ''
+            : String(sport.sport_id).trim();
+        return configuredSportId === String(sportId).trim();
+      });
+
+      if (matchedSportNavigation) {
+        return ((matchedSportNavigation.items ?? []) as AthleticOSAppTeamNavItem[])
+          .map((item) => {
+            const rawTargetSport =
+              item.target_sport && typeof item.target_sport === 'object'
+                ? item.target_sport
+                : null;
+            const targetSportId =
+              rawTargetSport?.id === undefined || rawTargetSport?.id === null
+                ? ''
+                : String(rawTargetSport.id).trim();
+            const targetSportSlug =
+              typeof rawTargetSport?.slug === 'string' ? rawTargetSport.slug.trim() : '';
+            const targetSportName =
+              typeof rawTargetSport?.name === 'string' ? rawTargetSport.name.trim() : '';
+
+            return {
+              navKey: pickFirstString(item, ['nav_key']) ?? '',
+              label: pickFirstString(item, ['label']) ?? '',
+              isEnabled:
+                pickFirstBoolean(item, ['is_enabled', 'enabled', 'is_active', 'active']) ?? true,
+              sortOrder: pickFirstNumber(item, ['sort_order']) ?? 0,
+              itemType: pickFirstString(item, ['item_type']) ?? 'static',
+              targetSport:
+                targetSportId && targetSportSlug && targetSportName
+                  ? {
+                      id: targetSportId,
+                      slug: targetSportSlug,
+                      name: targetSportName,
+                    }
+                  : null,
+              destinationType: pickFirstString(item, ['destination_type']) ?? '',
+              destinationValue: pickFirstString(item, ['destination_value']) ?? '',
+            } satisfies AthleticOSTeamNavItem;
+          })
+          .filter((item) => item.navKey)
+          .sort((a, b) => {
+            if (a.sortOrder !== b.sortOrder) {
+              return a.sortOrder - b.sortOrder;
+            }
+
+            return a.navKey.localeCompare(b.navKey);
+          });
+      }
+    }
 
     const { data, error } = await supabase
       .from('app_team_nav_items')
@@ -2167,9 +2321,19 @@ export async function getTeamNavBySportId(
         isEnabled:
           pickFirstBoolean(item, ['is_enabled', 'enabled', 'is_active', 'active']) ?? true,
         sortOrder: pickFirstNumber(item, ['sort_order']) ?? 0,
+        itemType: 'static',
+        targetSport: null,
+        destinationType: 'team_tab',
+        destinationValue: pickFirstString(item, ['nav_key']) ?? '',
       }))
       .filter((item) => item.navKey)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+      .sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) {
+          return a.sortOrder - b.sortOrder;
+        }
+
+        return a.navKey.localeCompare(b.navKey);
+      });
   } catch (error) {
     if (isMissingAppOSRelationError(error)) {
       return [];

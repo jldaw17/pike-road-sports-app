@@ -60,6 +60,7 @@ import {
   getAppPrerollConfigBySchoolId,
   getPreferredPublicOriginsBySchoolId,
   getTeamNavBySportId,
+  invalidateTeamNavigationConfigCache,
   getDefaultSchoolConfig,
   getNativeGamecastBySchoolIdAndGameId,
   getNativeGamecastBySchoolIdAndSportSlug,
@@ -2553,10 +2554,25 @@ function buildDynamicSportType(sport: AthleticOSSport): SportType | null {
   };
 }
 
+function buildTeamNavTargetSportType(targetSport: AthleticOSTeamNavItem['targetSport']) {
+  if (!targetSport?.id || !targetSport.slug || !targetSport.name) {
+    return null;
+  }
+
+  return {
+    key: targetSport.slug,
+    label: targetSport.name,
+  } satisfies SportType;
+}
+
 function resolveAppSportVisibility(
   sport: AthleticOSSport,
   config?: AthleticOSSportAppConfig | null
 ) {
+  if (sport.show_in_nav === false) {
+    return false;
+  }
+
   if (typeof config?.is_visible === 'boolean') {
     return config.is_visible;
   }
@@ -14709,6 +14725,7 @@ function TeamsScreen({
   onOpenRecruiting,
   sports,
   schoolId,
+  schoolSlug,
   schoolDisplayName,
   mascotName,
   schoolLogoUrl,
@@ -14730,6 +14747,7 @@ function TeamsScreen({
   onOpenRecruiting: (options: OpenRecruitingOptions) => void;
   sports: SportType[];
   schoolId?: string | number | null;
+  schoolSlug?: string;
   schoolDisplayName?: string;
   mascotName?: string;
   schoolLogoUrl?: string;
@@ -14764,6 +14782,7 @@ function TeamsScreen({
       }
 
       try {
+        invalidateTeamNavigationConfigCache(schoolSlug);
         const sports = await getSportsBySchoolId(schoolId);
         const navEntries = await Promise.all(
           visibleSports.map(async (sport) => {
@@ -14785,7 +14804,7 @@ function TeamsScreen({
               return [sport.key, { sportId: '', navItems: [], hasCoaches: false }] as const;
             }
 
-            const navItems = await getTeamNavBySportId(schoolId, matchedSport.id);
+            const navItems = await getTeamNavBySportId(schoolId, matchedSport.id, schoolSlug);
             const hasConfiguredCoaches = navItems.some(
               (item) => item.isEnabled !== false && item.navKey.trim().toLowerCase() === 'coaches'
             );
@@ -14914,6 +14933,15 @@ function TeamsScreen({
         .map((item) => {
           const navKey = item.navKey.trim().toLowerCase();
           const label = item.label?.trim() || getModernDisplayLabel(navKey, navKey);
+          const targetSport = buildTeamNavTargetSportType(item.targetSport);
+
+          if (item.itemType === 'linked_team' && item.destinationType === 'sport' && targetSport) {
+            return {
+              key: item.navKey,
+              label,
+              onPress: () => onOpenSport(targetSport),
+            };
+          }
 
           switch (navKey) {
             case 'roster':
@@ -14991,6 +15019,7 @@ function TeamsScreen({
       premiumTeamNavBySport,
       schoolDisplayName,
       schoolId,
+      schoolSlug,
       schoolLogoUrl,
       onOpenCoaches,
     ]
@@ -19671,6 +19700,7 @@ function SportDetailScreen({
   schoolConfig,
   scheduleAccentColor,
   onBack,
+  onOpenSport,
   onOpenRecruiting,
   onOpenRoster,
   onOpenCoaches,
@@ -19691,6 +19721,7 @@ function SportDetailScreen({
   };
   scheduleAccentColor: string;
   onBack: () => void;
+  onOpenSport: (sport: SportType) => void;
   onOpenRecruiting: (options: OpenRecruitingOptions) => void;
   onOpenRoster: (options: OpenRosterOptions) => void;
   onOpenCoaches: (options: OpenCoachesOptions) => void;
@@ -19836,6 +19867,17 @@ function SportDetailScreen({
 
       const navKey = item.navKey.trim().toLowerCase();
       const label = item.label || getModernDisplayLabel(navKey, navKey);
+      const targetSport = buildTeamNavTargetSportType(item.targetSport);
+
+      if (item.itemType === 'linked_team' && item.destinationType === 'sport' && targetSport) {
+        actions.push({
+          key: item.navKey,
+          label,
+          icon: 'chevron-forward-outline',
+          onPress: () => onOpenSport(targetSport),
+        });
+        continue;
+      }
 
       switch (navKey) {
         case 'schedule':
@@ -19985,6 +20027,7 @@ function SportDetailScreen({
     hasScheduleAccess,
     onOpenRecruiting,
     onOpenCoaches,
+    onOpenSport,
     onOpenSchedule,
     openSchoolTickets,
     scheduleAccentColor,
@@ -20005,6 +20048,7 @@ function SportDetailScreen({
     async function loadSportData() {
       try {
         setLoading(true);
+        invalidateTeamNavigationConfigCache(schoolSlug);
 
         if (!schoolId) {
           console.log(`No school found for slug "${schoolSlug}"`);
@@ -20071,7 +20115,7 @@ function SportDetailScreen({
 
         const nextTeamNavItems =
           teamSportRecord?.id !== undefined && teamSportRecord?.id !== null
-            ? await getTeamNavBySportId(schoolId, teamSportRecord.id)
+            ? await getTeamNavBySportId(schoolId, teamSportRecord.id, schoolSlug)
             : [];
         const nextTeamStaff =
           teamSportRecord?.id !== undefined && teamSportRecord?.id !== null
@@ -27689,6 +27733,7 @@ if (showPreroll && prerollConfig) {
         schoolConfig={schoolConfig}
         scheduleAccentColor={schoolAccentColor}
         onBack={closeSpecialScreen}
+        onOpenSport={openSport}
         onOpenRecruiting={openRecruitingScreen}
         onOpenRoster={openRosterScreen}
         onOpenCoaches={openCoachesScreen}
@@ -27760,6 +27805,7 @@ if (showPreroll && prerollConfig) {
             onOpenRecruiting={openRecruitingScreen}
             sports={homeSports}
             schoolId={resolvedSchoolId}
+            schoolSlug={schoolSlug}
             schoolDisplayName={appDisplayName}
             mascotName={schoolConfig.mascotName}
             schoolLogoUrl={schoolConfig.logoUrl}
