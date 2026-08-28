@@ -5333,6 +5333,12 @@ function NewsCard({
   const isCleanSlate = isCleanSlateTheme(theme);
   const isPremium = isPremiumTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
+  const premiumFeaturedPillBackgroundColor = theme.colors.primary;
+  const premiumFeaturedPillTextColor = pickMostContrastingColor(
+    premiumFeaturedPillBackgroundColor,
+    [theme.colors.pillText, theme.colors.text, BRAND.white, BRAND.black],
+    theme.colors.pillText
+  );
 
   if (featured) {
     if (isPremium || isSchoolPride) {
@@ -5420,7 +5426,11 @@ function NewsCard({
                   style={[
                     styles.featuredPillText,
                     {
-                      color: isSchoolPride ? BRAND.white : theme.colors.pillText,
+                      color: isSchoolPride
+                        ? BRAND.white
+                        : isPremium
+                        ? premiumFeaturedPillTextColor
+                        : theme.colors.pillText,
                     },
                   ]}
                 >
@@ -9603,6 +9613,7 @@ function EventCard({
     normalized.homeAway && normalized.opponent
       ? `${normalized.homeAway} ${normalized.opponent}`
       : normalized.opponent;
+  const premiumRecentResultOpponentDisplay = getPremiumRecentResultOpponentDisplay(matchupLabel);
   const appCtaLabel = item.appCtaLabel?.trim() ?? '';
   const appCtaUrl = item.appCtaUrl?.trim() ?? '';
   const shouldShowAppCta =
@@ -10022,12 +10033,20 @@ function EventCard({
             ) : null}
           </View>
 
-          <View style={styles.resultMainRow}>
-            <View style={styles.resultTeamRowLeft}>
+          <View style={[styles.resultMainRow, isPremium ? styles.premiumResultMainRow : null]}>
+            <View style={[styles.resultTeamRowLeft, isPremium ? styles.premiumResultTeamRowLeft : null]}>
               {normalized.opponentLogoUrl ? (
                 <View
                   style={[
                     styles.resultLogoPlate,
+                    isPremium
+                      ? {
+                          width: 34,
+                          height: 34,
+                          borderRadius: 9,
+                          padding: 4,
+                        }
+                      : null,
                     isCleanSlateTheme(theme)
                       ? {
                           backgroundColor: theme.colors.cardAlt,
@@ -10046,11 +10065,62 @@ function EventCard({
                   />
                 </View>
               ) : null}
-              <Text style={[styles.resultOpponentName, { color: theme.colors.text }]} numberOfLines={2}>
-                {matchupLabel}
-              </Text>
+              <View
+                style={
+                  isPremium
+                    ? {
+                        flex: 1,
+                        minWidth: 0,
+                        paddingRight: 8,
+                      }
+                    : null
+                }
+              >
+                <Text
+                  style={[
+                    styles.resultOpponentName,
+                    { color: theme.colors.text },
+                    isPremium
+                      ? {
+                          paddingRight: 0,
+                          width: '100%',
+                          lineHeight: 21,
+                          fontSize: 16,
+                        }
+                      : null,
+                  ]}
+                  numberOfLines={
+                    isPremium ? premiumRecentResultOpponentDisplay.numberOfLines : 2
+                  }
+                  ellipsizeMode={isPremium ? 'clip' : 'tail'}
+                  adjustsFontSizeToFit={
+                    isPremium ? premiumRecentResultOpponentDisplay.adjustsFontSizeToFit : false
+                  }
+                  minimumFontScale={
+                    isPremium ? premiumRecentResultOpponentDisplay.minimumFontScale : undefined
+                  }
+                  allowFontScaling={false}
+                >
+                  {isPremium ? premiumRecentResultOpponentDisplay.text : matchupLabel}
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.resultScore, { color: theme.colors.text }]}>
+            <Text
+              style={[
+                styles.resultScore,
+                { color: theme.colors.text },
+                isPremium
+                  ? {
+                      minWidth: 0,
+                      marginLeft: 8,
+                      fontSize: 20,
+                      lineHeight: 24,
+                      letterSpacing: -0.2,
+                      flexShrink: 0,
+                    }
+                  : null,
+              ]}
+            >
               {normalized.teamScore} - {normalized.opponentScore}
             </Text>
           </View>
@@ -10137,6 +10207,65 @@ function EventCard({
       )}
     </Pressable>
   );
+}
+
+function getPremiumRecentResultOpponentDisplay(opponent?: string | null, homeAway?: string | null) {
+  const trimmedOpponent = opponent?.replace(/\s+/g, ' ').trim() ?? '';
+  const trimmedHomeAway = homeAway?.replace(/\s+/g, ' ').trim() ?? '';
+
+  if (!trimmedOpponent) {
+    return {
+      text: trimmedHomeAway,
+      numberOfLines: 1,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.72,
+    };
+  }
+
+  if (!/\s/.test(trimmedOpponent)) {
+    return {
+      text: trimmedHomeAway ? `${trimmedHomeAway} ${trimmedOpponent}` : trimmedOpponent,
+      numberOfLines: 1,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.72,
+    };
+  }
+
+  const splitOpponent = splitPremiumRecentResultOpponentWords(trimmedOpponent);
+  return {
+    text: trimmedHomeAway
+      ? `${trimmedHomeAway} ${splitOpponent.firstLine}\n${splitOpponent.secondLine}`
+      : `${splitOpponent.firstLine}\n${splitOpponent.secondLine}`,
+    numberOfLines: 2,
+    adjustsFontSizeToFit: true,
+    minimumFontScale: 0.8,
+  };
+}
+
+function splitPremiumRecentResultOpponentWords(opponent: string) {
+  const words = opponent.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) {
+    return { firstLine: opponent, secondLine: '' };
+  }
+
+  let bestSplitIndex = 1;
+  let bestDifference = Number.POSITIVE_INFINITY;
+
+  for (let index = 1; index < words.length; index += 1) {
+    const firstLine = words.slice(0, index).join(' ');
+    const secondLine = words.slice(index).join(' ');
+    const difference = Math.abs(firstLine.length - secondLine.length);
+
+    if (difference < bestDifference) {
+      bestDifference = difference;
+      bestSplitIndex = index;
+    }
+  }
+
+  return {
+    firstLine: words.slice(0, bestSplitIndex).join(' '),
+    secondLine: words.slice(bestSplitIndex).join(' '),
+  };
 }
 
 function PulseDot({
@@ -31425,6 +31554,14 @@ resultMainRow: {
   alignItems: 'center',
   justifyContent: 'space-between',
   marginBottom: 10,
+},
+
+premiumResultMainRow: {
+  justifyContent: 'flex-start',
+},
+
+premiumResultTeamRowLeft: {
+  gap: 6,
 },
 
 resultScore: {
