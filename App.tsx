@@ -2373,6 +2373,8 @@ type NormalizedScheduleItem = {
   teamScore?: string;
   opponentScore?: string;
   result?: 'W' | 'L' | 'T' | '';
+  isFinal?: boolean;
+  isLive?: boolean;
 };
 
 type FollowableSport = {
@@ -3448,11 +3450,11 @@ function hasExplicitTime(raw?: string) {
 }
 
 function getScheduleStatusLabel(item: EventItem) {
-  if (item.isFinal) {
+  if (isFinalScheduleEvent(item)) {
     return 'Final';
   }
 
-  const status = (item.status ?? '').trim().toLowerCase();
+  const status = normalizeScheduleEventStatus(item.status);
 
   if (status === 'postponed') {
     return 'Postponed';
@@ -3462,11 +3464,39 @@ function getScheduleStatusLabel(item: EventItem) {
     return 'Canceled';
   }
 
-  if (status === 'live' || status === 'in_progress' || status === 'in-progress') {
-    return 'Live';
+  if (isLiveScoredScheduleEvent(item)) {
+    return 'LIVE NOW';
   }
 
   return '';
+}
+
+function normalizeScheduleEventStatus(status?: string | null) {
+  return String(status || '').trim().toLowerCase();
+}
+
+function isFinalScheduleStatus(status?: string | null) {
+  const normalizedStatus = normalizeScheduleEventStatus(status);
+  return (
+    normalizedStatus === 'final' ||
+    normalizedStatus === 'completed' ||
+    normalizedStatus === 'complete' ||
+    normalizedStatus === 'closed'
+  );
+}
+
+function isFinalScheduleEvent(item: Pick<EventItem, 'isFinal' | 'status'>) {
+  return item.isFinal === true || isFinalScheduleStatus(item.status);
+}
+
+function isLiveScoredScheduleEvent(
+  item: Pick<EventItem, 'isFinal' | 'status' | 'teamScore' | 'opponentScore'>
+) {
+  return (
+    !isFinalScheduleEvent(item) &&
+    typeof item.teamScore === 'number' &&
+    typeof item.opponentScore === 'number'
+  );
 }
 
 function getScheduleLocationLabel(item: EventItem) {
@@ -3597,18 +3627,7 @@ function filterRecentResultEvents(events: EventItem[]) {
       if (!eventDate) return false;
 
       if (eventDate < sevenDaysAgo || eventDate > now) return false;
-
-      const title = event.title || '';
-
-      const hasResult =
-        ['final', 'completed', 'closed'].includes(
-          event.status?.toLowerCase() ?? ''
-        ) ||
-        /\b(W|L),\s*\d+-\d+\b/i.test(title) ||
-        /\b\d+\s*-\s*\d+\b/.test(title) ||
-        /\bFinal\b/i.test(title);
-
-      return hasResult;
+      return isFinalScheduleEvent(event);
     })
     .sort((a, b) => {
       const aTime = getScheduleItemSortTimestamp(a);
@@ -3631,11 +3650,7 @@ function filterUpcomingWeekEvents(events: EventItem[]) {
       const eventDate = getScheduleItemSortDate(event);
       if (!eventDate) return false;
       if (eventDate < todayStart || eventDate > tenDaysOut) return false;
-      return (
-        !['final', 'completed', 'closed'].includes(
-          event.status?.toLowerCase() ?? ''
-        ) && !/\b(W|L),\s*\d+-\d+/i.test(event.title)
-      );
+      return !isFinalScheduleEvent(event);
     })
     .sort((a, b) => {
       const aTime = getScheduleItemSortTimestamp(a);
@@ -3884,6 +3899,8 @@ function normalizeScheduleItem(item: EventItem) {
   let opponentScore = '';
   let hasScore = false;
   let result: 'W' | 'L' | 'T' | '' = '';
+  const isFinal = isFinalScheduleEvent(item);
+  const isLive = isLiveScoredScheduleEvent(item);
 
   if (!homeAway && cleanedTitle.includes(' vs. ')) {
     const parts = cleanedTitle.split(' vs. ');
@@ -3895,19 +3912,17 @@ function normalizeScheduleItem(item: EventItem) {
     homeAway = 'at';
   }
 
-  if (
-    item.isFinal &&
-    typeof item.teamScore === 'number' &&
-    typeof item.opponentScore === 'number'
-  ) {
+  if ((isFinal || isLive) && typeof item.teamScore === 'number' && typeof item.opponentScore === 'number') {
     hasScore = true;
     teamScore = String(item.teamScore);
     opponentScore = String(item.opponentScore);
-    const normalizedResult = (item.resultLabel ?? item.result ?? '').trim().toUpperCase();
-    if (normalizedResult === 'W' || normalizedResult === 'L' || normalizedResult === 'T') {
-      result = normalizedResult;
-    } else if (item.teamScore === item.opponentScore) {
-      result = 'T';
+    if (isFinal) {
+      const normalizedResult = (item.resultLabel ?? item.result ?? '').trim().toUpperCase();
+      if (normalizedResult === 'W' || normalizedResult === 'L' || normalizedResult === 'T') {
+        result = normalizedResult;
+      } else if (item.teamScore === item.opponentScore) {
+        result = 'T';
+      }
     }
   }
 
@@ -3939,6 +3954,8 @@ function normalizeScheduleItem(item: EventItem) {
     teamScore,
     opponentScore,
     result,
+    isFinal,
+    isLive,
   };
 }
 
@@ -9605,10 +9622,13 @@ function EventCard({
     resultCardBackground
   );
 
+  const liveResultLabel = normalized.isLive ? 'LIVE NOW' : '';
   const resultLabel =
     normalized.result === 'W' || normalized.result === 'L'
       ? normalized.result
-      : null;
+      : normalized.result === 'T'
+      ? 'T'
+      : liveResultLabel || null;
   const matchupLabel =
     normalized.homeAway && normalized.opponent
       ? `${normalized.homeAway} ${normalized.opponent}`
@@ -12723,7 +12743,7 @@ function HomeScreen({
       ) : visibleRecentEvents.length === 0 ? (
         <View style={[styles.emptyCard, getThemeSurfaceCardStyle(theme)]}>
           <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-            No recent finals from the last 7 days.
+            No recent results from the last 7 days.
           </Text>
           <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
             Pull down to refresh and check again.
@@ -17002,7 +17022,9 @@ function ScheduleScreen({
                           : null,
                       ]}
                     >
-                      {item.result} {item.teamScore} - {item.opponentScore}
+                      {[item.result, `${item.teamScore} - ${item.opponentScore}`]
+                        .filter(Boolean)
+                        .join(' ')}
                     </Text>
                   ) : null}
 
@@ -17046,7 +17068,7 @@ function ScheduleScreen({
                           },
                         ]}
                       >
-                        {item.result || 'Final'}
+                        {item.isLive ? 'LIVE NOW' : item.result || 'Final'}
                       </Text>
                       <Text
                         style={[
@@ -17350,7 +17372,9 @@ function ScheduleScreen({
                             : null,
                         ]}
                       >
-                        {item.result} {item.teamScore} - {item.opponentScore}
+                          {[item.result, `${item.teamScore} - ${item.opponentScore}`]
+                            .filter(Boolean)
+                            .join(' ')}
                       </Text>
                     ) : null}
 
@@ -17394,7 +17418,7 @@ function ScheduleScreen({
                             },
                           ]}
                         >
-                          {item.result || 'Final'}
+                          {item.isLive ? 'LIVE NOW' : item.result || 'Final'}
                         </Text>
                         <Text
                           style={[
