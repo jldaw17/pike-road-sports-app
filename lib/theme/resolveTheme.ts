@@ -267,6 +267,65 @@ function isLightHexColor(hex: string) {
   return luminance > 0.68;
 }
 
+function normalizeThemeStyleChoice(
+  themeKey: string,
+  styleCategory:
+    | 'backgroundStyle'
+    | 'surfaceStyle'
+    | 'cardStyle'
+    | 'pillStyle'
+    | 'navStyle'
+    | 'heroStyle'
+    | 'newsStyle',
+  rawValue: string
+) {
+  const normalizedValue = normalizeThemeKey(rawValue);
+
+  if (themeKey !== 'gameday' || !normalizedValue) {
+    return normalizedValue;
+  }
+
+  switch (styleCategory) {
+    case 'backgroundStyle':
+      if (normalizedValue === 'gradient') {
+        return 'arena_dark';
+      }
+      return normalizedValue;
+    case 'surfaceStyle':
+      if (normalizedValue === 'contrast' || normalizedValue === 'charged_surface') {
+        return 'premium_surface';
+      }
+      return normalizedValue;
+    case 'cardStyle':
+      if (normalizedValue === 'elevated') {
+        return 'broadcast_panel';
+      }
+      return normalizedValue;
+    case 'pillStyle':
+      if (normalizedValue === 'solid' || normalizedValue === 'gameday_badge') {
+        return 'modern_badge';
+      }
+      return normalizedValue;
+    case 'navStyle':
+      if (normalizedValue === 'floating') {
+        return 'floating_crest';
+      }
+      return normalizedValue;
+    case 'heroStyle':
+      if (normalizedValue === 'showcase' || normalizedValue === 'gameday_gradient') {
+        return 'gameday_gradient';
+      }
+      return normalizedValue;
+    case 'newsStyle':
+      if (normalizedValue === 'showcase') {
+        return 'broadcast_cards';
+      }
+      return normalizedValue;
+    default:
+      return normalizedValue;
+  }
+}
+
 function resolveThemeSurfaceTokens(
   surfaceStyle: string,
   resolvedPrimary = '',
@@ -563,14 +622,47 @@ export function resolveAthleticOSTheme(
     ? { ...preset.styles }
     : {
         backgroundStyle:
-          normalizeThemeKey(config?.background_style) || preset.styles.backgroundStyle,
+          normalizeThemeStyleChoice(
+            themeKey,
+            'backgroundStyle',
+            config?.background_style || preset.styles.backgroundStyle
+          ) || preset.styles.backgroundStyle,
         surfaceStyle:
-          normalizeThemeKey(config?.surface_style) || preset.styles.surfaceStyle,
-        cardStyle: normalizeThemeKey(config?.card_style) || preset.styles.cardStyle,
-        pillStyle: normalizeThemeKey(config?.pill_style) || preset.styles.pillStyle,
-        navStyle: normalizeThemeKey(config?.nav_style) || preset.styles.navStyle,
-        heroStyle: normalizeThemeKey(config?.hero_style) || preset.styles.heroStyle,
-        newsStyle: normalizeThemeKey(config?.news_style) || preset.styles.newsStyle,
+          normalizeThemeStyleChoice(
+            themeKey,
+            'surfaceStyle',
+            config?.surface_style || preset.styles.surfaceStyle
+          ) || preset.styles.surfaceStyle,
+        cardStyle:
+          normalizeThemeStyleChoice(
+            themeKey,
+            'cardStyle',
+            config?.card_style || preset.styles.cardStyle
+          ) || preset.styles.cardStyle,
+        pillStyle:
+          normalizeThemeStyleChoice(
+            themeKey,
+            'pillStyle',
+            config?.pill_style || preset.styles.pillStyle
+          ) || preset.styles.pillStyle,
+        navStyle:
+          normalizeThemeStyleChoice(
+            themeKey,
+            'navStyle',
+            config?.nav_style || preset.styles.navStyle
+          ) || preset.styles.navStyle,
+        heroStyle:
+          normalizeThemeStyleChoice(
+            themeKey,
+            'heroStyle',
+            config?.hero_style || preset.styles.heroStyle
+          ) || preset.styles.heroStyle,
+        newsStyle:
+          normalizeThemeStyleChoice(
+            themeKey,
+            'newsStyle',
+            config?.news_style || preset.styles.newsStyle
+          ) || preset.styles.newsStyle,
       };
 
   const surfaceTokens = resolveThemeSurfaceTokens(

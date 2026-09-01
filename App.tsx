@@ -156,6 +156,10 @@ function isPremiumTheme(theme: AthleticOSResolvedTheme) {
   return theme.meta.themeKey === 'premium';
 }
 
+function isPremiumCloneTheme(theme: AthleticOSResolvedTheme) {
+  return isPremiumTheme(theme) || isGamedayTheme(theme);
+}
+
 function normalizeThemeLabel(value?: string) {
   return (value ?? '')
     .trim()
@@ -372,7 +376,7 @@ function getModernNavEmoji(iconKey?: string, fallbackLabel?: string) {
 }
 
 function getPlayerDetailBackButtonAppearance(theme: AthleticOSResolvedTheme) {
-  if (isPremiumTheme(theme)) {
+  if (isPremiumCloneTheme(theme)) {
     return {
       backgroundColor: withAlpha(theme.colors.text, 'E6'),
       borderColor: withAlpha(theme.colors.text, '22'),
@@ -1093,14 +1097,14 @@ function getThemeBaseBackgroundColor(theme: AthleticOSResolvedTheme) {
   }
 
   if (isGamedayTheme(theme)) {
-    return theme.colors.primary;
+    return BRAND.white;
   }
 
   return theme.colors.background;
 }
 
 function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (isPremiumTheme(theme)) {
+  if (isPremiumCloneTheme(theme)) {
     return {
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
@@ -1110,20 +1114,6 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
       shadowOpacity: 0.06,
       shadowRadius: 18,
       shadowOffset: { width: 0, height: 8 },
-      elevation: 4,
-    };
-  }
-
-  if (isGamedayTheme(theme)) {
-    return {
-      backgroundColor: withAlpha(theme.colors.secondary, 'F0'),
-      borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '54'),
-      borderRadius: 20,
-      shadowColor: withAlpha(theme.colors.secondary, '34'),
-      shadowOpacity: 0.18,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
       elevation: 4,
     };
   }
@@ -1178,7 +1168,7 @@ function getThemeHeroShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 }
 
 function getThemeCompactInnerHeroStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (isPremiumTheme(theme)) {
+  if (isPremiumCloneTheme(theme)) {
     return {
       marginTop: 0,
       marginBottom: 12,
@@ -1190,21 +1180,6 @@ function getThemeCompactInnerHeroStyle(theme: AthleticOSResolvedTheme): ViewStyl
       shadowOpacity: 0.04,
       shadowOffset: { width: 0, height: 4 },
       elevation: 2,
-    };
-  }
-
-  if (isGamedayTheme(theme)) {
-    return {
-      marginTop: 4,
-      marginBottom: 12,
-      borderRadius: 18,
-      paddingTop: 10,
-      paddingBottom: 12,
-      paddingHorizontal: 14,
-      shadowRadius: 12,
-      shadowOpacity: 0.16,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
     };
   }
 
@@ -1253,7 +1228,7 @@ function getModernInnerHeaderLogoStyle(theme: AthleticOSResolvedTheme): ViewStyl
 }
 
 function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (isPremiumTheme(theme)) {
+  if (isPremiumCloneTheme(theme)) {
     return {
       backgroundColor: theme.colors.card,
       borderRadius: 20,
@@ -1264,20 +1239,6 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 4 },
       elevation: 2,
-    };
-  }
-
-  if (isGamedayTheme(theme)) {
-    return {
-      backgroundColor: withAlpha(theme.colors.secondary, 'EA'),
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: withAlpha(theme.colors.primary, '48'),
-      shadowColor: withAlpha(theme.colors.secondary, '36'),
-      shadowOpacity: 0.18,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 4,
     };
   }
 
@@ -1356,7 +1317,7 @@ function getThemeCardShellStyle(theme: AthleticOSResolvedTheme): ViewStyle | nul
 }
 
 function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (isPremiumTheme(theme)) {
+  if (isPremiumCloneTheme(theme)) {
     return {
       backgroundColor: theme.colors.card,
       borderColor: withAlpha(theme.colors.text, '10'),
@@ -1367,20 +1328,6 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 4 },
       elevation: 2,
-    };
-  }
-
-  if (isGamedayTheme(theme)) {
-    return {
-      backgroundColor: withAlpha(theme.colors.secondary, 'E6'),
-      borderColor: withAlpha(theme.colors.primary, '46'),
-      borderWidth: 1,
-      borderRadius: 14,
-      shadowColor: withAlpha(theme.colors.secondary, '34'),
-      shadowOpacity: 0.16,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 4,
     };
   }
 
@@ -1461,7 +1408,7 @@ function getThemeSurfaceCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | n
 }
 
 function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (isPremiumTheme(theme)) {
+  if (isPremiumCloneTheme(theme)) {
     return {
       backgroundColor: theme.colors.surface,
       borderColor: withAlpha(theme.colors.text, '0C'),
@@ -1472,20 +1419,6 @@ function getThemeSoftCardStyle(theme: AthleticOSResolvedTheme): ViewStyle | null
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 3 },
       elevation: 1,
-    };
-  }
-
-  if (isGamedayTheme(theme)) {
-    return {
-      backgroundColor: withAlpha(theme.colors.secondary, 'D8'),
-      borderColor: withAlpha(theme.colors.primary, '3A'),
-      borderWidth: 1,
-      borderRadius: 12,
-      shadowColor: withAlpha(theme.colors.secondary, '2A'),
-      shadowOpacity: 0.13,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 3,
     };
   }
 
@@ -1587,7 +1520,7 @@ function getThemeTopIconGradient(theme: AthleticOSResolvedTheme) {
 }
 
 function getThemeEditorialPillStyle(theme: AthleticOSResolvedTheme): ViewStyle | null {
-  if (isPremiumTheme(theme)) {
+  if (isPremiumCloneTheme(theme)) {
     return {
       backgroundColor: theme.colors.primary,
       borderWidth: 0,
@@ -5193,7 +5126,7 @@ function renderPremiumScreenHeader({
   onBack?: () => void;
   rightAction?: React.ReactNode;
 }) {
-  if (!isPremiumTheme(theme)) {
+  if (!isPremiumCloneTheme(theme)) {
     return null;
   }
 
@@ -5358,7 +5291,7 @@ function NewsCard({
   );
 
   if (featured) {
-    if (isPremium || isSchoolPride) {
+    if (isPremiumCloneTheme(theme) || isSchoolPride) {
       return (
         <Pressable
           style={[
@@ -5445,7 +5378,7 @@ function NewsCard({
                     {
                       color: isSchoolPride
                         ? BRAND.white
-                        : isPremium
+                        : isPremiumCloneTheme(theme)
                         ? premiumFeaturedPillTextColor
                         : theme.colors.pillText,
                     },
@@ -5665,7 +5598,7 @@ function NewsCard({
     );
   }
 
-  if (isPremium) {
+  if (isPremiumCloneTheme(theme)) {
     return (
       <Pressable
         style={[
@@ -6114,7 +6047,7 @@ function StoryDetailScreen({
   const isGameday = isGamedayTheme(theme);
   const isGradientElite = isGradientEliteTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
-  const usePremiumLikeStoryDetail = isPremium || isSchoolPride;
+  const usePremiumLikeStoryDetail = isPremiumCloneTheme(theme) || isSchoolPride;
   const storyCropPresentation = getStoryCropPresentation(item);
   const shouldUseStoryCrop = Boolean(item.featuredImageUrl?.trim() && storyCropPresentation);
   const resolvedStoryImageSource = shouldUseStoryCrop
@@ -6526,7 +6459,7 @@ function StoryCarouselCard({
   const isPremium = isPremiumTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
 
-  if (isPremium) {
+  if (isPremiumCloneTheme(theme)) {
     return (
       <Pressable
         style={[
@@ -7085,7 +7018,7 @@ function VideoCarouselCard({
     );
   }
 
-  if (isPremium) {
+  if (isPremiumCloneTheme(theme)) {
     return (
       <Pressable
         style={[styles.videoCarouselCard, getThemeSurfaceCardStyle(theme)]}
@@ -9203,7 +9136,7 @@ function AthleteOfWeekDetailScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const imageUrl = item.featuredImageUrl || item.headshotUrl || null;
-  const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
 
   return (
     <ScrollView
@@ -9211,7 +9144,7 @@ function AthleteOfWeekDetailScreen({
       contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
       {renderGradientEliteBackdrop(theme)}
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'Athlete of the Week',
@@ -9233,8 +9166,8 @@ function AthleteOfWeekDetailScreen({
                 overflow: 'hidden',
               }
             : null,
-          isPremium ? getThemeHeroShellStyle(theme) : null,
-          isPremium ? getThemeCompactInnerHeroStyle(theme) : null,
+          isPremiumLike ? getThemeHeroShellStyle(theme) : null,
+          isPremiumLike ? getThemeCompactInnerHeroStyle(theme) : null,
           isCleanSlateTheme(theme) || isGamedayTheme(theme)
             ? getThemeHeroShellStyle(theme)
             : null,
@@ -9612,7 +9545,7 @@ function EventCard({
   const normalized = normalizeScheduleItem(item);
   const isModern = isModernTheme(theme);
   const isGameday = isGamedayTheme(theme);
-  const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const schoolPrideDepthColor = isSchoolPride ? getSchoolPrideDepthColor(theme) : '';
   const resultCardBackground = getRecentResultCardBackground(theme);
@@ -9653,7 +9586,7 @@ function EventCard({
           borderColor: theme.colors.border,
         },
         getThemeCardShellStyle(theme),
-        isPremium
+        isPremiumLike
           ? {
               backgroundColor: theme.colors.surface,
               borderColor: withAlpha(theme.colors.text, '10'),
@@ -9702,7 +9635,7 @@ function EventCard({
       ]}
       onPress={onPress}
     >
-      {isModern || isGameday || isSchoolPride || isPremium ? (
+      {isModern || isGameday || isSchoolPride || isPremiumLike ? (
         <View
           style={[
             styles.modernCardAccentBar,
@@ -9711,7 +9644,7 @@ function EventCard({
                 ? withAlpha(theme.colors.primary, 'D8')
                 : isSchoolPride
                 ? withAlpha(theme.colors.primary, 'DA')
-                : isPremium
+                : isPremiumLike
                 ? withAlpha(theme.colors.primary, 'C4')
                 : withAlpha(theme.colors.primary, 'CC'),
             },
@@ -9720,7 +9653,7 @@ function EventCard({
       ) : null}
       {!normalized.hasScore ? (
         <>
-          {isPremium ? (
+          {isPremiumLike ? (
             <View style={[styles.eventTopRow, { marginBottom: 8, justifyContent: 'flex-start' }]}>
               <Text
                 style={[
@@ -9762,7 +9695,7 @@ function EventCard({
                 styles.eventSportLine,
                 {
                   color: recentResultSportLabelColor,
-                  ...(isModern || isSchoolPride || isPremium
+                  ...(isModern || isSchoolPride || isPremiumLike
                     ? {
                         fontSize: 11,
                         letterSpacing: 0.75,
@@ -9796,7 +9729,7 @@ function EventCard({
                 style={[
                   styles.eventOpponentLine,
                   { color: theme.colors.text },
-                  isPremium
+                  isPremiumLike
                     ? {
                         fontSize: 17,
                         lineHeight: 22,
@@ -9819,15 +9752,15 @@ function EventCard({
                     color:
                       isSchoolPride
                         ? theme.colors.secondary
-                        : isPremium
+                        : isPremiumLike
                         ? theme.colors.text
                         : isModern || isGameday
                         ? theme.colors.primary
                         : theme.colors.text,
                     fontWeight:
-                      isPremium ? '700' : isModern || isGameday || isSchoolPride ? '800' : '700',
-                    fontSize: isPremium ? 13 : undefined,
-                    lineHeight: isPremium ? 18 : undefined,
+                      isPremiumLike ? '700' : isModern || isGameday || isSchoolPride ? '800' : '700',
+                    fontSize: isPremiumLike ? 13 : undefined,
+                    lineHeight: isPremiumLike ? 18 : undefined,
                   },
                 ]}
               >
@@ -9839,9 +9772,9 @@ function EventCard({
                     styles.eventMetaSecondary,
                     {
                       color: theme.colors.mutedText,
-                      fontSize: isPremium ? 12 : undefined,
-                      lineHeight: isPremium ? 16 : undefined,
-                      fontWeight: isPremium ? '600' : undefined,
+                      fontSize: isPremiumLike ? 12 : undefined,
+                      lineHeight: isPremiumLike ? 16 : undefined,
+                      fontWeight: isPremiumLike ? '600' : undefined,
                     },
                   ]}
                 >
@@ -9854,9 +9787,9 @@ function EventCard({
                     styles.eventMetaSecondary,
                     {
                       color: theme.colors.mutedText,
-                      fontSize: isPremium ? 12 : undefined,
-                      lineHeight: isPremium ? 16 : undefined,
-                      fontWeight: isPremium ? '500' : undefined,
+                      fontSize: isPremiumLike ? 12 : undefined,
+                      lineHeight: isPremiumLike ? 16 : undefined,
+                      fontWeight: isPremiumLike ? '500' : undefined,
                     },
                   ]}
                   numberOfLines={1}
@@ -9875,12 +9808,10 @@ function EventCard({
                   style={({ pressed }) => [
                     styles.eventAppCtaButton,
                     {
-                      backgroundColor: isPremium
+                      backgroundColor: isPremiumLike
                         ? withAlpha(theme.colors.primary, pressed ? '22' : '16')
                         : isSchoolPride
                         ? withAlpha(theme.colors.primary, pressed ? '20' : '14')
-                        : isGameday
-                        ? withAlpha(theme.colors.primary, pressed ? '24' : '18')
                         : isModern
                         ? withAlpha(theme.colors.primary, pressed ? '18' : '12')
                         : withAlpha(theme.colors.primary, pressed ? '18' : '10'),
@@ -9916,7 +9847,7 @@ function EventCard({
                         borderRadius: 8,
                         marginTop: -8,
                       }
-                    : isPremium
+                    : isPremiumLike
                     ? {
                         backgroundColor: theme.colors.cardAlt,
                         borderWidth: 1,
@@ -9924,20 +9855,12 @@ function EventCard({
                         borderRadius: 14,
                         marginTop: -4,
                       }
-                    : null,
-                  isModern
+                    : isModern
                     ? {
                         backgroundColor: withAlpha(theme.colors.primary, '08'),
                         borderWidth: 1,
                         borderColor: withAlpha(theme.colors.primary, '14'),
                         borderRadius: 12,
-                      }
-                    : isGameday
-                    ? {
-                        backgroundColor: withAlpha(theme.colors.surface, '14'),
-                        borderWidth: 1,
-                        borderColor: withAlpha(theme.colors.primary, '24'),
-                        borderRadius: 14,
                       }
                     : null,
                 ]}
@@ -10012,7 +9935,7 @@ function EventCard({
                 styles.eventSportLine,
                 {
                   color: recentResultSportLabelColor,
-                  ...(isModern || isSchoolPride || isPremium
+                  ...(isModern || isSchoolPride || isPremiumLike
                     ? {
                         fontSize: 11,
                         letterSpacing: 0.75,
@@ -10053,13 +9976,13 @@ function EventCard({
             ) : null}
           </View>
 
-          <View style={[styles.resultMainRow, isPremium ? styles.premiumResultMainRow : null]}>
-            <View style={[styles.resultTeamRowLeft, isPremium ? styles.premiumResultTeamRowLeft : null]}>
+          <View style={[styles.resultMainRow, isPremiumLike ? styles.premiumResultMainRow : null]}>
+            <View style={[styles.resultTeamRowLeft, isPremiumLike ? styles.premiumResultTeamRowLeft : null]}>
               {normalized.opponentLogoUrl ? (
                 <View
                   style={[
                     styles.resultLogoPlate,
-                    isPremium
+                    isPremiumLike
                       ? {
                           width: 34,
                           height: 34,
@@ -10087,7 +10010,7 @@ function EventCard({
               ) : null}
               <View
                 style={
-                  isPremium
+                  isPremiumLike
                     ? {
                         flex: 1,
                         minWidth: 0,
@@ -10100,7 +10023,7 @@ function EventCard({
                   style={[
                     styles.resultOpponentName,
                     { color: theme.colors.text },
-                    isPremium
+                    isPremiumLike
                       ? {
                           paddingRight: 0,
                           width: '100%',
@@ -10110,18 +10033,18 @@ function EventCard({
                       : null,
                   ]}
                   numberOfLines={
-                    isPremium ? premiumRecentResultOpponentDisplay.numberOfLines : 2
+                    isPremiumLike ? premiumRecentResultOpponentDisplay.numberOfLines : 2
                   }
-                  ellipsizeMode={isPremium ? 'clip' : 'tail'}
+                  ellipsizeMode={isPremiumLike ? 'clip' : 'tail'}
                   adjustsFontSizeToFit={
-                    isPremium ? premiumRecentResultOpponentDisplay.adjustsFontSizeToFit : false
+                    isPremiumLike ? premiumRecentResultOpponentDisplay.adjustsFontSizeToFit : false
                   }
                   minimumFontScale={
-                    isPremium ? premiumRecentResultOpponentDisplay.minimumFontScale : undefined
+                    isPremiumLike ? premiumRecentResultOpponentDisplay.minimumFontScale : undefined
                   }
                   allowFontScaling={false}
                 >
-                  {isPremium ? premiumRecentResultOpponentDisplay.text : matchupLabel}
+                  {isPremiumLike ? premiumRecentResultOpponentDisplay.text : matchupLabel}
                 </Text>
               </View>
             </View>
@@ -10129,7 +10052,7 @@ function EventCard({
               style={[
                 styles.resultScore,
                 { color: theme.colors.text },
-                isPremium
+                isPremiumLike
                   ? {
                       minWidth: 0,
                       marginLeft: 8,
@@ -10176,7 +10099,7 @@ function EventCard({
                 </Text>
               ) : null}
             </View>
-          ) : isPremium ? (
+          ) : isPremiumLike ? (
             <View
               style={{
                 marginTop: 12,
@@ -10213,10 +10136,10 @@ function EventCard({
                 styles.eventMeta,
                 {
                   color:
-                    isModern || isGameday || isPremium
+                    isModern || isGameday || isPremiumLike
                       ? theme.colors.primary
                       : theme.colors.text,
-                  fontWeight: isModern || isGameday || isPremium ? '800' : '700',
+                  fontWeight: isModern || isGameday || isPremiumLike ? '800' : '700',
                 },
               ]}
             >
@@ -10578,6 +10501,7 @@ function HomeScreen({
   const isModernHome = isModernTheme(theme);
   const isGamedayHome = isGamedayTheme(theme);
   const isPremiumHome = isPremiumTheme(theme);
+  const usePremiumHomeGeometry = isPremiumHome || isGamedayHome;
   const isSchoolPrideHome = isSchoolPrideTheme(theme);
   const isTrueCleanSlateHome = isCleanSlateTheme(theme) && !isModernHome;
   const schoolPrideDepthColor = isSchoolPrideHome ? getSchoolPrideDepthColor(theme) : '';
@@ -10764,7 +10688,7 @@ function HomeScreen({
     ? heroQuickActions.slice(0, 5)
     : fallbackHeroActions.slice(0, 5);
   const heroActionCount = resolvedHeroQuickActions.length;
-  const usePremiumLikeHome = isPremiumHome || isSchoolPrideHome;
+  const usePremiumLikeHome = usePremiumHomeGeometry || isSchoolPrideHome;
   const shouldScrollHeroActions = isModernHome || isGamedayHome || usePremiumLikeHome
     ? false
     : heroActionCount >= 4;
@@ -10884,7 +10808,7 @@ function HomeScreen({
     }
   }
 
-  const gamedayHeroPanelBackground = withAlpha(theme.colors.secondary, 'F2');
+  const gamedayHeroPanelBackground = theme.colors.primary;
   const gamedayHeroPanelTextColor = getGamedayReadableTextColor(
     theme,
     gamedayHeroPanelBackground
@@ -10893,6 +10817,21 @@ function HomeScreen({
     theme,
     gamedayHeroPanelBackground
   );
+  const gamedayHeroShellGradient = [
+    theme.colors.primary,
+    theme.colors.primary,
+    theme.colors.primary,
+  ];
+  if (isGamedayHome) {
+    console.log('GAMEDAY-HERO-DEBUG-V3', {
+      themeKey: theme.meta.themeKey,
+      isGamedayTheme: isGamedayTheme(theme),
+      isPremiumCloneTheme: isPremiumCloneTheme(theme),
+      themePrimary: theme.colors.primary,
+      gamedayHeroShellGradient,
+      heroBackgroundColor: theme.colors.primary,
+    });
+  }
   const gamedayActionBarBackground = withAlpha(theme.colors.secondary, 'EA');
   const gamedaySponsorPanelBackground = withAlpha(theme.colors.primary, '16');
   const gamedaySponsorPanelTextColor = getGamedayReadableTextColor(
@@ -11325,7 +11264,7 @@ function HomeScreen({
                   theme={theme}
                 />
               ) : null}
-              {liveCoverageSponsorName && !isPremiumTheme(theme) && !isSchoolPrideTheme(theme) ? (
+              {liveCoverageSponsorName && !isPremiumCloneTheme(theme) && !isSchoolPrideTheme(theme) ? (
                 <Text
                   style={[
                     styles.liveCoverageSponsorBadgeName,
@@ -11407,6 +11346,20 @@ function HomeScreen({
       iconColor: getGamedayReadableTextColor(theme, withAlpha(theme.colors.primary, '18')),
       pulseColor: theme.colors.accent,
     };
+    const premiumLikeStatusPillPalette = isGamedayHome
+      ? gamedayStatusPalette
+      : statusPillPalette;
+    if (isGamedayHome) {
+      console.log('GAMEDAY-PILL-DEBUG-V3', {
+        themeKey: theme.meta.themeKey,
+        isGamedayTheme: isGamedayTheme(theme),
+        isPremiumCloneTheme: isPremiumCloneTheme(theme),
+        themePrimary: theme.colors.primary,
+        backgroundColor: premiumLikeStatusPillPalette.backgroundColor,
+        textColor: premiumLikeStatusPillPalette.textColor,
+        iconColor: premiumLikeStatusPillPalette.iconColor,
+      });
+    }
     const schoolPrideLiveBaseColor = BRAND.black;
     const schoolPrideLiveTextColor = getSchoolPrideReadableTextColor(schoolPrideLiveBaseColor);
     const schoolPrideLiveMutedTextColor = getSchoolPrideReadableMutedTextColor(
@@ -11463,7 +11416,7 @@ function HomeScreen({
         key="live_coverage"
         style={({ pressed }) => [
           styles.liveNowCard,
-          isAnythingLive && !isGamedayHome ? styles.liveNowCardLive : null,
+          isAnythingLive && !isSchoolPrideHome ? styles.liveNowCardLive : null,
           {
             backgroundColor: theme.colors.card,
             borderColor:
@@ -11472,7 +11425,7 @@ function HomeScreen({
                 : theme.colors.border,
           },
           getThemeCardShellStyle(theme),
-                isPremiumTheme(theme)
+                isPremiumCloneTheme(theme)
                   ? {
                       borderRadius: 22,
                       backgroundColor: theme.colors.surface,
@@ -11534,19 +11487,6 @@ function HomeScreen({
                 shadowRadius: 12,
                 shadowOffset: { width: 0, height: 4 },
                 elevation: 3,
-              }
-            : isGamedayHome
-            ? {
-                backgroundColor: gamedayLiveCardBackground,
-                borderRadius: 18,
-                borderColor: withAlpha(gamedayLiveHighlightColor, statusPillIsLive ? '7A' : '44'),
-                paddingHorizontal: 13,
-                paddingVertical: 12,
-                shadowColor: withAlpha(gamedayLiveHighlightColor, statusPillIsLive ? '60' : '3A'),
-                shadowOpacity: statusPillIsLive ? 0.26 : 0.14,
-                shadowRadius: statusPillIsLive ? 14 : 10,
-                shadowOffset: { width: 0, height: 4 },
-                elevation: statusPillIsLive ? 5 : 3,
               }
             : null,
           isTrueCleanSlateHome
@@ -11773,7 +11713,7 @@ function HomeScreen({
               )}
             </View>
           </View>
-        ) : isPremiumTheme(theme) ? (
+        ) : isPremiumCloneTheme(theme) ? (
           <View style={{ flex: 1 }}>
             <View
               style={{
@@ -11886,9 +11826,9 @@ function HomeScreen({
                   style={[
                     styles.heroStatusPill,
                     {
-                      backgroundColor: statusPillPalette.backgroundColor,
+                      backgroundColor: premiumLikeStatusPillPalette.backgroundColor,
                       borderWidth: 1,
-                      borderColor: statusPillPalette.borderColor,
+                      borderColor: premiumLikeStatusPillPalette.borderColor,
                       borderRadius: 999,
                       minWidth: 0,
                       paddingHorizontal: 9,
@@ -11906,7 +11846,7 @@ function HomeScreen({
                   <Ionicons
                     name={statusPillIcon}
                     size={15}
-                    color={statusPillPalette.iconColor}
+                    color={premiumLikeStatusPillPalette.iconColor}
                     style={styles.heroStatusIcon}
                   />
 
@@ -11914,7 +11854,7 @@ function HomeScreen({
                     style={[
                       styles.heroStatusText,
                       {
-                        color: statusPillPalette.textColor,
+                        color: premiumLikeStatusPillPalette.textColor,
                         fontSize: 11,
                       },
                     ]}
@@ -13536,7 +13476,9 @@ function HomeScreen({
             style={[
               styles.homeHeader,
               {
-                backgroundColor: isSchoolPrideHome ? schoolPrideSurfaceColor : theme.colors.surface,
+                backgroundColor: isSchoolPrideHome
+                  ? schoolPrideSurfaceColor
+                  : theme.colors.surface,
                 borderWidth: 1,
                 borderColor: isSchoolPrideHome
                   ? schoolPrideBorderColor
@@ -13677,10 +13619,14 @@ function HomeScreen({
                         {
                           backgroundColor: isSchoolPrideHome
                             ? schoolPrideSoftSurfaceColor
+                            : isGamedayHome
+                            ? withAlpha(theme.colors.primary, '16')
                             : theme.colors.surface,
                           borderWidth: 1,
                           borderColor: isSchoolPrideHome
                             ? schoolPrideBorderColor
+                            : isGamedayHome
+                            ? withAlpha(theme.colors.primary, '38')
                             : withAlpha(theme.colors.text, '0C'),
                           borderRadius: 16,
                           paddingHorizontal: 12,
@@ -13738,9 +13684,13 @@ function HomeScreen({
               style={[
                 getThemeSurfaceCardStyle(theme),
                 {
-                  backgroundColor: isSchoolPrideHome ? schoolPrideSurfaceColor : theme.colors.surface,
+                  backgroundColor: isSchoolPrideHome
+                    ? schoolPrideSurfaceColor
+                    : theme.colors.surface,
                   borderWidth: isSchoolPrideHome ? 1 : 0,
-                  borderColor: isSchoolPrideHome ? schoolPrideBorderColor : 'transparent',
+                  borderColor: isSchoolPrideHome
+                    ? schoolPrideBorderColor
+                    : 'transparent',
                   borderRadius: 20,
                   paddingHorizontal: isSchoolPrideHome ? 10 : 12,
                   paddingVertical: isSchoolPrideHome ? 10 : 12,
@@ -13777,14 +13727,15 @@ function HomeScreen({
         </>
       ) : isGamedayHome ? (
         <LinearGradient
-          colors={getThemeHeroGradient(theme)}
+          colors={gamedayHeroShellGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
             styles.homeHeader,
             styles.gamedayHomeHeader,
             {
-              borderColor: withAlpha(theme.colors.secondary, '34'),
+              backgroundColor: theme.colors.primary,
+              borderColor: withAlpha(gamedayHeroPanelTextColor, '24'),
             },
           ]}
         >
@@ -13793,7 +13744,7 @@ function HomeScreen({
               styles.gamedayHeroIdentityPanel,
               {
                 backgroundColor: gamedayHeroPanelBackground,
-                borderColor: withAlpha(theme.colors.primary, '42'),
+                borderColor: withAlpha(gamedayHeroPanelTextColor, '22'),
               },
             ]}
           >
@@ -14905,7 +14856,7 @@ function TeamsScreen({
 }) {
   const isSchoolPride = isSchoolPrideTheme(theme);
   const isPremium = isPremiumTheme(theme);
-  const usePremiumLikeTeams = isPremium || isSchoolPride;
+  const usePremiumLikeTeams = isPremiumCloneTheme(theme) || isSchoolPride;
   const heroSchoolName =
     schoolDisplayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
     'Athletics';
@@ -15826,6 +15777,9 @@ function MediaScreen({
     displayName?.replace(/\bHigh School\b/gi, '').replace(/\s{2,}/g, ' ').trim() ||
     'Media';
   const heroMascot = mascotName?.trim() || '';
+  const liveCoverageHeroGradient = isGamedayTheme(theme)
+    ? [theme.colors.surface, theme.colors.surface, theme.colors.background]
+    : getThemeHeroGradient(theme);
 
   const renderMediaAction = (
     key: string,
@@ -16024,7 +15978,7 @@ function MediaScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      {!isSchoolPrideTheme(theme) ? (
+      {!isSchoolPrideTheme(theme) && !isGamedayTheme(theme) ? (
         <LinearGradient
           colors={getThemeBackdropGradient(theme)}
           style={styles.teamsScreenBackdrop}
@@ -16033,7 +15987,7 @@ function MediaScreen({
       ) : null}
 
       <LinearGradient
-        colors={getThemeHeroGradient(theme)}
+        colors={liveCoverageHeroGradient}
         style={[
           styles.teamsHubHero,
           styles.newsHubHero,
@@ -16239,6 +16193,7 @@ function ScheduleScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isTeamVariant = variant === 'team';
   const scheduleScrollRef = useRef<ScrollView | null>(null);
   const compositeOffsetsRef = useRef<Record<number, number>>({});
@@ -16547,7 +16502,7 @@ function ScheduleScreen({
       contentContainerStyle={[styles.screenContent, { backgroundColor: getThemeBaseBackgroundColor(theme) }]}
     >
       {renderGradientEliteBackdrop(theme)}
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'Schedule',
@@ -16811,7 +16766,7 @@ function ScheduleScreen({
                 key={item.id}
                 style={[
                   styles.teamScheduleCard,
-                  isPremium
+                  isPremiumLike
                     ? {
                         backgroundColor: theme.colors.surface,
                         borderColor: withAlpha(theme.colors.text, '0C'),
@@ -16853,7 +16808,7 @@ function ScheduleScreen({
                     <View
                       style={[
                         styles.teamScheduleLogoPlate,
-                        isPremium
+                        isPremiumLike
                           ? {
                               backgroundColor: theme.colors.cardAlt,
                               borderColor: withAlpha(theme.colors.text, '0C'),
@@ -16894,7 +16849,7 @@ function ScheduleScreen({
                 </View>
 
                 <View style={styles.teamScheduleCenterColumn}>
-                  {isPremium ? (
+                  {isPremiumLike ? (
                     <Text
                       style={[
                         styles.teamScheduleStatus,
@@ -16950,7 +16905,7 @@ function ScheduleScreen({
                   <Text
                     style={[
                       styles.teamScheduleMatchup,
-                      isPremium
+                      isPremiumLike
                         ? {
                             color: theme.colors.text,
                             fontSize: 17,
@@ -16979,11 +16934,11 @@ function ScheduleScreen({
                   </Text>
 
                   {item.statusLabel ? (
-                    !isPremium || !item.hasScore ? (
+                    !isPremiumLike || !item.hasScore ? (
                       <Text
                         style={[
                           styles.teamScheduleStatus,
-                          isPremium
+                          isPremiumLike
                             ? {
                                 color: theme.colors.text,
                                 fontSize: 12,
@@ -17008,7 +16963,7 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.scoreText,
-                        isPremium
+                        isPremiumLike
                           ? {
                               color: theme.colors.text,
                               fontSize: 14,
@@ -17032,7 +16987,7 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleLocation,
-                        isPremium
+                        isPremiumLike
                           ? {
                               color: theme.colors.mutedText,
                               fontSize: 12,
@@ -17055,7 +17010,7 @@ function ScheduleScreen({
                 </View>
 
                 <View style={styles.teamScheduleRightColumn}>
-                  {isPremium && item.hasScore && item.teamScore && item.opponentScore ? (
+                  {isPremiumLike && item.hasScore && item.teamScore && item.opponentScore ? (
                     <>
                       <Text
                         style={[
@@ -17089,7 +17044,7 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleDate,
-                          isPremium
+                          isPremiumLike
                             ? {
                                 color: theme.colors.text,
                                 fontSize: 13,
@@ -17111,7 +17066,7 @@ function ScheduleScreen({
                         <Text
                           style={[
                             styles.teamScheduleTime,
-                            isPremium
+                            isPremiumLike
                               ? {
                                   color: theme.colors.mutedText,
                                   fontSize: 12,
@@ -17142,7 +17097,7 @@ function ScheduleScreen({
                   key={item.id}
                 style={[
                   styles.teamScheduleCard,
-                  isPremium
+                  isPremiumLike
                     ? {
                         backgroundColor: theme.colors.surface,
                         borderColor: withAlpha(theme.colors.text, '0C'),
@@ -17203,7 +17158,7 @@ function ScheduleScreen({
                       <View
                       style={[
                         styles.teamScheduleLogoPlate,
-                        isPremium
+                        isPremiumLike
                           ? {
                               backgroundColor: theme.colors.cardAlt,
                               borderColor: withAlpha(theme.colors.text, '0C'),
@@ -17244,7 +17199,7 @@ function ScheduleScreen({
                   </View>
 
                   <View style={styles.teamScheduleCenterColumn}>
-                    {isPremium ? (
+                    {isPremiumLike ? (
                       <Text
                         style={[
                           styles.teamScheduleStatus,
@@ -17300,7 +17255,7 @@ function ScheduleScreen({
                     <Text
                       style={[
                         styles.teamScheduleMatchup,
-                        isPremium
+                        isPremiumLike
                           ? {
                               color: theme.colors.text,
                               fontSize: 17,
@@ -17329,11 +17284,11 @@ function ScheduleScreen({
                     </Text>
 
                     {item.statusLabel ? (
-                      !isPremium || !item.hasScore ? (
+                      !isPremiumLike || !item.hasScore ? (
                         <Text
                           style={[
                             styles.teamScheduleStatus,
-                            isPremium
+                            isPremiumLike
                               ? {
                                   color: theme.colors.text,
                                   fontSize: 12,
@@ -17358,7 +17313,7 @@ function ScheduleScreen({
                       <Text
                         style={[
                           styles.teamScheduleScore,
-                          isPremium
+                          isPremiumLike
                             ? {
                                 color: theme.colors.text,
                                 fontSize: 14,
@@ -17382,7 +17337,7 @@ function ScheduleScreen({
                       <Text
                       style={[
                         styles.teamScheduleLocation,
-                        isPremium
+                        isPremiumLike
                           ? {
                               color: theme.colors.mutedText,
                               fontSize: 12,
@@ -17405,7 +17360,7 @@ function ScheduleScreen({
                   </View>
 
                   <View style={styles.teamScheduleRightColumn}>
-                    {isPremium && item.hasScore && item.teamScore && item.opponentScore ? (
+                    {isPremiumLike && item.hasScore && item.teamScore && item.opponentScore ? (
                       <>
                         <Text
                           style={[
@@ -17439,7 +17394,7 @@ function ScheduleScreen({
                         <Text
                           style={[
                             styles.teamScheduleDate,
-                            isPremium
+                            isPremiumLike
                               ? {
                                   color: theme.colors.text,
                                   fontSize: 13,
@@ -17461,7 +17416,7 @@ function ScheduleScreen({
                           <Text
                             style={[
                               styles.teamScheduleTime,
-                            isPremium
+                            isPremiumLike
                               ? {
                                   color: theme.colors.mutedText,
                                   fontSize: 12,
@@ -17520,6 +17475,7 @@ function RosterScreen({
   const isCleanSlate = isCleanSlateTheme(theme);
   const isModern = isModernTheme(theme);
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const rosterEntries = athletes ?? [];
   const sortedRoster = useMemo(() => {
@@ -17595,7 +17551,7 @@ function RosterScreen({
       }
     >
       {renderGradientEliteBackdrop(theme)}
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'Roster',
@@ -17827,7 +17783,7 @@ function RosterScreen({
                   justifyContent: 'flex-start',
                   columnGap: 10,
                 }
-              : isPremium
+              : isPremiumLike
                 ? {
                     flexDirection: 'row',
                     flexWrap: 'wrap',
@@ -17840,7 +17796,7 @@ function RosterScreen({
           <View
             style={[
               styles.rosterSortRow,
-              isSchoolPride || isPremium ? { width: '100%' } : null,
+              isSchoolPride || isPremiumLike ? { width: '100%' } : null,
             ]}
           >
             {([
@@ -17861,7 +17817,7 @@ function RosterScreen({
                             backgroundColor: theme.colors.primary,
                             borderColor: theme.colors.primary,
                           }
-                        : isPremium
+                        : isPremiumLike
                           ? {
                               backgroundColor: theme.colors.primary,
                               borderColor: theme.colors.primary,
@@ -17880,7 +17836,7 @@ function RosterScreen({
                             backgroundColor: getSchoolPrideSoftSurfaceColor(),
                             borderColor: getSchoolPrideBorderColor(),
                           }
-                      : isPremium
+                      : isPremiumLike
                         ? {
                             backgroundColor: theme.colors.surface,
                             borderColor: withAlpha(theme.colors.text, '0C'),
@@ -18032,7 +17988,7 @@ function RosterScreen({
                         theme={theme}
                       />
                     </View>
-                  ) : isPremium ? (
+                  ) : isPremiumLike ? (
                     <View
                       style={{
                         width: '100%',
@@ -18131,7 +18087,7 @@ function RosterScreen({
                       color={
                         isSchoolPride
                           ? theme.colors.primary
-                        : isPremium
+                        : isPremiumLike
                             ? BRAND.white
                           : isCleanSlate
                           ? theme.colors.buttonText
@@ -18151,7 +18107,7 @@ function RosterScreen({
                           width: '100%',
                           paddingTop: 0,
                         }
-                      : isPremium
+                      : isPremiumLike
                         ? {
                             width: '100%',
                             paddingTop: 0,
@@ -18169,7 +18125,7 @@ function RosterScreen({
                             flexDirection: 'column',
                             gap: 2,
                           }
-                      : isPremium
+                      : isPremiumLike
                           ? {
                               alignItems: 'flex-start',
                               justifyContent: 'flex-start',
@@ -18189,7 +18145,7 @@ function RosterScreen({
                               lineHeight: 16,
                               fontWeight: '900',
                             }
-                        : isPremium
+                        : isPremiumLike
                           ? {
                               color: theme.colors.text,
                               flex: 1,
@@ -18215,7 +18171,7 @@ function RosterScreen({
                     >
                       {displayName}
                     </Text>
-                    {!isPremium && numberLabel ? (
+                    {!isPremiumLike && numberLabel ? (
                       <Text
                         style={[
                           styles.rosterNumber,
@@ -18240,7 +18196,7 @@ function RosterScreen({
                     ) : null}
                   </View>
 
-                  {isPremium ? (
+                  {isPremiumLike ? (
                     premiumMetaPrimary ? (
                       <Text
                         style={[
@@ -18281,7 +18237,7 @@ function RosterScreen({
                       {metaBits}
                     </Text>
                   ) : null}
-                  {(isPremium ? premiumMetaSecondary : sizeBits) ? (
+                  {(isPremiumLike ? premiumMetaSecondary : sizeBits) ? (
                     <Text
                       style={[
                         styles.rosterMetaSecondary,
@@ -18292,7 +18248,7 @@ function RosterScreen({
                               lineHeight: 12,
                               marginTop: 3,
                             }
-                        : isPremium
+                        : isPremiumLike
                           ? {
                               color: theme.colors.mutedText,
                               fontSize: 10,
@@ -18308,7 +18264,7 @@ function RosterScreen({
                             : null,
                       ]}
                     >
-                      {isPremium ? premiumMetaSecondary : sizeBits}
+                      {isPremiumLike ? premiumMetaSecondary : sizeBits}
                     </Text>
                   ) : null}
                 </View>
@@ -18324,7 +18280,7 @@ function RosterScreen({
                   style={
                     isSchoolPride
                       ? { alignSelf: 'flex-end', marginTop: 6 }
-                      : isPremium
+                      : isPremiumLike
                         ? { alignSelf: 'flex-end', marginTop: 8 }
                         : styles.newsChevron
                   }
@@ -18350,6 +18306,7 @@ function AthleteProfileScreen({
   const isCleanSlate = isCleanSlateTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const backButtonAppearance = getPlayerDetailBackButtonAppearance(theme);
   const imageUrl = athlete.photoUrl?.trim() || '';
   const numberLabel = athlete.jerseyNumber || athlete.number || '';
@@ -18435,7 +18392,7 @@ function AthleteProfileScreen({
               : null,
           ]}
         >
-          {isPremium ? (
+          {isPremiumLike ? (
             <View
               style={[
                 getThemeSurfaceCardStyle(theme),
@@ -18636,12 +18593,12 @@ function AthleteProfileScreen({
 
         {((!isSchoolPride && !isCleanSlate) || athlete.bio) ? (
           <View style={[styles.rosterProfileCard, getThemeSoftCardStyle(theme)]}>
-            {!isSchoolPride && !isCleanSlate && !isPremium && infoRows.length > 0 ? (
+            {!isSchoolPride && !isCleanSlate && !isPremiumLike && infoRows.length > 0 ? (
               <Text style={[styles.rosterProfileMeta, { color: theme.colors.text }]}>
                 {infoRows.join(' • ')}
               </Text>
             ) : null}
-            {!isSchoolPride && !isCleanSlate && !isPremium
+            {!isSchoolPride && !isCleanSlate && !isPremiumLike
               ? bodyRows.map((row) => (
                   <Text key={row} style={[styles.rosterProfileDetail, { color: theme.colors.mutedText }]}>
                     {row}
@@ -18687,6 +18644,7 @@ function CoachingStaffScreen({
   const [staffMembers, setStaffMembers] = useState<AthleticOSSportStaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const isModern = isModernTheme(theme);
   const isCleanSlate = isCleanSlateTheme(theme);
@@ -18751,7 +18709,7 @@ function CoachingStaffScreen({
       ]}
     >
       {renderGradientEliteBackdrop(theme)}
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'Coaching Staff',
@@ -21279,6 +21237,7 @@ function NewsListScreen({
     'Athletics';
   const heroMascot = mascotName?.trim() || '';
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
 
   return (
@@ -21289,7 +21248,7 @@ function NewsListScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      {!isSchoolPride && !isPremium ? (
+      {!isSchoolPride && !isPremiumLike ? (
         <LinearGradient
           colors={getThemeBackdropGradient(theme)}
           style={styles.teamsScreenBackdrop}
@@ -21297,7 +21256,7 @@ function NewsListScreen({
         />
       ) : null}
 
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'Latest News',
@@ -21610,7 +21569,7 @@ function NewsListScreen({
                 })}
               </View>
             </View>
-          ) : isPremium ? (
+          ) : isPremiumLike ? (
             newsItems.map((item, index) => {
               const summary = item.summary?.trim() || item.description?.trim() || '';
 
@@ -21988,6 +21947,7 @@ function GamecastScreen({
   const hasLeaders = gamecast.leaders.length > 0;
   const hasTeamComparison = gamecast.teamComparison.length > 0;
   const topSummaryItems = gamecast.summaryItems.slice(0, 4);
+  const isPremiumLike = isPremiumCloneTheme(theme);
 
   return (
     <ScrollView
@@ -21997,7 +21957,7 @@ function GamecastScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      {isPremiumTheme(theme)
+      {isPremiumLike
         ? renderPremiumScreenHeader({
             theme,
             eyebrow: 'Live Gamecast',
@@ -22419,6 +22379,7 @@ function StatsHubScreen({
   const isCleanSlate = isCleanSlateTheme(theme);
   const isGradientElite = isGradientEliteTheme(theme);
   const isModern = isModernTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
 
   return (
     <ScrollView
@@ -22428,7 +22389,7 @@ function StatsHubScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      {isPremiumTheme(theme)
+      {isPremiumLike
         ? renderPremiumScreenHeader({
             theme,
             eyebrow: 'LIVE STATS',
@@ -22989,19 +22950,12 @@ function MoreListRow({
   trailing?: React.ReactNode;
   theme?: AthleticOSResolvedTheme;
 }) {
-  const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <Pressable
       style={[
         styles.teamListCard,
-        isGamedayTheme(theme)
-          ? {
-              backgroundColor: withAlpha(theme.colors.secondary, 'EA'),
-              borderColor: withAlpha(theme.colors.primary, '42'),
-              borderRadius: 14,
-            }
-          : null,
         isSchoolPride
           ? {
               backgroundColor: getSchoolPrideSurfaceColor(),
@@ -23011,7 +22965,7 @@ function MoreListRow({
               borderRadius: 6,
             }
           : null,
-        isPremium
+        isPremiumLike
           ? {
               backgroundColor: theme.colors.surface,
               borderColor: withAlpha(theme.colors.text, '0C'),
@@ -23038,7 +22992,7 @@ function MoreListRow({
               color:
                 isSchoolPride
                   ? getSchoolPrideTextColor()
-                : isPremium
+                : isPremiumLike
                   ? theme.colors.text
                 : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.text
@@ -23058,7 +23012,7 @@ function MoreListRow({
                 color:
                   isSchoolPride
                     ? getSchoolPrideMutedTextColor()
-                  : isPremium
+                  : isPremiumLike
                     ? theme.colors.mutedText
                   : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.mutedText
@@ -23079,7 +23033,7 @@ function MoreListRow({
           color={
             isSchoolPride
               ? theme.colors.primary
-            : isPremium
+            : isPremiumLike
               ? theme.colors.primary
             : isCleanSlateTheme(theme) || isGamedayTheme(theme)
               ? theme.colors.text
@@ -23125,6 +23079,7 @@ function MoreScreen({
     'More';
   const heroMascot = mascotName?.trim() || '';
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const renderSettingRow = (
     key: string,
@@ -23137,13 +23092,7 @@ function MoreScreen({
       key={key}
       style={[
         styles.moreSettingsRow,
-        isGamedayTheme(theme)
-          ? {
-              backgroundColor: withAlpha(theme.colors.secondary, 'EA'),
-              borderColor: withAlpha(theme.colors.primary, '42'),
-              borderRadius: 14,
-            }
-          : isSchoolPride
+        isSchoolPride
           ? {
               backgroundColor: getSchoolPrideSurfaceColor(),
               borderColor: getSchoolPrideBorderColor(),
@@ -23151,7 +23100,7 @@ function MoreScreen({
               borderTopColor: getSchoolPrideBorderColor(),
               borderRadius: 6,
             }
-          : isPremium
+          : isPremiumLike
           ? {
               backgroundColor: theme.colors.surface,
               borderColor: withAlpha(theme.colors.text, '0C'),
@@ -23198,7 +23147,7 @@ function MoreScreen({
         { backgroundColor: getThemeBaseBackgroundColor(theme) },
       ]}
     >
-      {!isSchoolPride && !isPremium ? (
+      {!isSchoolPride && !isPremiumLike ? (
         <LinearGradient
           colors={getThemeBackdropGradient(theme)}
           style={styles.teamsScreenBackdrop}
@@ -23206,7 +23155,7 @@ function MoreScreen({
         />
       ) : null}
 
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'More',
@@ -23231,7 +23180,7 @@ function MoreScreen({
                 overflow: 'hidden',
               }
             : null,
-          isPremium
+          isPremiumLike
             ? {
                 paddingTop: 12,
                 paddingBottom: 12,
@@ -23392,7 +23341,7 @@ function MoreScreen({
             <View
               style={[
                 styles.teamDirectoryAccent,
-                { backgroundColor: isPremium ? withAlpha(theme.colors.primary, 'B8') : theme.colors.accent },
+                { backgroundColor: isPremiumLike ? withAlpha(theme.colors.primary, 'B8') : theme.colors.accent },
               ]}
             />
           ) : null}
@@ -23459,10 +23408,10 @@ function MoreScreen({
           style={[
             styles.moreSettingsPanel,
             {
-              backgroundColor: isGradientEliteTheme(theme) ? '#050505' : isPremium ? theme.colors.surface : theme.colors.cardAlt,
+              backgroundColor: isGradientEliteTheme(theme) ? '#050505' : isPremiumLike ? theme.colors.surface : theme.colors.cardAlt,
               borderColor: isGradientEliteTheme(theme)
                 ? 'rgba(255,255,255,0.18)'
-                : isPremium
+                : isPremiumLike
                 ? withAlpha(theme.colors.text, '0C')
                 : theme.colors.border,
             },
@@ -23478,13 +23427,6 @@ function MoreScreen({
             isCleanSlateTheme(theme)
               ? {
                   borderRadius: 5,
-                }
-              : null,
-            isGamedayTheme(theme)
-              ? {
-                  backgroundColor: withAlpha(theme.colors.secondary, 'D8'),
-                  borderColor: withAlpha(theme.colors.primary, '38'),
-                  borderRadius: 16,
                 }
               : null,
           ]}
@@ -23532,7 +23474,7 @@ function ManageTeamsScreen({
   theme?: AthleticOSResolvedTheme;
 }) {
   const isLightMode = themeMode === 'light';
-  const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <ScrollView
@@ -23550,7 +23492,7 @@ function ManageTeamsScreen({
           pointerEvents="none"
         />
       ) : null}
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'My Teams',
@@ -23571,8 +23513,6 @@ function ManageTeamsScreen({
                 overflow: 'hidden',
               }
             : null,
-          isPremium ? getThemeHeroShellStyle(theme) : null,
-          isPremium ? getThemeCompactInnerHeroStyle(theme) : null,
           isCleanSlateTheme(theme) || isGamedayTheme(theme)
             ? getThemeHeroShellStyle(theme)
             : null,
@@ -23601,13 +23541,6 @@ function ManageTeamsScreen({
                   borderRadius: 4,
                 }
               : null,
-            isPremium
-              ? {
-                  backgroundColor: theme.colors.cardAlt,
-                  borderColor: withAlpha(theme.colors.text, '0C'),
-                  borderRadius: 999,
-                }
-              : null,
             isGamedayTheme(theme)
               ? {
                   backgroundColor: withAlpha(theme.colors.primary, '18'),
@@ -23626,8 +23559,6 @@ function ManageTeamsScreen({
             color={
               isSchoolPride
                 ? theme.colors.primary
-              : isPremium
-                ? theme.colors.text
               : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                 ? theme.colors.text
                 : BRAND.white
@@ -23640,8 +23571,6 @@ function ManageTeamsScreen({
                 color:
                   isSchoolPride
                     ? theme.colors.primary
-                  : isPremium
-                    ? theme.colors.text
                   : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                     ? theme.colors.text
                     : BRAND.white,
@@ -23658,8 +23587,6 @@ function ManageTeamsScreen({
               color:
                 isSchoolPride
                   ? getSchoolPrideTextColor()
-                : isPremium
-                  ? theme.colors.text
                 : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.text
                   : BRAND.white,
@@ -23702,13 +23629,7 @@ function ManageTeamsScreen({
                 key={sport.id}
                 style={[
                   styles.teamListCard,
-                  isGamedayTheme(theme)
-                    ? {
-                        backgroundColor: withAlpha(theme.colors.secondary, 'EA'),
-                        borderColor: withAlpha(theme.colors.primary, '42'),
-                        borderRadius: 14,
-                      }
-                    : isSchoolPride
+                  isSchoolPride
                     ? {
                         backgroundColor: getSchoolPrideSurfaceColor(),
                         borderColor: getSchoolPrideBorderColor(),
@@ -23717,7 +23638,7 @@ function ManageTeamsScreen({
                         borderRadius: 6,
                       }
                     : null,
-                  isPremium
+                  isPremiumLike
                     ? {
                         backgroundColor: theme.colors.surface,
                         borderColor: withAlpha(theme.colors.text, '0C'),
@@ -23742,7 +23663,7 @@ function ManageTeamsScreen({
                         color:
                           isSchoolPride
                             ? getSchoolPrideTextColor()
-                          : isPremium
+                          : isPremiumLike
                             ? theme.colors.text
                           : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                             ? theme.colors.text
@@ -23761,7 +23682,7 @@ function ManageTeamsScreen({
                         color:
                           isSchoolPride
                             ? getSchoolPrideMutedTextColor()
-                          : isPremium
+                          : isPremiumLike
                             ? theme.colors.mutedText
                           : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                             ? theme.colors.mutedText
@@ -23792,7 +23713,7 @@ function ManageTeamsScreen({
                             ? theme.colors.secondary
                             : getSchoolPrideBorderColor(),
                         }
-                      : isPremium
+                      : isPremiumLike
                       ? {
                           backgroundColor: isFollowing ? theme.colors.primary : theme.colors.cardAlt,
                           borderColor: isFollowing ? theme.colors.primary : withAlpha(theme.colors.text, '0C'),
@@ -23812,7 +23733,7 @@ function ManageTeamsScreen({
                               ? getSchoolPrideTextOnPrimaryColor()
                               : getSchoolPrideTextColor(),
                           }
-                        : isPremium
+                        : isPremiumLike
                         ? { color: isFollowing ? theme.colors.buttonText : theme.colors.text }
                         : null,
                     ]}
@@ -23854,6 +23775,7 @@ function SettingsScreen({
 }) {
   const isLightMode = themeMode === 'light';
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <ScrollView
@@ -23871,7 +23793,7 @@ function SettingsScreen({
           pointerEvents="none"
         />
       ) : null}
-      {isPremium ? (
+      {isPremiumLike ? (
         renderPremiumScreenHeader({
           theme,
           eyebrow: 'Settings',
@@ -24023,11 +23945,9 @@ function SettingsScreen({
                 {
                   color: isModernTheme(theme)
                     ? theme.colors.primary
-                    : isGamedayTheme(theme)
-                    ? theme.colors.secondary
                     : isSchoolPride
                     ? theme.colors.primary
-                    : isPremium
+                    : isPremiumLike
                     ? theme.colors.primary
                     : isCleanSlateTheme(theme)
                     ? theme.colors.primary
@@ -24057,11 +23977,9 @@ function SettingsScreen({
                 {
                   color: isModernTheme(theme)
                     ? theme.colors.primary
-                    : isGamedayTheme(theme)
-                    ? theme.colors.secondary
                     : isSchoolPride
                     ? theme.colors.primary
-                    : isPremium
+                    : isPremiumLike
                     ? theme.colors.primary
                     : isCleanSlateTheme(theme)
                     ? theme.colors.primary
@@ -24085,11 +24003,9 @@ function SettingsScreen({
                 {
                   color: isModernTheme(theme)
                     ? theme.colors.primary
-                    : isGamedayTheme(theme)
-                    ? theme.colors.secondary
                     : isSchoolPride
                     ? theme.colors.primary
-                    : isPremium
+                    : isPremiumLike
                     ? theme.colors.primary
                     : isCleanSlateTheme(theme)
                     ? theme.colors.primary
@@ -24117,6 +24033,7 @@ function SavedEventsScreen({
 }) {
   const isLightMode = themeMode === 'light';
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   return (
     <ScrollView
@@ -24247,8 +24164,6 @@ function SavedEventsScreen({
               color:
                 isSchoolPride
                   ? getSchoolPrideMutedTextColor()
-                : isPremium
-                  ? theme.colors.mutedText
                 : isCleanSlateTheme(theme) || isGamedayTheme(theme)
                   ? theme.colors.mutedText
                   : BRAND.lightGray,
@@ -24282,10 +24197,21 @@ function BottomNav({
   const isGameday = isGamedayTheme(theme);
   const isGradientElite = isGradientEliteTheme(theme);
   const isPremium = isPremiumTheme(theme);
+  const isPremiumLike = isPremiumCloneTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
   const isCleanSlate = isCleanSlateTheme(theme) && !isModern;
   const schoolPrideDepthColor = isSchoolPride ? getSchoolPrideDepthColor(theme) : '';
   const schoolPrideAccentColor = isSchoolPride ? getSchoolPrideAccentColor(theme) : '';
+  const gamedayNavForegroundColor = isGameday
+    ? (isLightColor(theme.colors.primary, 0.72) ? BRAND.black : BRAND.white)
+    : '';
+  const gamedayNavMutedColor = isGameday
+    ? withAlpha(gamedayNavForegroundColor, '72')
+    : '';
+  const gamedayNavActivePillColor = isGameday ? gamedayNavForegroundColor : '';
+  const gamedayNavActiveContentColor = isGameday
+    ? (gamedayNavForegroundColor === BRAND.white ? BRAND.black : BRAND.white)
+    : '';
   const hasCenterLogo = hasResolvedUrl(centerLogoUrl);
   const homeItem = items.find((item) => item.key === 'home');
   const homeActive = homeItem?.active ?? false;
@@ -24348,23 +24274,6 @@ function BottomNav({
               elevation: 7,
             }
           : null,
-        isGameday
-          ? {
-              backgroundColor: theme.colors.primary,
-              borderTopWidth: 3,
-              borderTopColor: withAlpha(theme.colors.secondary, 'D8'),
-              borderTopLeftRadius: 18,
-              borderTopRightRadius: 18,
-              paddingTop: 6,
-              paddingBottom: 9,
-              minHeight: 62,
-              shadowColor: withAlpha(theme.colors.secondary, '26'),
-              shadowOpacity: 0.22,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: -4 },
-              elevation: 8,
-            }
-          : null,
         isGradientElite
           ? {
               backgroundColor: 'transparent',
@@ -24375,7 +24284,7 @@ function BottomNav({
               paddingTop: 6,
               paddingBottom: 9,
               minHeight: 60,
-              overflow: 'hidden',
+              overflow: 'visible',
               shadowColor: 'transparent',
               shadowOpacity: 0,
               shadowRadius: 0,
@@ -24383,9 +24292,9 @@ function BottomNav({
               elevation: 0,
             }
           : null,
-        isPremium
+        isPremiumLike
           ? {
-              backgroundColor: BRAND.black,
+              backgroundColor: isGameday ? theme.colors.primary : BRAND.black,
               borderTopWidth: 0,
               borderRadius: 30,
               paddingTop: 8,
@@ -24394,7 +24303,7 @@ function BottomNav({
               overflow: 'hidden',
               marginHorizontal: 16,
               marginBottom: 10,
-              shadowColor: 'rgba(0,0,0,0.24)',
+              shadowColor: isGameday ? withAlpha(theme.colors.primary, '24') : 'rgba(0,0,0,0.24)',
               shadowOpacity: 0.18,
               shadowRadius: 18,
               shadowOffset: { width: 0, height: -2 },
@@ -24462,9 +24371,12 @@ function BottomNav({
           style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
         />
-      ) : isPremium ? (
+      ) : isPremiumLike ? (
         <View
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: BRAND.black }]}
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: isGameday ? theme.colors.primary : BRAND.black },
+          ]}
           pointerEvents="none"
         />
       ) : isSchoolPride ? (
@@ -24494,9 +24406,8 @@ function BottomNav({
                   style={[
                     styles.asnTabFloatWrap,
                     isCleanSlate ? { marginTop: -10, marginBottom: 1 } : null,
-                    isGameday ? { marginTop: -18, marginBottom: 0 } : null,
                     isGradientElite ? { marginTop: -14, marginBottom: 0 } : null,
-                    isPremium ? { marginTop: -10, marginBottom: 0 } : null,
+                    isPremiumLike ? { marginTop: -10, marginBottom: 0 } : null,
                     isSchoolPride ? { marginTop: -22, marginBottom: 0 } : null,
                     { transform: [{ scale: homePulse }] },
                   ]}
@@ -24536,27 +24447,6 @@ function BottomNav({
                               elevation: active ? 5 : 2,
                             }
                           : null,
-                        isGameday
-                          ? {
-                              width: 62,
-                              height: 62,
-                              borderRadius: 18,
-                              backgroundColor: withAlpha(
-                                theme.colors.secondary,
-                                active ? 'EE' : 'D6'
-                              ),
-                              borderWidth: active ? 2 : 1,
-                              borderColor: withAlpha(
-                                active ? theme.colors.accent : theme.colors.primary,
-                                active ? '76' : '40'
-                              ),
-                              shadowColor: withAlpha(theme.colors.secondary, '38'),
-                              shadowOpacity: active ? 0.2 : 0.08,
-                              shadowRadius: active ? 10 : 6,
-                              shadowOffset: { width: 0, height: 4 },
-                              elevation: active ? 6 : 3,
-                            }
-                          : null,
                         isGradientElite
                           ? {
                               width: 60,
@@ -24576,14 +24466,26 @@ function BottomNav({
                               elevation: active ? 7 : 4,
                             }
                           : null,
-                        isPremium
+                        isPremiumLike
                           ? {
                               width: 58,
                               height: 58,
                               borderRadius: 20,
-                              backgroundColor: active ? BRAND.white : 'rgba(255,255,255,0.08)',
+                              backgroundColor: active
+                                ? isGameday
+                                  ? gamedayNavActivePillColor
+                                  : BRAND.white
+                                : isGameday
+                                ? withAlpha(gamedayNavForegroundColor, '0E')
+                                : 'rgba(255,255,255,0.08)',
                               borderWidth: 1,
-                              borderColor: active ? BRAND.white : 'rgba(255,255,255,0.12)',
+                              borderColor: active
+                                ? isGameday
+                                  ? gamedayNavActivePillColor
+                                  : BRAND.white
+                                : isGameday
+                                ? withAlpha(gamedayNavForegroundColor, '18')
+                                : 'rgba(255,255,255,0.12)',
                               shadowColor: 'transparent',
                               shadowOpacity: 0,
                               shadowRadius: 0,
@@ -24641,7 +24543,7 @@ function BottomNav({
                             isModern
                               ? { width: 88, height: 88 }
                               : isGameday
-                              ? { width: 90, height: 90 }
+                              ? { width: 88, height: 88 }
                               : isGradientElite
                               ? { width: 82, height: 82 }
                               : isSchoolPride
@@ -24660,9 +24562,13 @@ function BottomNav({
                           name="radio-outline"
                           size={18}
                           color={
-                            isPremium
+                            isPremiumLike
                               ? active
-                                ? BRAND.black
+                                ? isGameday
+                                  ? gamedayNavActiveContentColor
+                                  : BRAND.black
+                                : isGameday
+                                ? gamedayNavForegroundColor
                                 : 'rgba(255,255,255,0.78)'
                               : active
                               ? theme.colors.buttonText
@@ -24678,20 +24584,22 @@ function BottomNav({
                     styles.asnTabLabel,
                       {
                         color: active
-                          ? isGameday
-                            ? theme.colors.secondary
-                            : isPremium
-                            ? BRAND.white
+                          ? isPremiumLike
+                            ? isGameday
+                              ? gamedayNavForegroundColor
+                              : BRAND.white
                             : isSchoolPride
                             ? BRAND.white
                             : theme.colors.primary
-                        : isPremium
-                          ? 'rgba(255,255,255,0.56)'
+                        : isPremiumLike
+                          ? isGameday
+                            ? gamedayNavMutedColor
+                            : 'rgba(255,255,255,0.56)'
                           : isSchoolPride
                           ? withAlpha(BRAND.white, '86')
                           : withAlpha(theme.colors.text, '88'),
                       fontWeight:
-                        active && (isModern || isGameday || isGradientElite || isSchoolPride || isPremium)
+                        active && (isModern || isGradientElite || isSchoolPride || isPremiumLike)
                           ? '800'
                           : '700',
                     },
@@ -24706,18 +24614,6 @@ function BottomNav({
                       {
                         backgroundColor: theme.colors.primary,
                         width: 18,
-                        opacity: 1,
-                      },
-                    ]}
-                  />
-                ) : null}
-                {isGameday && active ? (
-                  <View
-                    style={[
-                      styles.modernNavActiveIndicator,
-                      {
-                        backgroundColor: theme.colors.accent,
-                        width: 20,
                         opacity: 1,
                       },
                     ]}
@@ -24754,12 +24650,42 @@ function BottomNav({
                   >
                     {getModernNavEmoji(item.iconKey || item.key, item.label)}
                   </Text>
-                ) : isGameday ? (
-                  <Ionicons
-                    name={item.icon!}
-                    size={21}
-                    color={active ? theme.colors.secondary : withAlpha(theme.colors.text, '88')}
-                  />
+                ) : isPremiumLike ? (
+                  <View
+                    style={{
+                      backgroundColor: active
+                        ? isGameday
+                          ? gamedayNavActivePillColor
+                          : BRAND.white
+                        : 'transparent',
+                      borderWidth: active ? 0 : 1,
+                      borderColor: active
+                        ? 'transparent'
+                        : isGameday
+                        ? withAlpha(gamedayNavForegroundColor, '18')
+                        : 'rgba(255,255,255,0.12)',
+                      borderRadius: 999,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      marginBottom: 4,
+                      minWidth: 48,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name={item.icon!}
+                      size={19}
+                      color={
+                        active
+                          ? isGameday
+                            ? gamedayNavActiveContentColor
+                            : BRAND.black
+                          : isGameday
+                          ? gamedayNavForegroundColor
+                          : 'rgba(255,255,255,0.62)'
+                      }
+                    />
+                  </View>
                 ) : isGradientElite ? (
                   <Ionicons
                     name={item.icon!}
@@ -24790,26 +24716,6 @@ function BottomNav({
                         color={active ? BRAND.white : withAlpha(BRAND.white, '88')}
                       />
                     </View>
-                ) : isPremium ? (
-                  <View
-                    style={{
-                      backgroundColor: active ? BRAND.white : 'transparent',
-                      borderWidth: active ? 0 : 1,
-                      borderColor: active ? 'transparent' : 'rgba(255,255,255,0.12)',
-                      borderRadius: 999,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      marginBottom: 4,
-                      minWidth: 48,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Ionicons
-                      name={item.icon!}
-                      size={19}
-                      color={active ? BRAND.black : 'rgba(255,255,255,0.62)'}
-                    />
-                  </View>
                 ) : (
                   <Ionicons
                     name={item.icon!}
@@ -24822,20 +24728,22 @@ function BottomNav({
                     styles.bottomNavLabel,
                     {
                       color: active
-                        ? isGameday
-                          ? theme.colors.secondary
-                          : isPremium
-                          ? BRAND.white
+                        ? isPremiumLike
+                          ? isGameday
+                            ? gamedayNavForegroundColor
+                            : BRAND.white
                           : isSchoolPride
                           ? BRAND.white
                           : theme.colors.primary
-                        : isPremium
-                          ? 'rgba(255,255,255,0.56)'
+                        : isPremiumLike
+                          ? isGameday
+                            ? gamedayNavMutedColor
+                            : 'rgba(255,255,255,0.56)'
                           : isSchoolPride
                           ? withAlpha(BRAND.white, '72')
                           : withAlpha(theme.colors.text, '88'),
                       fontWeight:
-                        active && (isModern || isGameday || isGradientElite || isSchoolPride || isPremium)
+                        active && (isModern || isGradientElite || isSchoolPride || isPremiumLike)
                           ? '800'
                           : '700',
                     },
@@ -24852,18 +24760,6 @@ function BottomNav({
                       {
                         backgroundColor: theme.colors.primary,
                         width: 18,
-                        opacity: 1,
-                      },
-                    ]}
-                  />
-                ) : null}
-                {isGameday && active ? (
-                  <View
-                    style={[
-                      styles.modernNavActiveIndicator,
-                      {
-                        backgroundColor: theme.colors.accent,
-                        width: 20,
                         opacity: 1,
                       },
                     ]}
