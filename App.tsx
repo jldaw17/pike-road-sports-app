@@ -7566,6 +7566,200 @@ function PromotionCard({
     );
   }
 
+  if (isGamedayTheme(theme)) {
+    const gamedayPromotionShellBackground = theme.colors.primary;
+    const gamedayPromotionForeground = getGamedayReadableTextColor(
+      theme,
+      gamedayPromotionShellBackground
+    );
+    const gamedayPromotionMuted = getGamedayReadableMutedTextColor(
+      theme,
+      gamedayPromotionShellBackground,
+      'CC'
+    );
+    const gamedayPromotionPillBackground = withAlpha(gamedayPromotionForeground, '14');
+    const gamedayPromotionPillTextColor = getGamedayReadableTextColor(
+      theme,
+      gamedayPromotionPillBackground
+    );
+    const gamedayPromotionSponsorPlateBackground = withAlpha(theme.colors.secondary, 'F2');
+    const gamedayPromotionSponsorPlateTextColor = getGamedayReadableTextColor(
+      theme,
+      gamedayPromotionSponsorPlateBackground
+    );
+    const gamedayPromotionCtaBackground = theme.colors.secondary || theme.colors.accent;
+    const gamedayPromotionCtaTextColor = getGamedayReadableTextColor(
+      theme,
+      gamedayPromotionCtaBackground
+    );
+    const gamedayPromotionShellStyle = {
+      minHeight: 0,
+      borderRadius: 22,
+      backgroundColor: gamedayPromotionShellBackground,
+      borderColor: withAlpha(gamedayPromotionForeground, '20'),
+      shadowColor: withAlpha(theme.colors.primary, '22'),
+    } as const;
+
+    const gamedayBody = (
+      <>
+        <View style={styles.promotionHeroMediaWrap}>
+          {promotion.image_url ? (
+            <RemoteImage
+              uri={promotion.image_url}
+              style={{ width: '100%', aspectRatio: MEDIA_FEATURE_ASPECT_RATIO }}
+              contentFit="cover"
+              mode="content"
+              label={promotion.title?.trim() || 'Promotion'}
+              theme={theme}
+            />
+          ) : (
+            <LinearGradient
+              colors={[
+                withAlpha(theme.colors.primary, 'F6'),
+                withAlpha(theme.colors.primary, 'EA'),
+                withAlpha(theme.colors.accent, 'B8'),
+              ]}
+              style={{ width: '100%', aspectRatio: MEDIA_FEATURE_ASPECT_RATIO }}
+            />
+          )}
+          <LinearGradient
+            colors={[
+              withAlpha(theme.colors.primary, '20'),
+              withAlpha(theme.colors.primary, 'A8'),
+              gamedayPromotionShellBackground,
+            ]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 3,
+              backgroundColor: withAlpha(theme.colors.secondary, 'D4'),
+            }}
+          />
+          {sponsorLogo || sponsorName ? (
+            <View pointerEvents="none" style={[styles.promotionSponsorBugWrap, { top: 12, right: 12 }]}>
+              <View
+                style={[
+                  styles.promotionSponsorBugPlate,
+                  {
+                    backgroundColor: gamedayPromotionSponsorPlateBackground,
+                    borderColor: withAlpha(gamedayPromotionSponsorPlateTextColor, '18'),
+                    borderRadius: 14,
+                    minWidth: sponsorLogo ? 88 : 78,
+                    minHeight: sponsorLogo ? 34 : 30,
+                    shadowColor: withAlpha(theme.colors.primary, '18'),
+                    shadowOpacity: 0.08,
+                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 3 },
+                    elevation: 2,
+                  },
+                ]}
+              >
+                {sponsorLogo ? (
+                  <RemoteImage
+                    uri={sponsorLogo}
+                    style={styles.promotionSponsorBugLogo}
+                    contentFit="contain"
+                    mode="sponsor"
+                    label={sponsorName}
+                    theme={theme}
+                  />
+                ) : sponsorName ? (
+                  <Text
+                    style={[
+                      styles.promotionSponsorName,
+                      {
+                        color: gamedayPromotionSponsorPlateTextColor,
+                        textAlign: 'center',
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {sponsorName}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 }}>
+          <View
+            style={[
+              styles.promotionPill,
+              {
+                backgroundColor: gamedayPromotionPillBackground,
+                borderColor: withAlpha(gamedayPromotionForeground, '20'),
+                marginBottom: 8,
+              },
+            ]}
+          >
+            <Text style={[styles.promotionPillText, { color: gamedayPromotionPillTextColor, opacity: 1 }]}>
+              Featured
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.promotionCardTitle,
+              { color: gamedayPromotionForeground, fontSize: 26, lineHeight: 31 },
+            ]}
+            numberOfLines={3}
+          >
+            {promotion.title?.trim() || 'Promotion'}
+          </Text>
+          {promotion.subtitle?.trim() ? (
+            <Text
+              style={[
+                styles.promotionCardSubtitle,
+                { color: gamedayPromotionMuted, marginTop: 6 },
+              ]}
+              numberOfLines={3}
+            >
+              {promotion.subtitle.trim()}
+            </Text>
+          ) : null}
+          {promotion.cta_text?.trim() ? (
+            <View
+              style={[
+                styles.promotionCardButton,
+                {
+                  marginTop: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  backgroundColor: gamedayPromotionCtaBackground,
+                  borderColor: withAlpha(gamedayPromotionCtaTextColor, '14'),
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <Text style={[styles.promotionCardButtonText, { color: gamedayPromotionCtaTextColor }]}>
+                {promotion.cta_text.trim()}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={gamedayPromotionCtaTextColor} />
+            </View>
+          ) : null}
+        </View>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <Pressable
+          style={[styles.promotionCard, gamedayPromotionShellStyle]}
+          onPress={onPress}
+        >
+          {gamedayBody}
+        </Pressable>
+      );
+    }
+
+    return <View style={[styles.promotionCard, gamedayPromotionShellStyle]}>{gamedayBody}</View>;
+  }
+
   if (isPremiumTheme(theme)) {
     const premiumCtaTextColor = isLightColor(theme.colors.primary, 0.72)
       ? theme.colors.text
@@ -19873,6 +20067,12 @@ function SportDetailScreen({
   const hasRecruitingAccess = Boolean(sportConfig.recruitingEnabled);
   const visibleEvents = events;
   const hasScheduleAccess = hasScheduleUrl || allTeamScheduleEvents.length > 0;
+  const isGameday = isGamedayTheme(theme);
+  const gamedayFollowButtonBackground = theme.colors.primary;
+  const gamedayFollowButtonForeground = getGamedayReadableTextColor(
+    theme,
+    gamedayFollowButtonBackground
+  );
   const handleOpenTeamRoster = () => {
     if (!teamSportId) {
       return;
@@ -20501,6 +20701,12 @@ function SportDetailScreen({
                   borderColor: withAlpha(theme.colors.text, '0C'),
                 }
               : null,
+            isGameday
+              ? {
+                  backgroundColor: gamedayFollowButtonBackground,
+                  borderColor: gamedayFollowButtonBackground,
+                }
+              : null,
             isCleanSlateTheme(theme)
               ? {
                   backgroundColor: theme.colors.buttonBackground,
@@ -20515,6 +20721,12 @@ function SportDetailScreen({
             isFollowing
               ? [
                   styles.followTeamButtonActive,
+                  isGameday
+                    ? {
+                        backgroundColor: gamedayFollowButtonBackground,
+                        borderColor: gamedayFollowButtonBackground,
+                      }
+                    : null,
                   isCleanSlateTheme(theme)
                     ? {
                         backgroundColor: theme.colors.buttonBackground,
@@ -20538,13 +20750,25 @@ function SportDetailScreen({
             <Ionicons
               name={isFollowing ? 'notifications' : 'notifications-outline'}
               size={18}
-              color={isPremium ? theme.colors.primary : theme.colors.buttonText}
+              color={
+                isGameday
+                  ? gamedayFollowButtonForeground
+                  : isPremium
+                  ? theme.colors.primary
+                  : theme.colors.buttonText
+              }
             />
           ) : null}
           <Text
             style={[
               styles.followTeamButtonText,
-              { color: isPremium ? theme.colors.primary : theme.colors.buttonText },
+              {
+                color: isGameday
+                  ? gamedayFollowButtonForeground
+                  : isPremium
+                  ? theme.colors.primary
+                  : theme.colors.buttonText,
+              },
             ]}
           >
             {isFollowing
@@ -20566,6 +20790,11 @@ function SportDetailScreen({
             const modernEmoji = isModernTheme(theme)
               ? getModernHeroActionEmoji(action.icon, action.label)
               : '';
+            const gamedayActionBackground = withAlpha(theme.colors.secondary, 'EC');
+            const gamedayActionForeground = getGamedayReadableTextColor(
+              theme,
+              gamedayActionBackground
+            );
 
             return (
               <Pressable
@@ -20599,7 +20828,7 @@ function SportDetailScreen({
                     : null,
                   isGamedayTheme(theme)
                     ? {
-                        backgroundColor: withAlpha(theme.colors.secondary, 'EC'),
+                        backgroundColor: gamedayActionBackground,
                         borderColor: withAlpha(theme.colors.primary, '42'),
                         borderRadius: 14,
                         paddingVertical: 11,
@@ -20651,8 +20880,8 @@ function SportDetailScreen({
                     name={action.icon}
                     size={22}
                     color={
-                      isGamedayTheme(theme)
-                        ? theme.colors.text
+                      isGameday
+                        ? gamedayActionForeground
                         : isCleanSlateTheme(theme) || isGradientEliteTheme(theme)
                         ? theme.colors.accent
                         : BRAND.white
@@ -20666,6 +20895,8 @@ function SportDetailScreen({
                       color:
                         isSchoolPrideTheme(theme)
                           ? theme.colors.buttonText
+                          : isGameday
+                          ? gamedayActionForeground
                           : isPremium
                           ? theme.colors.text
                           : isLightAppTheme(theme) || isGradientEliteTheme(theme)
@@ -24297,10 +24528,10 @@ function BottomNav({
               backgroundColor: isGameday ? theme.colors.primary : BRAND.black,
               borderTopWidth: 0,
               borderRadius: 30,
-              paddingTop: 8,
-              paddingBottom: 12,
-              minHeight: 68,
-              overflow: 'hidden',
+              paddingTop: isGameday ? 4 : 8,
+              paddingBottom: isGameday ? 8 : 12,
+              minHeight: isGameday ? 58 : 68,
+              overflow: isGameday ? 'visible' : 'hidden',
               marginHorizontal: 16,
               marginBottom: 10,
               shadowColor: isGameday ? withAlpha(theme.colors.primary, '24') : 'rgba(0,0,0,0.24)',
@@ -24375,7 +24606,10 @@ function BottomNav({
         <View
           style={[
             StyleSheet.absoluteFillObject,
-            { backgroundColor: isGameday ? theme.colors.primary : BRAND.black },
+            {
+              backgroundColor: isGameday ? theme.colors.primary : BRAND.black,
+              borderRadius: isGameday ? 30 : 0,
+            },
           ]}
           pointerEvents="none"
         />
@@ -24407,7 +24641,11 @@ function BottomNav({
                     styles.asnTabFloatWrap,
                     isCleanSlate ? { marginTop: -10, marginBottom: 1 } : null,
                     isGradientElite ? { marginTop: -14, marginBottom: 0 } : null,
-                    isPremiumLike ? { marginTop: -10, marginBottom: 0 } : null,
+                    isPremiumLike
+                      ? isGameday
+                        ? { marginTop: -22, marginBottom: -2 }
+                        : { marginTop: -10, marginBottom: 0 }
+                      : null,
                     isSchoolPride ? { marginTop: -22, marginBottom: 0 } : null,
                     { transform: [{ scale: homePulse }] },
                   ]}
