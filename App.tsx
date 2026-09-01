@@ -4097,27 +4097,14 @@ function TopIcon({
   if (isGamedayTheme(theme)) {
     const isCompact = sizeVariant === 'compact';
     const isDense = sizeVariant === 'dense';
-    const tileBackground = isLightColor(theme.colors.secondary, 0.72)
-      ? withAlpha(
-          isLightColor(theme.colors.accent, 0.72)
-            ? theme.colors.primary
-            : theme.colors.accent,
-          'E6'
-        )
-      : withAlpha(theme.colors.secondary, 'F3');
-    const tileTextColor = getGamedayReadableTextColor(theme, tileBackground);
-    const tileBorderColor = isLightColor(tileBackground, 0.72)
-      ? withAlpha(theme.colors.primary, '48')
-      : withAlpha(theme.colors.primary, '5E');
-    const tileAccentColor = isLightColor(theme.colors.accent, 0.72)
-      ? theme.colors.primary
-      : theme.colors.accent;
-    const iconBadgeBackground = isLightColor(tileBackground, 0.72)
-      ? withAlpha(theme.colors.secondary, '26')
-      : withAlpha(theme.colors.primary, '22');
-    const iconBadgeBorderColor = isLightColor(tileBackground, 0.72)
-      ? withAlpha(theme.colors.secondary, '20')
-      : withAlpha(theme.colors.primary, '28');
+    const circleBackground = theme.colors.primary;
+    const circleForeground = getGamedayReadableTextColor(theme, circleBackground);
+    const labelColor =
+      getColorLuminance(theme.colors.text) !== null &&
+      getColorLuminance(theme.colors.text)! < 0.42
+        ? theme.colors.text
+        : BRAND.black;
+    const circleSize = isDense ? 58 : isCompact ? 60 : 62;
 
     return (
       <Pressable
@@ -4125,18 +4112,19 @@ function TopIcon({
           styles.topIconWrap,
           containerStyle,
           {
-            backgroundColor: tileBackground,
-            borderWidth: 1,
-            borderColor: tileBorderColor,
-            borderRadius: 14,
-            paddingVertical: isDense ? 8 : isCompact ? 9 : 10,
-            paddingHorizontal: isDense ? 5 : isCompact ? 6 : 8,
-            minHeight: isDense ? 64 : isCompact ? 70 : 76,
-            shadowColor: withAlpha(theme.colors.secondary, '46'),
-            shadowOpacity: isLightColor(tileBackground, 0.72) ? 0.12 : 0.24,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 4,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            borderColor: 'transparent',
+            borderRadius: 0,
+            paddingVertical: 0,
+            paddingHorizontal: 0,
+            minHeight: isDense ? 74 : isCompact ? 78 : 82,
+            justifyContent: 'flex-start',
+            shadowColor: 'transparent',
+            shadowOpacity: 0,
+            shadowRadius: 0,
+            shadowOffset: { width: 0, height: 0 },
+            elevation: 0,
           },
         ]}
         onPress={onPress}
@@ -4145,24 +4133,24 @@ function TopIcon({
           style={[
             styles.topIconCircle,
             {
-              backgroundColor: iconBadgeBackground,
-              borderColor: iconBadgeBorderColor,
-              borderRadius: 10,
-              marginBottom: 6,
-              width: isDense ? 32 : isCompact ? 36 : 40,
-              height: isDense ? 32 : isCompact ? 36 : 40,
-              shadowColor: withAlpha(tileAccentColor, '20'),
-              shadowOpacity: 0.08,
-              shadowRadius: 6,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 2,
+              backgroundColor: circleBackground,
+              borderColor: withAlpha(circleForeground, '14'),
+              borderRadius: circleSize / 2,
+              marginBottom: 7,
+              width: circleSize,
+              height: circleSize,
+              shadowColor: withAlpha(theme.colors.primary, '26'),
+              shadowOpacity: 0.14,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 3,
             },
           ]}
         >
           <Ionicons
             name={icon}
-            size={isDense ? 15 : isCompact ? 16 : 17}
-            color={tileTextColor}
+            size={isDense ? 20 : isCompact ? 21 : 22}
+            color={circleForeground}
           />
         </View>
         <Text
@@ -4170,12 +4158,12 @@ function TopIcon({
           style={[
             styles.topIconLabel,
             {
-              color: tileTextColor,
+              color: labelColor,
               fontSize: isDense ? 8 : isCompact ? 9 : 10,
               fontWeight: '800',
               letterSpacing: isDense ? 0.08 : isCompact ? 0.14 : 0.18,
               lineHeight: isDense ? 10 : isCompact ? 11 : 12,
-              textTransform: 'uppercase',
+              textAlign: 'center',
             },
           ]}
         >
@@ -7577,7 +7565,8 @@ function PromotionCard({
       gamedayPromotionShellBackground,
       'CC'
     );
-    const gamedayPromotionPillBackground = withAlpha(gamedayPromotionForeground, '14');
+    const gamedayPromotionPillBackground =
+      theme.colors.secondary?.trim() || withAlpha(gamedayPromotionForeground, '14');
     const gamedayPromotionPillTextColor = getGamedayReadableTextColor(
       theme,
       gamedayPromotionPillBackground
@@ -7693,7 +7682,7 @@ function PromotionCard({
               styles.promotionPill,
               {
                 backgroundColor: gamedayPromotionPillBackground,
-                borderColor: withAlpha(gamedayPromotionForeground, '20'),
+                borderColor: withAlpha(gamedayPromotionPillTextColor, '18'),
                 marginBottom: 8,
               },
             ]}
@@ -8345,6 +8334,26 @@ function AthleteOfWeekCard({
   const usingHeadshotFallback = !item.featuredImageUrl && Boolean(item.headshotUrl);
   const sponsorAvailable = Boolean(sponsorLogo || sponsorName);
   const awardLine = item.awardWeekLabel?.trim() || item.opponent?.trim() || null;
+  const isGameday = isGamedayTheme(theme);
+  const gamedayAotwSponsorPlateStyle = isGameday
+    ? {
+        position: 'absolute' as const,
+        top: 16,
+        right: 16,
+        backgroundColor: BRAND.white,
+        borderWidth: 1,
+        borderColor: withAlpha(theme.colors.primary, '18'),
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+        maxWidth: '50%',
+        shadowColor: withAlpha(theme.colors.primary, '14'),
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 2,
+      }
+    : null;
 
   useEffect(() => {
     console.log('[AOTW DEBUG][card]', {
@@ -9218,40 +9227,108 @@ function AthleteOfWeekCard({
       />
 
       <View style={styles.athleteOfWeekContent}>
-        <View style={styles.athleteOfWeekTopRow}>
-          <View
-            style={[
-              styles.promotionPill,
-              isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.pillBackground } : null,
-            ]}
-          >
-            <Text
+        {!isGameday ? (
+          <View style={styles.athleteOfWeekTopRow}>
+            <View
               style={[
-                styles.promotionPillText,
-                isCleanSlateTheme(theme) ? { color: BRAND.white, opacity: 1 } : null,
+                styles.promotionPill,
+                isCleanSlateTheme(theme) ? { backgroundColor: theme.colors.pillBackground } : null,
               ]}
             >
-              Athlete of the Week
-            </Text>
-          </View>
+              <Text
+                style={[
+                  styles.promotionPillText,
+                  isCleanSlateTheme(theme) ? { color: BRAND.white, opacity: 1 } : null,
+                ]}
+              >
+                Athlete of the Week
+              </Text>
+            </View>
             {sponsorLogo ? (
               <Pressable
                 disabled={!sponsorHasLink || !onSponsorPress}
                 onPress={onSponsorPress}
-                style={styles.aotwInlineSponsorWrap}
+                style={[
+                  styles.aotwInlineSponsorWrap,
+                  gamedayAotwSponsorPlateStyle,
+                ]}
               >
-                <Text style={styles.athleteOfWeekSponsorText}>Presented by</Text>
-              <RemoteImage
-                uri={sponsorLogo}
-                style={styles.aotwInlineSponsorLogo}
-                contentFit="contain"
-                mode="sponsor"
-                label={sponsorName}
-                theme={theme}
-              />
+                {!isGameday ? (
+                  <Text style={styles.athleteOfWeekSponsorText}>Presented by</Text>
+                ) : null}
+                <RemoteImage
+                  uri={sponsorLogo}
+                  style={[
+                    styles.aotwInlineSponsorLogo,
+                    isGameday ? { width: 84, height: 24 } : null,
+                  ]}
+                  contentFit="contain"
+                  mode="sponsor"
+                  label={sponsorName}
+                  theme={theme}
+                />
+              </Pressable>
+            ) : sponsorName && isGameday ? (
+              <Pressable
+                disabled={!sponsorHasLink || !onSponsorPress}
+                onPress={onSponsorPress}
+                style={[
+                  styles.aotwInlineSponsorWrap,
+                  gamedayAotwSponsorPlateStyle,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.aotwSponsorName,
+                    {
+                      color: BRAND.black,
+                      marginTop: 0,
+                      textAlign: 'center',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {sponsorName}
+                </Text>
               </Pressable>
             ) : null}
-        </View>
+          </View>
+        ) : sponsorLogo ? (
+          <Pressable
+            disabled={!sponsorHasLink || !onSponsorPress}
+            onPress={onSponsorPress}
+            style={[styles.aotwInlineSponsorWrap, gamedayAotwSponsorPlateStyle]}
+          >
+            <RemoteImage
+              uri={sponsorLogo}
+              style={[styles.aotwInlineSponsorLogo, { width: 84, height: 24 }]}
+              contentFit="contain"
+              mode="sponsor"
+              label={sponsorName}
+              theme={theme}
+            />
+          </Pressable>
+        ) : sponsorName ? (
+          <Pressable
+            disabled={!sponsorHasLink || !onSponsorPress}
+            onPress={onSponsorPress}
+            style={[styles.aotwInlineSponsorWrap, gamedayAotwSponsorPlateStyle]}
+          >
+            <Text
+              style={[
+                styles.aotwSponsorName,
+                {
+                  color: BRAND.black,
+                  marginTop: 0,
+                  textAlign: 'center',
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {sponsorName}
+            </Text>
+          </Pressable>
+        ) : null}
 
         {item.athleteName ? (
           <Text
@@ -11533,13 +11610,27 @@ function HomeScreen({
       : isLightColor(theme.colors.primary, 0.72)
       ? theme.colors.secondary
       : theme.colors.primary;
-    const gamedayStatusPalette = {
-      backgroundColor: withAlpha(theme.colors.primary, '18'),
-      borderColor: withAlpha(theme.colors.accent, statusPillIsLive ? '5E' : '44'),
-      textColor: getGamedayReadableTextColor(theme, withAlpha(theme.colors.primary, '18')),
-      iconColor: getGamedayReadableTextColor(theme, withAlpha(theme.colors.primary, '18')),
-      pulseColor: theme.colors.accent,
-    };
+    const gamedayInactivePillBackground = withAlpha(theme.colors.primary, '18');
+    const gamedayInactivePillForeground =
+      getColorLuminance(theme.colors.text) !== null &&
+      getColorLuminance(theme.colors.text)! < 0.42
+        ? theme.colors.text
+        : BRAND.black;
+    const gamedayStatusPalette = statusPillIsLive
+      ? {
+          backgroundColor: withAlpha(theme.colors.primary, '18'),
+          borderColor: withAlpha(theme.colors.accent, '5E'),
+          textColor: getGamedayReadableTextColor(theme, withAlpha(theme.colors.primary, '18')),
+          iconColor: getGamedayReadableTextColor(theme, withAlpha(theme.colors.primary, '18')),
+          pulseColor: theme.colors.accent,
+        }
+      : {
+          backgroundColor: gamedayInactivePillBackground,
+          borderColor: withAlpha(theme.colors.primary, '36'),
+          textColor: gamedayInactivePillForeground,
+          iconColor: gamedayInactivePillForeground,
+          pulseColor: theme.colors.accent,
+        };
     const premiumLikeStatusPillPalette = isGamedayHome
       ? gamedayStatusPalette
       : statusPillPalette;
