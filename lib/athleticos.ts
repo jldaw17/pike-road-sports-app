@@ -4145,6 +4145,7 @@ export function mapStoryToHomeNewsItem(
     null;
 
   return {
+    id: pickFirstId(story, ['id']) ?? undefined,
     title,
     link,
     description: summary,

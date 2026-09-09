@@ -83,6 +83,11 @@ import {
 } from './lib/athleticos';
 import { getSchoolIdFromSlug } from './lib/getSchool';
 import { subscribeToTeam, unsubscribeFromTeam } from './lib/pushos';
+import {
+  resolveNotificationDestination,
+  resolvePendingNotificationStory,
+  type NotificationPayload,
+} from './lib/push/notificationDestinations';
 import { ThemeProvider } from './lib/theme/ThemeProvider';
 import {
   PUSH_PERMISSION_DENIED,
@@ -892,37 +897,13 @@ function getRecentResultSportLabelColor(theme: AthleticOSResolvedTheme, backgrou
 }
 
 function getGamedayReadableTextColor(
-  theme: AthleticOSResolvedTheme,
+  _theme: AthleticOSResolvedTheme,
   backgroundColor?: string
 ) {
-  const darkCandidates = [
-    theme.colors.accent,
-    theme.colors.primary,
-    theme.colors.text,
-    BRAND.black,
-  ];
-  const lightCandidates = [
-    theme.colors.text,
-    theme.colors.secondary,
-    BRAND.white,
-  ];
-
-  if (isLightColor(backgroundColor)) {
-    return (
-      darkCandidates.find((candidate) => {
-        const luminance = getColorLuminance(candidate);
-        return luminance !== null ? luminance < 0.42 : false;
-      }) || BRAND.black
-    );
-  }
-
-  return (
-    lightCandidates.find((candidate) => {
-      const luminance = getColorLuminance(candidate);
-      return luminance !== null ? luminance < 0.42 : false;
-    })
-      ? BRAND.white
-      : BRAND.white
+  return pickMostContrastingColor(
+    backgroundColor,
+    [BRAND.white, BRAND.black],
+    isLightColor(backgroundColor, 0.5) ? BRAND.black : BRAND.white
   );
 }
 
@@ -2212,6 +2193,7 @@ type SportType = {
 };
 
 type NewsItem = {
+  id?: string;
   title: string;
   link: string;
   date: string;
@@ -2574,6 +2556,10 @@ type StoryBodySegment = {
   href?: string;
 };
 
+type StoryImageSize = 'small' | 'medium' | 'large' | 'full';
+type StoryImageAlign = 'left' | 'center' | 'right';
+type StoryImageLayout = 'block' | 'wrap-left' | 'wrap-right';
+
 type StoryBodyBlock =
   | {
       type: 'paragraph';
@@ -2581,16 +2567,29 @@ type StoryBodyBlock =
     }
   | {
       type: 'embed';
-      provider: 'youtube' | 'vimeo';
+      provider: 'youtube' | 'vimeo' | 'facebook';
       embedUrl: string;
       originalUrl: string;
+      originalWidth?: number;
+      originalHeight?: number;
+    }
+  | {
+      type: 'image';
+      src: string;
+      alt: string;
+      size: StoryImageSize;
+      align: StoryImageAlign;
+      layout: StoryImageLayout;
+      credit?: string;
     };
 
 const STORY_BODY_EMBED_BLOCK_PATTERN =
   /<div\b[^>]*class=(["'])[^"'<>]*\bstory-embed\b[^"'<>]*\1[^>]*>[\s\S]*?<iframe\b[^>]*src=(["'])(.*?)\2[^>]*>[\s\S]*?<\/iframe>[\s\S]*?<\/div>\s*<\/div>/gi;
 const STORY_BODY_IFRAME_PATTERN = /<iframe\b[^>]*src=(["'])(.*?)\1[^>]*>[\s\S]*?<\/iframe>/gi;
-const STORY_BODY_EMBED_OR_IFRAME_PATTERN =
-  /<div\b[^>]*class=(["'])[^"'<>]*\bstory-embed\b[^"'<>]*\1[^>]*>[\s\S]*?<iframe\b[^>]*src=(["'])(.*?)\2[^>]*>[\s\S]*?<\/iframe>[\s\S]*?<\/div>\s*<\/div>|<iframe\b[^>]*src=(["'])(.*?)\4[^>]*>[\s\S]*?<\/iframe>/gi;
+const STORY_BODY_FACEBOOK_POST_BLOCK_PATTERN =
+  /<(?:blockquote|div)\b[^>]*class=(["'])[^"'<>]*\b(?:facebook-post|fb-post)\b[^"'<>]*\1[^>]*>[\s\S]*?<\/(?:blockquote|div)>/gi;
+const STORY_BODY_CONTENT_NODE_PATTERN =
+  /<figure\b(?=[^>]*\bdata-story-image(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?(?=\s|>))[^>]*>[\s\S]*?<\/figure>|<div\b[^>]*class=(["'])[^"'<>]*\bstory-embed\b[^"'<>]*\1[^>]*>[\s\S]*?<iframe\b[^>]*src=(["'])(.*?)\2[^>]*>[\s\S]*?<\/iframe>[\s\S]*?<\/div>\s*<\/div>|<iframe\b[^>]*src=(["'])(.*?)\4[^>]*>[\s\S]*?<\/iframe>|<(?:blockquote|div)\b[^>]*class=(["'])[^"'<>]*\b(?:facebook-post|fb-post)\b[^"'<>]*\6[^>]*>[\s\S]*?<\/(?:blockquote|div)>/gi;
 const STORY_BODY_RAW_EMBED_ARTIFACT_PATTERN =
   /(^|\n)\s*"?\s*(?:class|data-story-embed|data-embed-[\w-]+|src|href|title|loading|frameborder|allow|allowfullscreen|referrerpolicy)\s*=\s*(?:"[^"]*"|'[^']*')\s*>?/gi;
 const STORY_INLINE_ALLOWED_TOP_LEVEL_HOSTS = new Set([
@@ -2604,6 +2603,7 @@ const STORY_INLINE_ALLOWED_TOP_LEVEL_HOSTS = new Set([
 ]);
 const STORY_INLINE_EMBED_ALLOW =
   'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+const STORY_INLINE_FACEBOOK_BASE_URL = 'https://athleticos.ai';
 
 function getStoryInlineEmbedClientReferrer() {
   const androidPackage = Constants?.expoConfig?.android?.package?.trim();
@@ -2631,7 +2631,10 @@ function escapeStoryInlineEmbedAttribute(value = '') {
     .replace(/>/g, '&gt;');
 }
 
-function withStoryInlineEmbedQueryParams(provider: 'youtube' | 'vimeo', embedUrl: string) {
+function withStoryInlineEmbedQueryParams(
+  provider: 'youtube' | 'vimeo',
+  embedUrl: string
+) {
   if (provider !== 'youtube') {
     return embedUrl;
   }
@@ -2706,6 +2709,139 @@ function buildStoryInlineEmbedHtml({
     </div>
   </body>
 </html>`;
+}
+
+function parsePositiveIframeDimension(value = '') {
+  const numeric = Number.parseFloat(value.trim());
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : undefined;
+}
+
+function extractIframeDimensionsFromStoryEmbedHtml(value = '') {
+  const iframeTag = /<iframe\b[^>]*>/i.exec(value)?.[0] ?? '';
+  const widthMatch = /\swidth\s*=\s*(["']?)([^"'\s>]+)\1/i.exec(iframeTag);
+  const heightMatch = /\sheight\s*=\s*(["']?)([^"'\s>]+)\1/i.exec(iframeTag);
+
+  return {
+    width: parsePositiveIframeDimension(decodeHtml(widthMatch?.[2] ?? '')),
+    height: parsePositiveIframeDimension(decodeHtml(heightMatch?.[2] ?? '')),
+  };
+}
+
+function isValidFacebookPluginUrl(value = '') {
+  try {
+    const parsed = new URL(value);
+    const hostname = parsed.hostname.toLowerCase();
+    return (
+      parsed.protocol === 'https:' &&
+      (hostname === 'facebook.com' ||
+        hostname === 'www.facebook.com' ||
+        hostname === 'm.facebook.com') &&
+      parsed.pathname === '/plugins/post.php' &&
+      Boolean(extractFacebookPostUrl(value))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function buildStoryInlineFacebookHtml({
+  iframeSrc,
+  title,
+  width,
+  height,
+  displayWidth,
+  displayHeight,
+  scale,
+}: {
+  iframeSrc: string;
+  title: string;
+  width: number;
+  height: number;
+  displayWidth: number;
+  displayHeight: number;
+  scale: number;
+}) {
+  const safeTitle = escapeStoryInlineEmbedAttribute(title);
+  const safeUrl = escapeStoryInlineEmbedAttribute(iframeSrc);
+  const safeWidth = width;
+  const safeHeight = height;
+  const safeDisplayWidth = Math.max(1, displayWidth);
+  const safeDisplayHeight = Math.max(1, displayHeight);
+  const safeScale = Math.min(1, Math.max(0, scale));
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=${safeDisplayWidth}, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <style>
+      html, body {
+        width: ${safeDisplayWidth}px;
+        height: ${safeDisplayHeight}px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: transparent;
+      }
+
+      .facebook-canvas {
+        width: ${safeWidth}px;
+        height: ${safeHeight}px;
+        transform: scale(${safeScale});
+        transform-origin: top left;
+      }
+
+      .facebook-canvas iframe {
+        display: block;
+        width: ${safeWidth}px;
+        height: ${safeHeight}px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="facebook-canvas">
+      <iframe
+        src="${safeUrl}"
+        title="${safeTitle}"
+        width="${safeWidth}"
+        height="${safeHeight}"
+        scrolling="no"
+        frameborder="0"
+        allowfullscreen="true"
+        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+    </div>
+  </body>
+</html>`;
+}
+
+function shouldAllowStoryInlineFacebookNavigation(url?: string, isTopFrame?: boolean) {
+  const trimmed = (url ?? '').trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  if (!isTopFrame) {
+    return true;
+  }
+
+  if (trimmed === 'about:blank') {
+    return true;
+  }
+
+  try {
+    return new URL(trimmed).origin === STORY_INLINE_FACEBOOK_BASE_URL;
+  } catch {
+    return false;
+  }
 }
 
 function shouldAllowStoryInlineEmbedNavigation(url?: string, isTopFrame?: boolean) {
@@ -2788,7 +2924,80 @@ function extractVimeoVideoId(value = '') {
   return '';
 }
 
-function normalizeStoryEmbedUrl(value = '') {
+function extractIframeSrcFromStoryEmbedHtml(value = '') {
+  const match = /<iframe\b[^>]*src=(["'])(.*?)\1/i.exec(value);
+  return decodeHtml(match?.[2] ?? '').trim();
+}
+
+function looksLikeFacebookPostPath(pathname = '', search = '') {
+  const normalizedPath = pathname.toLowerCase();
+  return (
+    normalizedPath.includes('/posts/') ||
+    normalizedPath.includes('/permalink/') ||
+    normalizedPath === '/permalink.php' ||
+    normalizedPath.includes('/share/p/') ||
+    normalizedPath.includes('/photos/') ||
+    normalizedPath.includes('/watch/') ||
+    normalizedPath.includes('/videos/') ||
+    /(^|[?&])story_fbid=/i.test(search)
+  );
+}
+
+function extractFacebookPostUrl(value = '') {
+  const trimmed = decodeHtml(value).trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+
+    if (hostname === 'facebook.com' || hostname === 'm.facebook.com') {
+      if (parsed.pathname === '/plugins/post.php') {
+        const href = decodeHtml(parsed.searchParams.get('href') ?? '').trim();
+        return extractFacebookPostUrl(href);
+      }
+
+      if (looksLikeFacebookPostPath(parsed.pathname, parsed.search)) {
+        return normalizeUrl(parsed.toString());
+      }
+    }
+
+    if (hostname === 'fb.watch') {
+      return normalizeUrl(parsed.toString());
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
+}
+
+function extractFacebookPostUrlFromEmbedHtml(value = '') {
+  const dataHrefMatch = /\bdata-href=(["'])(.*?)\1/i.exec(value);
+  const dataHref = decodeHtml(dataHrefMatch?.[2] ?? '').trim();
+  if (dataHref) {
+    return extractFacebookPostUrl(dataHref);
+  }
+
+  const anchorMatch = /<a\b[^>]*href=(["'])(.*?)\1/i.exec(value);
+  const anchorHref = decodeHtml(anchorMatch?.[2] ?? '').trim();
+  if (anchorHref) {
+    return extractFacebookPostUrl(anchorHref);
+  }
+
+  return '';
+}
+
+function normalizeStoryEmbedUrl(
+  value = '',
+  options?: {
+    originalUrl?: string;
+    originalWidth?: number;
+    originalHeight?: number;
+  }
+) {
   const trimmed = decodeHtml(value).trim();
   const youTubeId = extractYouTubeVideoId(trimmed);
   if (youTubeId) {
@@ -2811,7 +3020,106 @@ function normalizeStoryEmbedUrl(value = '') {
     };
   }
 
+  const facebookPostUrl = extractFacebookPostUrl(trimmed);
+  if (facebookPostUrl) {
+    return {
+      provider: 'facebook' as const,
+      embedUrl: trimmed,
+      originalUrl: options?.originalUrl || facebookPostUrl,
+      originalWidth: options?.originalWidth,
+      originalHeight: options?.originalHeight,
+    };
+  }
+
   return null;
+}
+
+function extractStoryEmbedFromHtml(value = '') {
+  const rawHtml = value.trim();
+  if (!rawHtml) {
+    return null;
+  }
+
+  const iframeSrc = extractIframeSrcFromStoryEmbedHtml(rawHtml);
+  const fallbackFacebookUrl = extractFacebookPostUrlFromEmbedHtml(rawHtml);
+  const iframeDimensions = iframeSrc
+    ? extractIframeDimensionsFromStoryEmbedHtml(rawHtml)
+    : { width: undefined, height: undefined };
+  return normalizeStoryEmbedUrl(iframeSrc || fallbackFacebookUrl, {
+    originalUrl: fallbackFacebookUrl || undefined,
+    originalWidth: iframeDimensions.width,
+    originalHeight: iframeDimensions.height,
+  });
+}
+
+function extractStoryHtmlAttribute(tagHtml: string, attributeName: string) {
+  const escapedAttributeName = attributeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = new RegExp(
+    `\\b${escapedAttributeName}\\s*=\\s*(["'])([\\s\\S]*?)\\1`,
+    'i'
+  ).exec(tagHtml);
+  return decodeHtml(match?.[2] ?? '').trim();
+}
+
+function getStoryImageUrl(value = '') {
+  const trimmed = decodeHtml(value).trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname
+      ? trimmed
+      : '';
+  } catch {
+    return '';
+  }
+}
+
+function extractStoryImageFromHtml(
+  value = ''
+): Extract<StoryBodyBlock, { type: 'image' }> | null {
+  const figureTag = value.match(/<figure\b[^>]*>/i)?.[0] ?? '';
+  const imageTag = value.match(/<img\b[^>]*>/i)?.[0] ?? '';
+  if (
+    !figureTag ||
+    !imageTag ||
+    !/\bdata-story-image(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?(?=\s|>)/i.test(
+      figureTag
+    )
+  ) {
+    return null;
+  }
+
+  const src = getStoryImageUrl(extractStoryHtmlAttribute(imageTag, 'src'));
+  if (!src) {
+    return null;
+  }
+
+  const rawSize = extractStoryHtmlAttribute(figureTag, 'data-image-size');
+  const rawAlign = extractStoryHtmlAttribute(figureTag, 'data-image-align');
+  const rawLayout = extractStoryHtmlAttribute(figureTag, 'data-image-layout');
+  const credit = extractStoryHtmlAttribute(figureTag, 'data-image-credit');
+  const size: StoryImageSize = ['small', 'medium', 'large', 'full'].includes(rawSize)
+    ? (rawSize as StoryImageSize)
+    : 'medium';
+  const align: StoryImageAlign = ['left', 'center', 'right'].includes(rawAlign)
+    ? (rawAlign as StoryImageAlign)
+    : 'center';
+  const layout: StoryImageLayout = ['block', 'wrap-left', 'wrap-right'].includes(rawLayout)
+    ? (rawLayout as StoryImageLayout)
+    : 'block';
+
+  return {
+    type: 'image',
+    src,
+    alt: extractStoryHtmlAttribute(imageTag, 'alt'),
+    size,
+    align,
+    layout,
+    credit: credit || undefined,
+  };
 }
 
 function htmlToStoryDisplayText(value = '') {
@@ -2820,6 +3128,7 @@ function htmlToStoryDisplayText(value = '') {
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(STORY_BODY_EMBED_BLOCK_PATTERN, '\n\n')
     .replace(STORY_BODY_IFRAME_PATTERN, '\n\n')
+    .replace(STORY_BODY_FACEBOOK_POST_BLOCK_PATTERN, '\n\n')
     .replace(STORY_BODY_RAW_EMBED_ARTIFACT_PATTERN, '$1')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|section|article|blockquote|h[1-6]|ul|ol)>/gi, '\n\n')
@@ -2838,7 +3147,8 @@ function parseStoryBodySegments(value = '') {
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(STORY_BODY_EMBED_BLOCK_PATTERN, '\n\n')
-    .replace(STORY_BODY_IFRAME_PATTERN, '\n\n');
+    .replace(STORY_BODY_IFRAME_PATTERN, '\n\n')
+    .replace(STORY_BODY_FACEBOOK_POST_BLOCK_PATTERN, '\n\n');
   const anchorPattern = /<a\b[^>]*href=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
   const segments: StoryBodySegment[] = [];
   let lastIndex = 0;
@@ -2871,6 +3181,11 @@ function parseStoryBodySegments(value = '') {
 }
 
 function buildStoryParagraphBlocks(value = ''): StoryBodyBlock[] {
+  const directEmbed = extractStoryEmbedFromHtml(value);
+  if (directEmbed) {
+    return [{ type: 'embed', ...directEmbed }];
+  }
+
   const segments = parseStoryBodySegments(value);
 
   if (!segments.length) {
@@ -2945,14 +3260,20 @@ function parseStoryBodyBlocks(value = '') {
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = STORY_BODY_EMBED_OR_IFRAME_PATTERN.exec(sanitized))) {
+  while ((match = STORY_BODY_CONTENT_NODE_PATTERN.exec(sanitized))) {
     const precedingHtml = sanitized.slice(lastIndex, match.index);
     blocks.push(...buildStoryParagraphBlocks(precedingHtml));
 
-    const rawSrc = decodeHtml(match[3] ?? match[5] ?? '').trim();
-    const embed = normalizeStoryEmbedUrl(rawSrc);
-    if (embed) {
-      blocks.push({ type: 'embed', ...embed });
+    const rawHtml = match[0] ?? '';
+    const image = extractStoryImageFromHtml(rawHtml);
+
+    if (image) {
+      blocks.push(image);
+    } else {
+      const embed = extractStoryEmbedFromHtml(rawHtml);
+      if (embed) {
+        blocks.push({ type: 'embed', ...embed });
+      }
     }
 
     lastIndex = match.index + match[0].length;
@@ -2962,15 +3283,162 @@ function parseStoryBodyBlocks(value = '') {
   return blocks;
 }
 
+const STORY_IMAGE_WIDTH_RATIOS: Record<StoryImageSize, number> = {
+  small: 0.62,
+  medium: 0.78,
+  large: 0.9,
+  full: 1,
+};
+const STORY_IMAGE_MAX_HEIGHT_RATIO = 1.25;
+
+function getStoryImageBlockAlign(
+  size: StoryImageSize,
+  align: StoryImageAlign,
+  layout: StoryImageLayout
+) {
+  if (size !== 'full' && layout === 'wrap-left') {
+    return 'left';
+  }
+
+  if (size !== 'full' && layout === 'wrap-right') {
+    return 'right';
+  }
+
+  return align;
+}
+
+function StoryInlineImage({
+  src,
+  alt,
+  size,
+  align,
+  layout,
+  credit,
+  theme,
+}: Extract<StoryBodyBlock, { type: 'image' }> & {
+  theme: AthleticOSResolvedTheme;
+}) {
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const [aspectRatio, setAspectRatio] = useState(4 / 3);
+  const [didFail, setDidFail] = useState(false);
+  const widthRatio = STORY_IMAGE_WIDTH_RATIOS[size];
+  const normalizedAlign = getStoryImageBlockAlign(size, align, layout);
+  const alignItems =
+    normalizedAlign === 'left'
+      ? 'flex-start'
+      : normalizedAlign === 'right'
+      ? 'flex-end'
+      : 'center';
+  const targetWidth = availableWidth * widthRatio;
+  const portraitSafeWidth = availableWidth * STORY_IMAGE_MAX_HEIGHT_RATIO * aspectRatio;
+  const renderedWidth: ViewStyle['width'] = availableWidth
+    ? Math.min(targetWidth, portraitSafeWidth, availableWidth)
+    : `${widthRatio * 100}%` as `${number}%`;
+
+  useEffect(() => {
+    setAspectRatio(4 / 3);
+    setDidFail(false);
+  }, [src]);
+
+  if (didFail) {
+    return null;
+  }
+
+  return (
+    <View
+      style={[styles.storyDetailInlineImageBlock, { alignItems }]}
+      onLayout={(event) => {
+        const nextWidth = event.nativeEvent.layout.width;
+        if (nextWidth > 0 && Math.abs(nextWidth - availableWidth) > 0.5) {
+          setAvailableWidth(nextWidth);
+        }
+      }}
+    >
+      <View style={{ width: renderedWidth }}>
+        <ExpoImage
+          source={{ uri: src }}
+          style={[styles.storyDetailInlineImage, { aspectRatio }]}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          transition={120}
+          accessible={Boolean(alt)}
+          accessibilityRole={alt ? 'image' : undefined}
+          accessibilityLabel={alt || undefined}
+          onLoad={(event) => {
+            const { width, height } = event.source;
+            if (width > 0 && height > 0) {
+              setAspectRatio(width / height);
+            }
+          }}
+          onError={() => setDidFail(true)}
+        />
+        {credit ? (
+          <Text
+            style={[
+              styles.storyDetailInlineImageCredit,
+              {
+                color: isSchoolPrideTheme(theme)
+                  ? getSchoolPrideMutedTextColor()
+                  : theme.colors.mutedText,
+              },
+            ]}
+          >
+            {credit}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function StoryInlineEmbed({
   embedUrl,
+  originalUrl,
   provider,
   title,
+  theme,
+  originalWidth,
+  originalHeight,
 }: {
   embedUrl: string;
-  provider: 'youtube' | 'vimeo';
+  originalUrl: string;
+  provider: 'youtube' | 'vimeo' | 'facebook';
   title: string;
+  theme: AthleticOSResolvedTheme;
+  originalWidth?: number;
+  originalHeight?: number;
 }) {
+  const isSchoolPride = isSchoolPrideTheme(theme);
+  const [facebookContainerWidth, setFacebookContainerWidth] = useState(0);
+  const [facebookDidFail, setFacebookDidFail] = useState(false);
+  const pluginUrlValid = isValidFacebookPluginUrl(embedUrl);
+  const dimensionsValid =
+    Number.isFinite(originalWidth) &&
+    Number.isFinite(originalHeight) &&
+    originalWidth! > 0 &&
+    originalHeight! > 0;
+  const canRenderFacebookInline =
+    provider === 'facebook' &&
+    pluginUrlValid &&
+    dimensionsValid;
+  const facebookScale =
+    canRenderFacebookInline && facebookContainerWidth > 0
+      ? Math.min(1, facebookContainerWidth / originalWidth!)
+      : 0;
+  const facebookDisplayHeight =
+    facebookScale > 0
+      ? originalHeight! * facebookScale
+      : 0;
+  const facebookFixedSizeStyle: ViewStyle | null =
+    facebookContainerWidth > 0 && facebookDisplayHeight > 0
+      ? {
+          width: facebookContainerWidth,
+          height: facebookDisplayHeight,
+          flex: 0,
+          flexGrow: 0,
+          flexShrink: 0,
+        }
+      : null;
   const source =
     provider === 'youtube'
       ? {
@@ -2980,6 +3448,164 @@ function StoryInlineEmbed({
       : {
           uri: embedUrl,
         };
+
+  useEffect(() => {
+    setFacebookDidFail(false);
+  }, [embedUrl, originalHeight, originalWidth]);
+
+  if (provider === 'facebook' && (!canRenderFacebookInline || facebookDidFail)) {
+    const resolvedFacebookUrl = hasResolvedUrl(originalUrl)
+      ? normalizeUrl(originalUrl)
+      : hasResolvedUrl(embedUrl)
+        ? normalizeUrl(embedUrl)
+        : '';
+
+    return (
+      <Pressable
+        style={[
+          styles.storyDetailFacebookFallbackCard,
+          getThemeSoftCardStyle(theme),
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: isSchoolPride
+              ? getSchoolPrideBorderColor()
+              : withAlpha(theme.colors.text, '12'),
+          },
+        ]}
+        onPress={() => {
+          if (!resolvedFacebookUrl) {
+            return;
+          }
+
+          Linking.openURL(resolvedFacebookUrl).catch((error) => {
+            console.warn('Unable to open Facebook story link', error);
+          });
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Open Facebook post"
+      >
+        <View style={styles.storyDetailFacebookFallbackHeader}>
+          <Ionicons name="logo-facebook" size={18} color={theme.colors.primary} />
+          <Text
+            style={[
+              styles.storyDetailFacebookFallbackEyebrow,
+              { color: isSchoolPride ? getSchoolPrideAccentColor(theme) : theme.colors.primary },
+            ]}
+          >
+            Facebook Post
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.storyDetailFacebookFallbackTitle,
+            { color: isSchoolPride ? getSchoolPrideTextColor() : theme.colors.text },
+          ]}
+        >
+          View this post on Facebook
+        </Text>
+        <View
+          style={[
+            styles.storyDetailFacebookFallbackCta,
+            {
+              backgroundColor: withAlpha(theme.colors.primary, isSchoolPride ? '18' : '14'),
+              borderColor: withAlpha(theme.colors.primary, isSchoolPride ? '26' : '1E'),
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.storyDetailFacebookFallbackCtaText,
+              { color: isSchoolPride ? getSchoolPrideAccentColor(theme) : theme.colors.primary },
+            ]}
+          >
+            Open Post
+          </Text>
+          <Ionicons
+            name="arrow-forward"
+            size={14}
+            color={isSchoolPride ? getSchoolPrideAccentColor(theme) : theme.colors.primary}
+          />
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (provider === 'facebook') {
+    return (
+      <View
+        style={[
+          styles.storyDetailFacebookEmbedCard,
+          facebookFixedSizeStyle ?? { aspectRatio: originalWidth! / originalHeight! },
+        ]}
+        onLayout={(event) => {
+          const nextWidth = event.nativeEvent.layout.width;
+          if (nextWidth > 0 && Math.abs(nextWidth - facebookContainerWidth) > 0.5) {
+            setFacebookContainerWidth(nextWidth);
+          }
+        }}
+      >
+        <View
+          style={[
+            styles.storyDetailFacebookEmbedFrame,
+            facebookFixedSizeStyle ?? { aspectRatio: originalWidth! / originalHeight! },
+          ]}
+        >
+          {facebookFixedSizeStyle ? (
+            <WebView
+              source={{
+                html: buildStoryInlineFacebookHtml({
+                  iframeSrc: embedUrl,
+                  title,
+                  width: originalWidth!,
+                  height: originalHeight!,
+                  displayWidth: facebookContainerWidth,
+                  displayHeight: facebookDisplayHeight,
+                  scale: facebookScale,
+                }),
+                baseUrl: STORY_INLINE_FACEBOOK_BASE_URL,
+              }}
+              style={[styles.storyDetailFacebookEmbedWebView, facebookFixedSizeStyle]}
+              containerStyle={facebookFixedSizeStyle}
+              javaScriptEnabled
+              domStorageEnabled
+              scrollEnabled={false}
+              bounces={false}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              originWhitelist={['*']}
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              allowsFullscreenVideo
+              onError={() => setFacebookDidFail(true)}
+              onHttpError={() => setFacebookDidFail(true)}
+              onShouldStartLoadWithRequest={(request) => {
+                const allowed = shouldAllowStoryInlineFacebookNavigation(
+                  request.url,
+                  request.isTopFrame
+                );
+                if (!allowed && hasResolvedUrl(request.url)) {
+                  Linking.openURL(request.url).catch((error) => {
+                    console.warn('Unable to open Facebook story link', error);
+                  });
+                }
+
+                return allowed;
+              }}
+              onOpenWindow={(event) => {
+                const targetUrl = event.nativeEvent.targetUrl;
+                if (hasResolvedUrl(targetUrl)) {
+                  Linking.openURL(targetUrl).catch((error) => {
+                    console.warn('Unable to open Facebook story link', error);
+                  });
+                }
+              }}
+              accessibilityLabel={title}
+            />
+          ) : null}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.storyDetailEmbedCard}>
@@ -3026,13 +3652,31 @@ function renderStoryBodyContent(
   }
 
   return blocks.map((block, blockIndex) => {
+    if (block.type === 'image') {
+      return (
+        <StoryInlineImage
+          key={`story-body-image-${blockIndex}`}
+          {...block}
+          theme={theme}
+        />
+      );
+    }
+
     if (block.type === 'embed') {
       return (
         <StoryInlineEmbed
           key={`story-body-embed-${blockIndex}`}
           embedUrl={block.embedUrl}
+          originalUrl={block.originalUrl}
           provider={block.provider}
-          title={`Embedded ${block.provider} video`}
+          theme={theme}
+          originalWidth={block.originalWidth}
+          originalHeight={block.originalHeight}
+          title={
+            block.provider === 'facebook'
+              ? 'Facebook post'
+              : `Embedded ${block.provider} video`
+          }
         />
       );
     }
@@ -25148,6 +25792,10 @@ export default function App() {
   const [recruitingLogoUrl, setRecruitingLogoUrl] = useState('');
   const [selectedAthlete, setSelectedAthlete] = useState<AthleticOSRosterAthlete | null>(null);
   const [selectedStory, setSelectedStory] = useState<NewsItem | null>(null);
+  const [pendingNotificationResponse, setPendingNotificationResponse] = useState<{
+    key: string;
+    data: NotificationPayload;
+  } | null>(null);
   const [previousScreenMode, setPreviousScreenMode] = useState<ScreenMode>('tabs');
   const [scheduleScreenEvents, setScheduleScreenEvents] = useState<EventItem[] | null>(null);
   const [scheduleScreenSportFilter, setScheduleScreenSportFilter] =
@@ -25272,7 +25920,9 @@ const [allEvents, setAllEvents] = useState<EventItem[]>([]);
     isEnabled: pushNotificationsEnabled,
     lastRegistrationStatus,
     enable: enablePushNotifications,
-  } = usePushNotifications(schoolSlug);
+  } = usePushNotifications(schoolSlug, {
+    onNotificationResponse: setPendingNotificationResponse,
+  });
 
   const hasListenUrl = hasResolvedUrl(schoolConfig.listenUrl);
   const hasMainSiteUrl = hasResolvedUrl(schoolConfig.mainSiteUrl);
@@ -26305,7 +26955,7 @@ const handleEnableNotifications = async () => {
     [resolvedSchoolId, schoolConfig.scheduleUrl]
   );
 
-  const openExternalUrl = (url: string) => {
+  const openExternalUrl = useCallback((url: string) => {
     if (!hasResolvedUrl(url)) {
       return;
     }
@@ -26313,7 +26963,7 @@ const handleEnableNotifications = async () => {
     Linking.openURL(url).catch((error) => {
       console.log('External open error:', error);
     });
-  };
+  }, []);
 
   const openScheduleScreen = (options?: {
     events?: EventItem[];
@@ -26546,13 +27196,67 @@ const handleEnableNotifications = async () => {
     setScreenMode('coaches');
   };
 
-  const handleOpenStoryDetail = (item: NewsItem) => {
+  const handleOpenStoryDetail = useCallback((item: NewsItem) => {
     setActiveEmbeddedBottomNavSlot(null);
     setSelectedGamecast(null);
     setPreviousScreenMode(screenMode);
     setSelectedStory(item);
     setScreenMode('storyDetail');
-  };
+  }, [screenMode]);
+
+  useEffect(() => {
+    if (!pendingNotificationResponse || !schoolLookupComplete || newsLoading) {
+      return;
+    }
+
+    const destination = resolveNotificationDestination(pendingNotificationResponse.data, {
+      currentSchoolSlug: schoolSlug,
+      approvedStoryOrigins: [
+        preferredPublicOrigins.school,
+        schoolConfig.athleticOSSiteUrl,
+        schoolConfig.mainSiteUrl,
+      ],
+    });
+    if (destination.kind === 'none' || destination.kind === 'invalid') {
+      setPendingNotificationResponse(null);
+      return;
+    }
+
+    if (destination.kind === 'external') {
+      setPendingNotificationResponse(null);
+      openExternalUrl(destination.url);
+      return;
+    }
+
+    const resolution = resolvePendingNotificationStory(destination, {
+      currentSchoolSlug: schoolSlug,
+      currentSchoolId: resolvedSchoolId,
+      schoolReady: schoolLookupComplete,
+      storiesReady: schoolLookupComplete && !newsLoading,
+      stories: allNewsItems,
+    });
+
+    if (resolution.status === 'wait') {
+      return;
+    }
+
+    setPendingNotificationResponse(null);
+    if (resolution.status === 'open') {
+      handleOpenStoryDetail(resolution.story);
+    }
+  }, [
+    allNewsItems,
+    handleOpenStoryDetail,
+    newsLoading,
+    openExternalUrl,
+    pendingNotificationResponse,
+    preferredPublicOrigins.school,
+    resolvedSchoolId,
+    schoolConfig.athleticOSSiteUrl,
+    schoolConfig.mainSiteUrl,
+    schoolLookupComplete,
+    schoolSlug,
+  ]);
 
   const openAthleteProfile = (athlete: AthleticOSRosterAthlete) => {
     setActiveEmbeddedBottomNavSlot(null);
@@ -29797,6 +30501,21 @@ bannerImage: {
     textDecorationLine: 'underline',
   },
 
+  storyDetailInlineImageBlock: {
+    width: '100%',
+    marginBottom: 18,
+  },
+
+  storyDetailInlineImage: {
+    width: '100%',
+  },
+
+  storyDetailInlineImageCredit: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+
   storyDetailEmbedCard: {
     marginBottom: 18,
     borderRadius: 18,
@@ -29810,9 +30529,80 @@ bannerImage: {
     backgroundColor: '#000000',
   },
 
+  storyDetailFacebookEmbedCard: {
+    width: '100%',
+    marginBottom: 18,
+    borderRadius: 18,
+    flexGrow: 0,
+    flexShrink: 0,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+
+  storyDetailFacebookEmbedFrame: {
+    width: '100%',
+    flexGrow: 0,
+    flexShrink: 0,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+
+  storyDetailFacebookFallbackCard: {
+    marginBottom: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    gap: 12,
+  },
+
+  storyDetailFacebookFallbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  storyDetailFacebookFallbackEyebrow: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+
+  storyDetailFacebookFallbackTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+
+  storyDetailFacebookFallbackCta: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+
+  storyDetailFacebookFallbackCtaText: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+
   storyDetailEmbedWebView: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+
+  storyDetailFacebookEmbedWebView: {
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    backgroundColor: 'transparent',
   },
 
   liveCoverageSponsorBadge: {

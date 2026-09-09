@@ -7,13 +7,27 @@ import {
   getPushPermissionStatus,
   registerForPushNotifications,
 } from '../lib/push/registerForPush';
+import {
+  getNotificationResponseKey,
+  markNotificationResponseHandled,
+  type NotificationPayload,
+} from '../lib/push/notificationDestinations';
 
 type EnableOptions = {
   interactive?: boolean;
 };
+type PushNotificationOptions = {
+  onNotificationResponse?: (response: {
+    key: string;
+    data: NotificationPayload;
+  }) => void;
+};
 export const PUSH_PERMISSION_DENIED = '__push_permission_denied__';
 
-export function usePushNotifications(schoolSlug?: string) {
+export function usePushNotifications(
+  schoolSlug?: string,
+  options?: PushNotificationOptions
+) {
   const [token, setToken] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
   const [lastRegistrationStatus, setLastRegistrationStatus] =
@@ -21,6 +35,12 @@ export function usePushNotifications(schoolSlug?: string) {
   const isRegisteringRef = useRef(false);
   const autoRegisterAttemptedRef = useRef(false);
   const hasShownDeniedAlertRef = useRef(false);
+  const handledResponseKeysRef = useRef(new Set<string>());
+  const responseHandlerRef = useRef(options?.onNotificationResponse);
+
+  useEffect(() => {
+    responseHandlerRef.current = options?.onNotificationResponse;
+  }, [options?.onNotificationResponse]);
 
   const showDeniedAlert = useCallback(() => {
     if (hasShownDeniedAlertRef.current) {
@@ -102,6 +122,17 @@ export function usePushNotifications(schoolSlug?: string) {
   }, [schoolSlug, showDeniedAlert]);
 
   useEffect(() => {
+    const deliverResponse = (response: Notifications.NotificationResponse) => {
+      const key = getNotificationResponseKey(response);
+      if (!markNotificationResponseHandled(handledResponseKeysRef.current, key)) {
+        return;
+      }
+
+      const data = response.notification.request.content.data ?? {};
+      console.log('Notification response:', data);
+      responseHandlerRef.current?.({ key, data });
+    };
+
     const receivedSubscription = Notifications.addNotificationReceivedListener(
       (notification) => {
         console.log(
@@ -112,12 +143,17 @@ export function usePushNotifications(schoolSlug?: string) {
     );
 
     const responseSubscription =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log(
-          'Notification response:',
-          response.notification.request.content.data ?? {}
-        );
-      });
+      Notifications.addNotificationResponseReceivedListener(deliverResponse);
+
+    try {
+      const lastResponse = Notifications.getLastNotificationResponse();
+      if (lastResponse) {
+        deliverResponse(lastResponse);
+        Notifications.clearLastNotificationResponse();
+      }
+    } catch (error) {
+      console.log('[PushOS] last notification response error', error);
+    }
 
     return () => {
       receivedSubscription.remove();
