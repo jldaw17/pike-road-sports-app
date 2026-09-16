@@ -88,6 +88,12 @@ import {
   resolvePendingNotificationStory,
   type NotificationPayload,
 } from './lib/push/notificationDestinations';
+import {
+  buildSchedulePresentationItems,
+  collectScheduleEventGroupIds,
+  fetchPublicScheduleEventGroups,
+  type PublicScheduleEventGroup,
+} from './lib/scheduleEventGroups';
 import { ThemeProvider } from './lib/theme/ThemeProvider';
 import {
   PUSH_PERMISSION_DENIED,
@@ -2237,6 +2243,8 @@ type EventItem = {
   id: string;
   schoolId?: string;
   sportId?: string;
+  seasonId?: string;
+  eventGroupId?: string | null;
   teamId?: string;
   homeTeamId?: string;
   awayTeamId?: string;
@@ -2290,6 +2298,11 @@ type NormalizedScheduleItem = {
   result?: 'W' | 'L' | 'T' | '';
   isFinal?: boolean;
   isLive?: boolean;
+};
+
+type ScheduleEventGroupsState = {
+  requestKey: string;
+  groups: PublicScheduleEventGroup[];
 };
 
 type FollowableSport = {
@@ -3869,13 +3882,17 @@ function RemoteImage({
   const initials = getInitials(label);
   const isLogoMode =
     mode === 'logo' || mode === 'sponsor' || mode === 'opponent';
+  const usesPremiumLikeAthleteFallback =
+    isPremiumCloneTheme(theme) && mode === 'athlete';
   const fallbackBackground =
-    (isGradientEliteTheme(theme) || isSchoolPrideTheme(theme) || isPremiumTheme(theme)) &&
+    (isGradientEliteTheme(theme) ||
+      isSchoolPrideTheme(theme) ||
+      usesPremiumLikeAthleteFallback) &&
     mode === 'athlete'
       ? theme.colors.primary
       : theme.colors.cardAlt;
   const fallbackBorder = theme.colors.border;
-  const fallbackColor = isLightAppTheme(theme)
+  const fallbackColor = isLightAppTheme(theme) || usesPremiumLikeAthleteFallback
     ? theme.colors.primary
     : theme.colors.text;
   const showFallback = !resolvedUri || didFail;
@@ -4105,6 +4122,37 @@ function formatDate(raw?: string) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatScheduleEventGroupDateRange(
+  startDate?: string | null,
+  endDate?: string | null
+) {
+  const start = startDate ? parseScheduleDateValue(`${startDate} 12:00 PM`) : null;
+  const end = endDate ? parseScheduleDateValue(`${endDate} 12:00 PM`) : null;
+
+  if (!start && !end) return '';
+  if (!start || !end || startDate === endDate) {
+    return (start ?? end)?.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    }) ?? '';
+  }
+
+  if (start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth()) {
+    return `${start.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })}-${end.toLocaleDateString('en-US', { day: 'numeric' })}`;
+  }
+
+  return `${start.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })}-${end.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })}`;
 }
 
 function formatDateTime(raw?: string) {
@@ -17102,6 +17150,7 @@ function ScheduleScreen({
   headerSubtitle,
   schoolLogoUrl,
   schoolId,
+  schoolSlug,
   variant = 'school',
   accentColor,
   sportFilter,
@@ -17115,6 +17164,7 @@ function ScheduleScreen({
   headerSubtitle?: string;
   schoolLogoUrl?: string;
   schoolId?: string | number | null;
+  schoolSlug: string;
   variant?: ScheduleScreenVariant;
   accentColor?: string;
   sportFilter?: ScheduleSportFilter | null;
@@ -17215,6 +17265,49 @@ function ScheduleScreen({
 
     return [...pastEvents, ...upcomingEvents, ...undatedEvents];
   }, [isTeamVariant, scheduleEvents, sportFilter]);
+  const visibleEventGroupIds = useMemo(
+    () => collectScheduleEventGroupIds(visibleScheduleEvents),
+    [visibleScheduleEvents]
+  );
+  const eventGroupsRequestKey = `${schoolSlug.trim().toLowerCase()}::${visibleEventGroupIds.join(',')}`;
+  const [eventGroupsState, setEventGroupsState] = useState<ScheduleEventGroupsState>({
+    requestKey: '',
+    groups: [],
+  });
+
+  useEffect(() => {
+    let isCurrentRequest = true;
+    const groupIds = eventGroupsRequestKey.split('::')[1]?.split(',').filter(Boolean) ?? [];
+
+    if (!schoolSlug.trim() || groupIds.length === 0) {
+      setEventGroupsState({ requestKey: eventGroupsRequestKey, groups: [] });
+      return () => {
+        isCurrentRequest = false;
+      };
+    }
+
+    void fetchPublicScheduleEventGroups({ schoolSlug, groupIds }).then((groups) => {
+      if (isCurrentRequest) {
+        setEventGroupsState({ requestKey: eventGroupsRequestKey, groups });
+      }
+    });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [eventGroupsRequestKey, schoolSlug]);
+
+  const eventGroups =
+    eventGroupsState.requestKey === eventGroupsRequestKey ? eventGroupsState.groups : [];
+  const schedulePresentationItems = useMemo(
+    () =>
+      buildSchedulePresentationItems({
+        games: visibleScheduleEvents,
+        groups: eventGroups,
+        currentSchoolId: schoolId,
+      }),
+    [eventGroups, schoolId, visibleScheduleEvents]
+  );
   const filteredOutScheduleEvents = useMemo(() => {
     if (isTeamVariant) {
       const selectedSportId = sportFilter?.sportId?.trim() || '';
@@ -17688,7 +17781,30 @@ function ScheduleScreen({
           </Text>
         </View>
       ) : (
-        normalized.map((item, index) => (
+        (() => {
+          const handleScheduleCardLayout = (index: number, y: number) => {
+            compositeOffsetsRef.current[index] = y;
+
+            if (
+              !hasAutoScrolledRef.current &&
+              index === todayIndex &&
+              scheduleScrollRef.current
+            ) {
+              hasAutoScrolledRef.current = true;
+              scheduleScrollRef.current.scrollTo({
+                y: Math.max(y - 12, 0),
+                animated: false,
+              });
+            }
+          };
+          const renderScheduleGameCard = (
+            event: EventItem,
+            index: number,
+            trackLayout = true
+          ) => {
+            const item = normalizeScheduleItem(event);
+
+            return (
           isTeamVariant ? (() => {
             return (
               <View
@@ -18063,21 +18179,9 @@ function ScheduleScreen({
                       : null,
                   ]}
                   onLayout={
-                    !isTeamVariant
+                    !isTeamVariant && trackLayout
                       ? (layoutEvent) => {
-                          compositeOffsetsRef.current[index] = layoutEvent.nativeEvent.layout.y;
-
-                          if (
-                            !hasAutoScrolledRef.current &&
-                            index === todayIndex &&
-                            scheduleScrollRef.current
-                          ) {
-                            hasAutoScrolledRef.current = true;
-                            scheduleScrollRef.current.scrollTo({
-                              y: Math.max(layoutEvent.nativeEvent.layout.y - 12, 0),
-                              animated: false,
-                            });
-                          }
+                          handleScheduleCardLayout(index, layoutEvent.nativeEvent.layout.y);
                         }
                       : undefined
                   }
@@ -18371,7 +18475,120 @@ function ScheduleScreen({
               );
             })()
           )
-        ))
+            );
+          };
+
+          return schedulePresentationItems.map((entry) => {
+            if (entry.type === 'game') {
+              const index = visibleScheduleEvents.indexOf(entry.game);
+              return renderScheduleGameCard(entry.game, index);
+            }
+
+            const dateRange = formatScheduleEventGroupDateRange(
+              entry.group.start_date,
+              entry.group.end_date
+            );
+            const metaLabel = [dateRange, entry.group.location_name]
+              .filter(Boolean)
+              .join(' · ');
+            const todayGameIndex = entry.games.findIndex(
+              (game) => visibleScheduleEvents.indexOf(game) === todayIndex
+            );
+
+            return (
+              <View
+                key={`event-group-${entry.group.id}`}
+                style={[
+                  styles.scheduleEventGroup,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: withAlpha(theme.colors.text, '12'),
+                    borderLeftColor: resolvedAccentColor,
+                  },
+                ]}
+                onLayout={
+                  !isTeamVariant && todayGameIndex >= 0
+                    ? (layoutEvent) =>
+                        handleScheduleCardLayout(todayIndex, layoutEvent.nativeEvent.layout.y)
+                    : undefined
+                }
+              >
+                <View style={styles.scheduleEventGroupHeader}>
+                  {entry.group.logo_url ? (
+                    <RemoteImage
+                      uri={entry.group.logo_url}
+                      style={[
+                        styles.scheduleEventGroupLogo,
+                        {
+                          backgroundColor: theme.colors.cardAlt,
+                          borderColor: theme.colors.border,
+                        },
+                      ]}
+                      contentFit="contain"
+                      mode="logo"
+                      label={entry.group.name}
+                      theme={theme}
+                    />
+                  ) : null}
+                  <View style={styles.scheduleEventGroupCopy}>
+                    <Text
+                      style={[
+                        styles.scheduleEventGroupType,
+                        { color: resolvedAccentColor },
+                      ]}
+                    >
+                      {entry.group.group_type.replace(/_/g, ' ')}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.scheduleEventGroupName,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      {entry.group.name}
+                    </Text>
+                    {metaLabel ? (
+                      <Text
+                        style={[
+                          styles.scheduleEventGroupMeta,
+                          { color: theme.colors.mutedText },
+                        ]}
+                      >
+                        {metaLabel}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.scheduleEventGroupCount}>
+                    <Text
+                      style={[
+                        styles.scheduleEventGroupCountValue,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      {entry.games.length}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.scheduleEventGroupCountLabel,
+                        { color: theme.colors.mutedText },
+                      ]}
+                    >
+                      {entry.games.length === 1 ? 'Game' : 'Games'}
+                    </Text>
+                  </View>
+                </View>
+
+                {entry.games.map((game) =>
+                  renderScheduleGameCard(
+                    game,
+                    visibleScheduleEvents.indexOf(game),
+                    false
+                  )
+                )}
+              </View>
+            );
+          });
+        })()
       )}
     </ScrollView>
   );
@@ -18796,7 +19013,7 @@ function RosterScreen({
                         ? { color: theme.colors.buttonText }
                         : isSchoolPride
                           ? { color: getSchoolPrideTextColor() }
-                        : isPremium
+                        : isPremiumLike
                           ? { color: theme.colors.text }
                         : isGradientEliteTheme(theme)
                           ? { color: theme.colors.text }
@@ -18847,7 +19064,7 @@ function RosterScreen({
                         padding: 8,
                         minHeight: 0,
                       }
-                    : isPremium
+                    : isPremiumLike
                       ? {
                           backgroundColor: theme.colors.surface,
                           borderColor: withAlpha(theme.colors.text, '0C'),
@@ -18969,11 +19186,13 @@ function RosterScreen({
                 ) : (
                   <View
                     style={[
-                      styles.rosterPhotoFallback,
+                      isPremiumLike
+                        ? styles.premiumLikeRosterPhotoFallback
+                        : styles.rosterPhotoFallback,
                       {
                         backgroundColor: isSchoolPride
                           ? theme.colors.primary
-                          : isPremium
+                          : isPremiumLike
                           ? theme.colors.primary
                           : isCleanSlate
                           ? theme.colors.primary
@@ -18983,6 +19202,9 @@ function RosterScreen({
                             ? theme.colors.primary
                           : theme.colors.cardAlt,
                       },
+                      isPremiumLike
+                        ? { borderColor: withAlpha(theme.colors.primary, '72') }
+                        : null,
                       isModern
                         ? {
                             borderRadius: 12,
@@ -18996,16 +19218,6 @@ function RosterScreen({
                               borderColor: withAlpha(theme.colors.primary, '82'),
                               marginRight: 0,
                               marginBottom: 8,
-                            }
-                        : isPremium
-                          ? {
-                              width: '100%',
-                              aspectRatio: 0.88,
-                              borderRadius: 14,
-                              marginRight: 0,
-                              marginBottom: 10,
-                              borderWidth: 1,
-                              borderColor: withAlpha(theme.colors.primary, '72'),
                             }
                         : null,
                     ]}
@@ -28773,6 +28985,7 @@ if (showPreroll && prerollConfig) {
         headerSubtitle={scheduleScreenSubtitle || appDisplayName}
         schoolLogoUrl={scheduleScreenLogoUrl || schoolConfig.logoUrl}
         schoolId={resolvedSchoolId}
+        schoolSlug={schoolSlug}
         variant={scheduleScreenVariant}
         accentColor={scheduleScreenAccentColor}
         sportFilter={scheduleScreenSportFilter}
@@ -31691,6 +31904,17 @@ heroStatusText: {
     justifyContent: 'center',
   },
 
+  premiumLikeRosterPhotoFallback: {
+    width: '100%',
+    aspectRatio: 0.88,
+    borderRadius: 14,
+    marginRight: 0,
+    marginBottom: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   rosterBody: {
     flex: 1,
     marginLeft: 14,
@@ -32222,6 +32446,79 @@ heroStatusText: {
   scheduleOpponentLogo: {
     width: '100%',
     height: '100%',
+  },
+
+  scheduleEventGroup: {
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderRadius: 18,
+    marginBottom: 18,
+    paddingTop: 14,
+    paddingBottom: 2,
+  },
+
+  scheduleEventGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+
+  scheduleEventGroupLogo: {
+    width: 50,
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 6,
+  },
+
+  scheduleEventGroupCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  scheduleEventGroupType: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+
+  scheduleEventGroupName: {
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+
+  scheduleEventGroupMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+
+  scheduleEventGroupCount: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 42,
+  },
+
+  scheduleEventGroupCountValue: {
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+
+  scheduleEventGroupCountLabel: {
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
   teamScheduleCard: {

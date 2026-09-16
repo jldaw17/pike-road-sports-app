@@ -597,6 +597,7 @@ export type AthleticOSScheduleEvent = {
   school_id?: string | number;
   sport_id?: string | number;
   season_id?: string | number;
+  event_group_id?: string | null;
   home_team_id?: string | number;
   away_team_id?: string | number;
   homeTeamId?: string | number;
@@ -4280,6 +4281,8 @@ export function mapScheduleEventToHomeEventItem(
   const resolvedAppCta = resolveScheduleEventAppCta(event);
   const schoolId = pickFirstId(event, ['school_id']) ?? '';
   const sportId = pickFirstId(event, ['sport_id']) ?? '';
+  const seasonId = pickFirstId(event, ['season_id']) ?? '';
+  const eventGroupId = pickFirstId(event, ['event_group_id']) ?? null;
   const matchedSport =
     sports.find((sport) => pickFirstId(sport as Record<string, unknown>, ['id']) === sportId) ??
     null;
@@ -4331,6 +4334,8 @@ export function mapScheduleEventToHomeEventItem(
       `${sport}-${opponent}-${rawDate ?? 'unknown'}`,
     schoolId,
     sportId,
+    seasonId,
+    eventGroupId,
     homeTeamId: homeTeamId ?? undefined,
     awayTeamId: awayTeamId ?? undefined,
     title: [sport, normalizedHomeAway, opponent, resultSuffix]
