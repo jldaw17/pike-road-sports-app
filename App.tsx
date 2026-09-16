@@ -849,6 +849,40 @@ function pickMostContrastingColor(
   return bestColor;
 }
 
+function getStoryBodyLinkColor(theme: AthleticOSResolvedTheme) {
+  const articleBackground = isSchoolPrideTheme(theme)
+    ? getSchoolPrideSurfaceColor()
+    : isPremiumCloneTheme(theme)
+    ? theme.colors.surface
+    : isPower5Theme(theme)
+    ? theme.colors.cardAlt
+    : isGradientEliteTheme(theme)
+    ? '#0A0A0A'
+    : isLightAppTheme(theme)
+    ? theme.colors.surface
+    : '#171F34';
+  const preferredLinkColor = isSchoolPrideTheme(theme)
+    ? getSchoolPrideAccentColor(theme)
+    : theme.colors.accent;
+  const preferredContrast = getContrastRatio(preferredLinkColor, articleBackground);
+
+  if (preferredContrast !== null && preferredContrast >= 4.5) {
+    return preferredLinkColor;
+  }
+
+  return pickMostContrastingColor(
+    articleBackground,
+    [
+      theme.colors.primary,
+      theme.colors.secondary,
+      theme.colors.text,
+      BRAND.white,
+      BRAND.black,
+    ],
+    theme.colors.text
+  );
+}
+
 function getRecentResultCardBackground(theme: AthleticOSResolvedTheme) {
   if (isSchoolPrideTheme(theme)) {
     return getSchoolPrideSurfaceColor();
@@ -3708,8 +3742,10 @@ function renderStoryBodyContent(
               key={`story-body-segment-${blockIndex}-${segmentIndex}`}
               style={[
                 styles.storyDetailBodyLink,
-                { color: theme.colors.primary },
+                { color: getStoryBodyLinkColor(theme) },
               ]}
+              accessibilityRole="link"
+              accessibilityHint="Opens link"
               onPress={() => {
                 Linking.openURL(segment.href!).catch((error) => {
                   console.warn('Unable to open story body link', error);
@@ -30712,6 +30748,7 @@ bannerImage: {
 
   storyDetailBodyLink: {
     textDecorationLine: 'underline',
+    fontWeight: '700',
   },
 
   storyDetailInlineImageBlock: {
