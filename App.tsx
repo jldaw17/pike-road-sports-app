@@ -94,6 +94,10 @@ import {
   fetchPublicScheduleEventGroups,
   type PublicScheduleEventGroup,
 } from './lib/scheduleEventGroups';
+import {
+  getStoryCropGeometry,
+  getStoryCropPresentation,
+} from './lib/storyImageCrop';
 import { ThemeProvider } from './lib/theme/ThemeProvider';
 import {
   PUSH_PERMISSION_DENIED,
@@ -185,92 +189,6 @@ const SCHOOL_PRIDE_TEXT = '#111111';
 const SCHOOL_PRIDE_MUTED_TEXT = '#4B5563';
 const SCHOOL_PRIDE_BORDER = 'rgba(17,17,17,0.12)';
 const SCHOOL_PRIDE_DRAMA = '#171717';
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function normalizeStoryCropValue(value?: number | null) {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return null;
-  }
-
-  return clamp(value, 0, 1);
-}
-
-function hasStoryImageCrop(item?: {
-  cropWidth?: number | null;
-  cropHeight?: number | null;
-} | null) {
-  return Boolean(
-    item &&
-      typeof item.cropWidth === 'number' &&
-      typeof item.cropHeight === 'number' &&
-      item.cropWidth > 0 &&
-      item.cropWidth <= 1 &&
-      item.cropHeight > 0 &&
-      item.cropHeight <= 1
-  );
-}
-
-function getStoryCropBaseRect(item?: {
-  cropWidth?: number | null;
-  cropHeight?: number | null;
-} | null) {
-  const cropWidth = normalizeStoryCropValue(item?.cropWidth);
-  const cropHeight = normalizeStoryCropValue(item?.cropHeight);
-
-  if (!cropWidth || !cropHeight) {
-    return {
-      width: 1,
-      height: 1,
-    };
-  }
-
-  const ratio = cropWidth / cropHeight;
-
-  if (ratio <= 1) {
-    return {
-      width: clamp(ratio, 0, 1),
-      height: 1,
-    };
-  }
-
-  return {
-    width: 1,
-    height: clamp(1 / ratio, 0, 1),
-  };
-}
-
-function getStoryCropPresentation(item?: {
-  cropX?: number | null;
-  cropY?: number | null;
-  cropWidth?: number | null;
-  cropHeight?: number | null;
-} | null) {
-  if (!hasStoryImageCrop(item)) {
-    return null;
-  }
-
-  const cropX = normalizeStoryCropValue(item?.cropX) ?? 0;
-  const cropY = normalizeStoryCropValue(item?.cropY) ?? 0;
-  const cropWidth = normalizeStoryCropValue(item?.cropWidth) ?? 1;
-  const cropHeight = normalizeStoryCropValue(item?.cropHeight) ?? 1;
-  const centerX = clamp(cropX + cropWidth / 2, 0, 1);
-  const centerY = clamp(cropY + cropHeight / 2, 0, 1);
-  const baseRect = getStoryCropBaseRect(item);
-  const scaleFromWidth = baseRect.width / cropWidth;
-  const scaleFromHeight = baseRect.height / cropHeight;
-  const scale = clamp(Math.max(scaleFromWidth, scaleFromHeight), 1, 6);
-
-  return {
-    contentPosition: {
-      left: `${(centerX * 100).toFixed(2)}%`,
-      top: `${(centerY * 100).toFixed(2)}%`,
-    } as const,
-    scale,
-  };
-}
 
 function getModernDisplayLabel(label: string, fallback?: string) {
   const normalized = (label || fallback || '').trim();
@@ -2601,6 +2519,12 @@ function stripHtml(value = '') {
 type StoryBodySegment = {
   text: string;
   href?: string;
+  isGameInformationAction?: boolean;
+};
+
+type StoryGameInformationAction = {
+  label: string;
+  href: string;
 };
 
 type StoryImageSize = 'small' | 'medium' | 'large' | 'full';
@@ -2611,6 +2535,10 @@ type StoryBodyBlock =
   | {
       type: 'paragraph';
       segments: StoryBodySegment[];
+    }
+  | {
+      type: 'gameInformationActions';
+      actions: StoryGameInformationAction[];
     }
   | {
       type: 'embed';
@@ -2651,6 +2579,7 @@ const STORY_INLINE_ALLOWED_TOP_LEVEL_HOSTS = new Set([
 const STORY_INLINE_EMBED_ALLOW =
   'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
 const STORY_INLINE_FACEBOOK_BASE_URL = 'https://athleticos.ai';
+const STORY_INLINE_FACEBOOK_VIDEO_HEIGHT_RATIO = 0.72;
 
 function getStoryInlineEmbedClientReferrer() {
   const androidPackage = Constants?.expoConfig?.android?.package?.trim();
@@ -2783,12 +2712,33 @@ function isValidFacebookPluginUrl(value = '') {
       (hostname === 'facebook.com' ||
         hostname === 'www.facebook.com' ||
         hostname === 'm.facebook.com') &&
-      parsed.pathname === '/plugins/post.php' &&
+      (parsed.pathname === '/plugins/post.php' ||
+        parsed.pathname === '/plugins/video.php') &&
       Boolean(extractFacebookPostUrl(value))
     );
   } catch {
     return false;
   }
+}
+
+function isFacebookPluginUrlForPath(value = '', pathname = '') {
+  if (!isValidFacebookPluginUrl(value)) {
+    return false;
+  }
+
+  try {
+    return new URL(value).pathname === pathname;
+  } catch {
+    return false;
+  }
+}
+
+function isValidFacebookPostPluginUrl(value = '') {
+  return isFacebookPluginUrlForPath(value, '/plugins/post.php');
+}
+
+function isValidFacebookVideoPluginUrl(value = '') {
+  return isFacebookPluginUrlForPath(value, '/plugins/video.php');
 }
 
 function buildStoryInlineFacebookHtml({
@@ -2891,6 +2841,31 @@ function shouldAllowStoryInlineFacebookNavigation(url?: string, isTopFrame?: boo
   }
 }
 
+function shouldAllowStoryInlineFacebookVideoNavigation(
+  url = '',
+  embedUrl = '',
+  isTopFrame = true
+) {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  if (isTopFrame === false || trimmed === 'about:blank') {
+    return true;
+  }
+
+  if (!isValidFacebookVideoPluginUrl(trimmed)) {
+    return false;
+  }
+
+  try {
+    return new URL(trimmed).toString() === new URL(embedUrl).toString();
+  } catch {
+    return false;
+  }
+}
+
 function shouldAllowStoryInlineEmbedNavigation(url?: string, isTopFrame?: boolean) {
   const trimmed = (url ?? '').trim();
   if (!trimmed) {
@@ -2986,6 +2961,7 @@ function looksLikeFacebookPostPath(pathname = '', search = '') {
     normalizedPath.includes('/photos/') ||
     normalizedPath.includes('/watch/') ||
     normalizedPath.includes('/videos/') ||
+    /^\/reel\/[a-z0-9._-]+\/?$/i.test(normalizedPath) ||
     /(^|[?&])story_fbid=/i.test(search)
   );
 }
@@ -3001,7 +2977,10 @@ function extractFacebookPostUrl(value = '') {
     const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
 
     if (hostname === 'facebook.com' || hostname === 'm.facebook.com') {
-      if (parsed.pathname === '/plugins/post.php') {
+      if (
+        parsed.pathname === '/plugins/post.php' ||
+        parsed.pathname === '/plugins/video.php'
+      ) {
         const href = decodeHtml(parsed.searchParams.get('href') ?? '').trim();
         return extractFacebookPostUrl(href);
       }
@@ -3189,6 +3168,16 @@ function htmlToStoryDisplayText(value = '') {
     .replace(/\n{3,}/g, '\n\n');
 }
 
+function hasStoryHtmlClassToken(tagHtml = '', classToken = '') {
+  const normalizedToken = classToken.trim();
+  if (!normalizedToken) {
+    return false;
+  }
+
+  const classMatch = /\bclass\s*=\s*(["'])([\s\S]*?)\1/i.exec(tagHtml);
+  return (classMatch?.[2] ?? '').split(/\s+/).includes(normalizedToken);
+}
+
 function parseStoryBodySegments(value = '') {
   const sanitized = value
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -3214,9 +3203,15 @@ function parseStoryBodySegments(value = '') {
     const href = decodeHtml(match[2] ?? '').trim();
     const label = htmlToStoryDisplayText(match[3] ?? '').trim() || href;
     if (label) {
+      const openingTag = /^<a\b[^>]*>/i.exec(match[0])?.[0] ?? '';
+      const isGameInformationAction = hasStoryHtmlClassToken(
+        openingTag,
+        'story-game-info-link'
+      );
       segments.push({
         text: label,
         href: hasResolvedUrl(href) ? normalizeUrl(href) : undefined,
+        ...(isGameInformationAction ? { isGameInformationAction: true } : null),
       });
     }
 
@@ -3259,6 +3254,24 @@ function buildStoryParagraphBlocks(value = ''): StoryBodyBlock[] {
 
   const pushCurrentParagraph = () => {
     if (!currentParagraph.length) {
+      return;
+    }
+
+    const isGameInformationActionParagraph = currentParagraph.every(
+      (segment) =>
+        segment.isGameInformationAction === true &&
+        Boolean(segment.href) &&
+        Boolean(segment.text.trim())
+    );
+    if (isGameInformationActionParagraph) {
+      paragraphs.push({
+        type: 'gameInformationActions',
+        actions: currentParagraph.map((segment) => ({
+          label: segment.text.trim(),
+          href: segment.href!,
+        })),
+      });
+      currentParagraph = [];
       return;
     }
 
@@ -3458,18 +3471,23 @@ function StoryInlineEmbed({
   const isSchoolPride = isSchoolPrideTheme(theme);
   const [facebookContainerWidth, setFacebookContainerWidth] = useState(0);
   const [facebookDidFail, setFacebookDidFail] = useState(false);
-  const pluginUrlValid = isValidFacebookPluginUrl(embedUrl);
+  const facebookPostPluginUrlValid = isValidFacebookPostPluginUrl(embedUrl);
+  const facebookVideoPluginUrlValid = isValidFacebookVideoPluginUrl(embedUrl);
   const dimensionsValid =
     Number.isFinite(originalWidth) &&
     Number.isFinite(originalHeight) &&
     originalWidth! > 0 &&
     originalHeight! > 0;
-  const canRenderFacebookInline =
+  const canRenderFacebookPostInline =
     provider === 'facebook' &&
-    pluginUrlValid &&
+    facebookPostPluginUrlValid &&
     dimensionsValid;
+  const canRenderFacebookVideoInline =
+    provider === 'facebook' && facebookVideoPluginUrlValid;
+  const canRenderFacebookInline =
+    canRenderFacebookPostInline || canRenderFacebookVideoInline;
   const facebookScale =
-    canRenderFacebookInline && facebookContainerWidth > 0
+    canRenderFacebookPostInline && facebookContainerWidth > 0
       ? Math.min(1, facebookContainerWidth / originalWidth!)
       : 0;
   const facebookDisplayHeight =
@@ -3484,6 +3502,21 @@ function StoryInlineEmbed({
           flex: 0,
           flexGrow: 0,
           flexShrink: 0,
+        }
+      : null;
+  const facebookVideoDisplayHeight =
+    canRenderFacebookVideoInline && facebookContainerWidth > 0
+      ? facebookContainerWidth * STORY_INLINE_FACEBOOK_VIDEO_HEIGHT_RATIO
+      : 0;
+  const facebookVideoFixedSizeStyle: ViewStyle | null =
+    facebookContainerWidth > 0 && facebookVideoDisplayHeight > 0
+      ? {
+          width: facebookContainerWidth,
+          height: facebookVideoDisplayHeight,
+          flex: 0,
+          flexGrow: 0,
+          flexShrink: 0,
+          overflow: 'hidden',
         }
       : null;
   const source =
@@ -3574,6 +3607,77 @@ function StoryInlineEmbed({
           />
         </View>
       </Pressable>
+    );
+  }
+
+  if (canRenderFacebookVideoInline) {
+    return (
+      <View
+        style={[
+          styles.storyDetailFacebookEmbedCard,
+          facebookVideoFixedSizeStyle ?? {
+            aspectRatio: 1 / STORY_INLINE_FACEBOOK_VIDEO_HEIGHT_RATIO,
+          },
+        ]}
+        onLayout={(event) => {
+          const nextWidth = event.nativeEvent.layout.width;
+          if (nextWidth > 0 && Math.abs(nextWidth - facebookContainerWidth) > 0.5) {
+            setFacebookContainerWidth(nextWidth);
+          }
+        }}
+      >
+        <View
+          style={[
+            styles.storyDetailFacebookEmbedFrame,
+            facebookVideoFixedSizeStyle ?? {
+              aspectRatio: 1 / STORY_INLINE_FACEBOOK_VIDEO_HEIGHT_RATIO,
+            },
+          ]}
+        >
+          {facebookVideoFixedSizeStyle ? (
+            <WebView
+              source={{ uri: embedUrl }}
+              style={[styles.storyDetailFacebookEmbedWebView, facebookVideoFixedSizeStyle]}
+              containerStyle={facebookVideoFixedSizeStyle}
+              javaScriptEnabled
+              domStorageEnabled
+              scrollEnabled={false}
+              bounces={false}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              originWhitelist={['*']}
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              allowsFullscreenVideo
+              onError={() => setFacebookDidFail(true)}
+              onHttpError={() => setFacebookDidFail(true)}
+              onShouldStartLoadWithRequest={(request) => {
+                const allowed = shouldAllowStoryInlineFacebookVideoNavigation(
+                  request.url,
+                  embedUrl,
+                  request.isTopFrame
+                );
+                if (!allowed && hasResolvedUrl(request.url)) {
+                  Linking.openURL(request.url).catch((error) => {
+                    console.warn('Unable to open Facebook story link', error);
+                  });
+                }
+
+                return allowed;
+              }}
+              onOpenWindow={(event) => {
+                const targetUrl = event.nativeEvent.targetUrl;
+                if (hasResolvedUrl(targetUrl)) {
+                  Linking.openURL(targetUrl).catch((error) => {
+                    console.warn('Unable to open Facebook story link', error);
+                  });
+                }
+              }}
+              accessibilityLabel={title}
+            />
+          ) : null}
+        </View>
+      </View>
     );
   }
 
@@ -3699,6 +3803,60 @@ function renderStoryBodyContent(
   }
 
   return blocks.map((block, blockIndex) => {
+    if (block.type === 'gameInformationActions') {
+      const actionBackgroundColor = theme.colors.cardAlt;
+      const actionForegroundColor = pickMostContrastingColor(
+        actionBackgroundColor,
+        [
+          getStoryBodyLinkColor(theme),
+          theme.colors.accent,
+          theme.colors.text,
+          BRAND.white,
+          BRAND.black,
+        ],
+        theme.colors.text
+      );
+
+      return (
+        <View
+          key={`story-body-game-information-actions-${blockIndex}`}
+          style={styles.storyDetailGameInformationActions}
+        >
+          {block.actions.map((action, actionIndex) => (
+            <Pressable
+              key={`${action.href}-${actionIndex}`}
+              style={({ pressed }) => [
+                styles.storyDetailGameInformationAction,
+                {
+                  backgroundColor: actionBackgroundColor,
+                  borderColor: theme.colors.border,
+                  marginBottom: actionIndex === block.actions.length - 1 ? 0 : 10,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+              accessibilityRole="link"
+              accessibilityHint="Opens link"
+              onPress={() => {
+                Linking.openURL(action.href).catch((error) => {
+                  console.warn('Unable to open story body link', error);
+                });
+              }}
+            >
+              <Text
+                style={[
+                  styles.storyDetailGameInformationActionText,
+                  { color: actionForegroundColor },
+                ]}
+              >
+                {action.label}
+              </Text>
+              <Ionicons name="open-outline" size={18} color={actionForegroundColor} />
+            </Pressable>
+          ))}
+        </View>
+      );
+    }
+
     if (block.type === 'image') {
       return (
         <StoryInlineImage
@@ -3903,6 +4061,9 @@ function RemoteImage({
   style,
   label,
   contentFit = 'cover',
+  cropPresentation,
+  accessibilityLabel,
+  transition = 120,
   mode = 'content',
   theme = DEFAULT_APP_THEME,
 }: {
@@ -3910,10 +4071,15 @@ function RemoteImage({
   style: StyleProp<ViewStyle>;
   label?: string;
   contentFit?: 'cover' | 'contain';
+  cropPresentation?: ReturnType<typeof getStoryCropPresentation>;
+  accessibilityLabel?: string;
+  transition?: number;
   mode?: RemoteImageMode;
   theme?: AthleticOSResolvedTheme;
 }) {
   const [didFail, setDidFail] = useState(false);
+  const [sourceSize, setSourceSize] = useState({ width: 0, height: 0 });
+  const [destinationSize, setDestinationSize] = useState({ width: 0, height: 0 });
   const resolvedUri = hasResolvedUrl(uri) ? normalizeUrl(uri as string) : '';
   const initials = getInitials(label);
   const isLogoMode =
@@ -3935,7 +4101,18 @@ function RemoteImage({
 
   useEffect(() => {
     setDidFail(false);
+    setSourceSize({ width: 0, height: 0 });
   }, [resolvedUri]);
+
+  const cropGeometry = cropPresentation
+    ? getStoryCropGeometry({
+        ...cropPresentation,
+        sourceWidth: sourceSize.width,
+        sourceHeight: sourceSize.height,
+        destinationWidth: destinationSize.width,
+        destinationHeight: destinationSize.height,
+      })
+    : null;
 
   const fallbackIconName: keyof typeof Ionicons.glyphMap =
     mode === 'athlete'
@@ -3956,14 +4133,55 @@ function RemoteImage({
             isLogoMode && !showFallback ? 'transparent' : fallbackBackground,
         },
       ]}
+      onLayout={
+        cropPresentation
+          ? (event) => {
+              const { width, height } = event.nativeEvent.layout;
+              if (
+                width > 0 &&
+                height > 0 &&
+                (Math.abs(width - destinationSize.width) > 0.5 ||
+                  Math.abs(height - destinationSize.height) > 0.5)
+              ) {
+                setDestinationSize({ width, height });
+              }
+            }
+          : undefined
+      }
     >
       {!showFallback ? (
         <ExpoImage
           source={{ uri: resolvedUri }}
-          style={StyleSheet.absoluteFillObject}
-          contentFit={contentFit}
+          style={
+            cropGeometry
+              ? {
+                  position: 'absolute',
+                  width: cropGeometry.renderedWidth,
+                  height: cropGeometry.renderedHeight,
+                  left: cropGeometry.left,
+                  top: cropGeometry.top,
+                }
+              : StyleSheet.absoluteFillObject
+          }
+          contentFit={cropGeometry ? 'contain' : contentFit}
           cachePolicy="memory-disk"
-          transition={120}
+          transition={transition}
+          accessible={Boolean(accessibilityLabel)}
+          accessibilityLabel={accessibilityLabel}
+          onLoad={(event) => {
+            if (!cropPresentation) {
+              return;
+            }
+
+            const { width, height } = event.source;
+            if (
+              width > 0 &&
+              height > 0 &&
+              (width !== sourceSize.width || height !== sourceSize.height)
+            ) {
+              setSourceSize({ width, height });
+            }
+          }}
           onError={() => setDidFail(true)}
         />
       ) : (
@@ -5996,6 +6214,7 @@ function NewsCard({
   theme?: AthleticOSResolvedTheme;
 }) {
   const sportLabel = item.sportLabel?.trim() || 'Athletics';
+  const storyCropPresentation = getStoryCropPresentation(item);
   const isCleanSlate = isCleanSlateTheme(theme);
   const isPremium = isPremiumTheme(theme);
   const isSchoolPride = isSchoolPrideTheme(theme);
@@ -6057,6 +6276,7 @@ function NewsCard({
                 uri={item.image}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="cover"
+                cropPresentation={storyCropPresentation}
                 mode="story"
                 label={item.title}
                 theme={theme}
@@ -6200,6 +6420,7 @@ function NewsCard({
                   },
                 ]}
                 contentFit="cover"
+                cropPresentation={storyCropPresentation}
                 mode="story"
                 label={item.title}
                 theme={theme}
@@ -6274,6 +6495,9 @@ function NewsCard({
             uri={item.image}
             style={styles.featuredStoryImage}
             contentFit="cover"
+            cropPresentation={storyCropPresentation}
+            accessibilityLabel={item.title}
+            transition={180}
             mode="story"
             label={item.title}
             theme={theme}
@@ -6342,6 +6566,7 @@ function NewsCard({
               },
             ]}
             contentFit="cover"
+            cropPresentation={storyCropPresentation}
             mode="story"
             label={item.title}
             theme={theme}
@@ -6449,6 +6674,7 @@ function NewsCard({
                 uri={item.image}
                 style={{ width: '100%', height: 138 }}
                 contentFit="cover"
+                cropPresentation={storyCropPresentation}
                 mode="story"
                 label={item.title}
                 theme={theme}
@@ -6607,6 +6833,7 @@ function NewsCard({
               uri={item.image}
               style={[styles.newsThumbWide, { borderRadius: 4, width: 120, aspectRatio: MEDIA_FEATURE_ASPECT_RATIO, marginRight: 0 }]}
               contentFit="cover"
+              cropPresentation={storyCropPresentation}
               mode="story"
               label={item.title}
               theme={theme}
@@ -6694,6 +6921,7 @@ function NewsCard({
               : null,
           ]}
           contentFit="cover"
+          cropPresentation={storyCropPresentation}
           mode="story"
           label={item.title}
           theme={theme}
@@ -7104,20 +7332,15 @@ function StoryDetailScreen({
 
       {resolvedStoryImage ? (
         shouldUseStoryCrop && storyCropPresentation ? (
-          <View style={styles.storyDetailImageCropFrame}>
-            <ExpoImage
-              source={{ uri: resolvedStoryImage }}
-              style={[
-                StyleSheet.absoluteFillObject,
-                { transform: [{ scale: storyCropPresentation.scale }] },
-              ]}
-              contentFit="cover"
-              contentPosition={storyCropPresentation.contentPosition}
-              accessibilityLabel={item.title}
-              cachePolicy="memory-disk"
-              transition={180}
-            />
-          </View>
+          <RemoteImage
+            uri={resolvedStoryImage}
+            style={styles.storyDetailImageCropFrame}
+            contentFit="cover"
+            cropPresentation={storyCropPresentation}
+            mode="story"
+            label={item.title}
+            theme={theme}
+          />
         ) : (
           <RemoteImage
             uri={resolvedStoryImage}
@@ -7169,6 +7392,7 @@ function StoryCarouselCard({
   theme?: AthleticOSResolvedTheme;
 }) {
   const sportLabel = item.sportLabel?.trim() || 'Athletics';
+  const storyCropPresentation = getStoryCropPresentation(item);
   const isCleanSlate = isCleanSlateTheme(theme);
   const isModern = isModernTheme(theme);
   const isGameday = isGamedayTheme(theme);
@@ -7195,6 +7419,7 @@ function StoryCarouselCard({
             uri={item.image}
             style={[styles.storyCarouselImage, { height: 176 }]}
             contentFit="cover"
+            cropPresentation={storyCropPresentation}
             mode="story"
             label={item.title}
             theme={theme}
@@ -7298,6 +7523,7 @@ function StoryCarouselCard({
               uri={item.image}
               style={[styles.storyCarouselImage, { height: imageHeight }]}
               contentFit="cover"
+              cropPresentation={storyCropPresentation}
               mode="story"
               label={item.title}
               theme={theme}
@@ -7497,6 +7723,7 @@ function StoryCarouselCard({
               },
             ]}
             contentFit="cover"
+            cropPresentation={storyCropPresentation}
             mode="story"
             label={item.title}
             theme={theme}
@@ -7585,6 +7812,7 @@ function StoryCarouselCard({
           uri={item.image}
           style={styles.storyCarouselImage}
           contentFit="cover"
+          cropPresentation={storyCropPresentation}
           mode="story"
           label={item.title}
           theme={theme}
@@ -13518,6 +13746,7 @@ function HomeScreen({
                           uri={item.image}
                           style={{ width: '100%', height: 112 }}
                           contentFit="cover"
+                          cropPresentation={getStoryCropPresentation(item)}
                           mode="story"
                           label={item.title}
                           theme={theme}
@@ -22309,6 +22538,7 @@ function SportDetailScreen({
                             uri={item.image}
                             style={{ width: '100%', height: '100%' }}
                             contentFit="cover"
+                            cropPresentation={getStoryCropPresentation(item)}
                             mode="story"
                             label={item.title}
                             theme={theme}
@@ -22681,6 +22911,7 @@ function NewsListScreen({
                             uri={item.image}
                             style={{ width: '100%', height: '100%' }}
                             contentFit="cover"
+                            cropPresentation={getStoryCropPresentation(item)}
                             mode="story"
                             label={item.title}
                             theme={theme}
@@ -22812,6 +23043,7 @@ function NewsListScreen({
                         marginRight: 14,
                       }}
                       contentFit="cover"
+                      cropPresentation={getStoryCropPresentation(item)}
                       mode="story"
                       label={item.title}
                       theme={theme}
@@ -22915,6 +23147,7 @@ function NewsListScreen({
                     uri={item.image}
                     style={styles.newsArchiveThumb}
                     contentFit="cover"
+                    cropPresentation={getStoryCropPresentation(item)}
                     mode="story"
                     label={item.title}
                     theme={theme}
@@ -30748,6 +30981,31 @@ bannerImage: {
 
   storyDetailBodyLink: {
     textDecorationLine: 'underline',
+    fontWeight: '700',
+  },
+
+  storyDetailGameInformationActions: {
+    width: '100%',
+    marginBottom: 14,
+  },
+
+  storyDetailGameInformationAction: {
+    width: '100%',
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+
+  storyDetailGameInformationActionText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '700',
   },
 
