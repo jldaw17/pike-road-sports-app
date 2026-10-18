@@ -148,6 +148,16 @@ const VARIANT_CONFIGS = {
     icon: './assets/variants/childersburg/childersburg-app-icon.png',
     easProjectId: '5c859028-b93a-49e3-a1f4-bccd0c35992a',
   },
+  'bishop-gorman': {
+    schoolSlug: 'bishop-gorman',
+    name: 'Bishop Gorman Gaels',
+    iosDisplayName: 'Go Gaels',
+    slug: 'bishop-gorman-athletics',
+    scheme: 'bishopgormanathletics',
+    iosBundleIdentifier: 'com.athleticos.bishopgorman',
+    icon: './assets/variants/bishop-gorman/bishop-gorman-app-icon.png',
+    easProjectId: 'c6d70f8f-8dff-4f73-8977-217393ec1f74',
+  },
   hickory: {
     schoolSlug: 'hickory',
     name: 'Hickory Athletics',
@@ -174,7 +184,7 @@ function resolveVariantKey() {
   }
 
   throw new Error(
-    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, prattville, campbell, comer, fayetteville, childersburg, hickory.'
+    'Missing APP_VARIANT for this build. Set APP_VARIANT to one of: pike-road, pellcity, athleticos, recruitos, gamedayos, sylacauga, hoover, wetumpka, opelika, prattville, campbell, comer, fayetteville, childersburg, bishop-gorman, hickory.'
   );
 }
 
@@ -300,7 +310,7 @@ module.exports = () => {
       bundleIdentifier: variantConfig.iosBundleIdentifier,
       infoPlist: {
         ...(baseExpoConfig.ios?.infoPlist || {}),
-        CFBundleDisplayName: variantConfig.name,
+        CFBundleDisplayName: variantConfig.iosDisplayName || variantConfig.name,
         UIBackgroundModes: resolvedUiBackgroundModes,
       },
     },

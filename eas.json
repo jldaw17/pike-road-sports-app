@@ -213,6 +213,15 @@
         "buildType": "apk"
       }
     },
+    "bishop-gorman": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "bishop-gorman",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "bishop-gorman",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "c6d70f8f-8dff-4f73-8977-217393ec1f74"
+      }
+    },
     "hickory": {
       "channel": "production",
       "autoIncrement": true,
@@ -231,6 +240,7 @@
     "campbell": {},
     "comer": {},
     "fayetteville": {},
-    "childersburg": {}
+    "childersburg": {},
+    "bishop-gorman": {}
   }
 }

@@ -109,5 +109,15 @@
     "easProjectId": "5c859028-b93a-49e3-a1f4-bccd0c35992a",
     "updatesUrl": "https://u.expo.dev/5c859028-b93a-49e3-a1f4-bccd0c35992a",
     "launchable": true
+  },
+  "bishop-gorman": {
+    "variant": "bishop-gorman",
+    "schoolSlug": "bishop-gorman",
+    "appSlug": "bishop-gorman-athletics",
+    "scheme": "bishopgormanathletics",
+    "iosBundleIdentifier": "com.athleticos.bishopgorman",
+    "easProjectId": "c6d70f8f-8dff-4f73-8977-217393ec1f74",
+    "updatesUrl": "https://u.expo.dev/c6d70f8f-8dff-4f73-8977-217393ec1f74",
+    "launchable": true
   }
 }

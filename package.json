@@ -18,6 +18,7 @@
     "start:comer": "APP_VARIANT=comer EXPO_PUBLIC_SCHOOL_SLUG=comer npx expo start --clear",
     "start:fayetteville": "APP_VARIANT=fayetteville EXPO_PUBLIC_SCHOOL_SLUG=fayetteville npx expo start --clear",
     "start:childersburg": "APP_VARIANT=childersburg EXPO_PUBLIC_SCHOOL_SLUG=childersburg npx expo start --clear",
+    "start:bishop-gorman": "APP_VARIANT=bishop-gorman EXPO_PUBLIC_SCHOOL_SLUG=bishop-gorman npx expo start --clear",
     "start:hickory": "APP_VARIANT=hickory EXPO_PUBLIC_SCHOOL_SLUG=hickory npx expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "safe:update": "node ./scripts/safe-eas-update.mjs",
