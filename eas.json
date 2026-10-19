@@ -9,6 +9,12 @@
       "developmentClient": true,
       "distribution": "internal"
     },
+    "ios-simulator-development": {
+      "extends": "development",
+      "ios": {
+        "simulator": true
+      }
+    },
     "preview": {
       "channel": "preview",
       "distribution": "internal"
@@ -25,12 +31,28 @@
         "EXPO_PUBLIC_SCHOOL_SLUG": "pike-road"
       }
     },
+    "pike-road-simulator": {
+      "extends": "ios-simulator-development",
+      "env": {
+        "APP_VARIANT": "pike-road",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "pike-road",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "70b794e3-e8d7-4919-ac83-0b034b118ea2"
+      }
+    },
     "pellcity": {
       "channel": "production",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "pellcity",
         "EXPO_PUBLIC_SCHOOL_SLUG": "pellcity"
+      }
+    },
+    "pellcity-simulator": {
+      "extends": "ios-simulator-development",
+      "env": {
+        "APP_VARIANT": "pellcity",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "pellcity",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "1fb0bea0-6786-49cb-8844-50e8e75b5dc5"
       }
     },
     "athleticos": {
@@ -52,6 +74,14 @@
     "sylacauga": {
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "sylacauga",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "sylacauga",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "8673888c-85fd-46b5-adae-d1c603e9acbd"
+      }
+    },
+    "sylacauga-simulator": {
+      "extends": "ios-simulator-development",
       "env": {
         "APP_VARIANT": "sylacauga",
         "EXPO_PUBLIC_SCHOOL_SLUG": "sylacauga",
@@ -87,6 +117,14 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057"
       }
     },
+    "wetumpka-simulator": {
+      "extends": "ios-simulator-development",
+      "env": {
+        "APP_VARIANT": "wetumpka",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "wetumpka",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "ef5cbd90-cdb0-46ea-b1a6-6d676dee0057"
+      }
+    },
     "wetumpka-preview": {
       "channel": "preview",
       "distribution": "internal",
@@ -108,9 +146,25 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "949be373-10ae-40b4-88b4-2e11d58615d3"
       }
     },
+    "opelika-simulator": {
+      "extends": "ios-simulator-development",
+      "env": {
+        "APP_VARIANT": "opelika",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "opelika",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "949be373-10ae-40b4-88b4-2e11d58615d3"
+      }
+    },
     "prattville": {
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "prattville",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "prattville",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "cab6e75a-7f09-4663-82f7-0543487ef18e"
+      }
+    },
+    "prattville-simulator": {
+      "extends": "ios-simulator-development",
       "env": {
         "APP_VARIANT": "prattville",
         "EXPO_PUBLIC_SCHOOL_SLUG": "prattville",
@@ -138,6 +192,14 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "6af0b25c-8dc8-4335-ae46-b81fd2d96d97"
       }
     },
+    "campbell-simulator": {
+      "extends": "ios-simulator-development",
+      "env": {
+        "APP_VARIANT": "campbell",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "campbell",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "6af0b25c-8dc8-4335-ae46-b81fd2d96d97"
+      }
+    },
     "campbell-preview": {
       "channel": "preview",
       "distribution": "internal",
@@ -153,6 +215,14 @@
     "comer": {
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "comer",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "comer",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "64c5ae97-27ad-4519-a0aa-c72f90b8f2a2"
+      }
+    },
+    "comer-simulator": {
+      "extends": "ios-simulator-development",
       "env": {
         "APP_VARIANT": "comer",
         "EXPO_PUBLIC_SCHOOL_SLUG": "comer",
@@ -180,6 +250,14 @@
         "EXPO_PUBLIC_EAS_PROJECT_ID": "32723a6b-bc85-4a54-9885-aa03b6326757"
       }
     },
+    "fayetteville-simulator": {
+      "extends": "ios-simulator-development",
+      "env": {
+        "APP_VARIANT": "fayetteville",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "fayetteville",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "32723a6b-bc85-4a54-9885-aa03b6326757"
+      }
+    },
     "fayetteville-preview": {
       "channel": "preview",
       "distribution": "internal",
@@ -195,6 +273,14 @@
     "childersburg": {
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "childersburg",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "childersburg",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "5c859028-b93a-49e3-a1f4-bccd0c35992a"
+      }
+    },
+    "childersburg-simulator": {
+      "extends": "ios-simulator-development",
       "env": {
         "APP_VARIANT": "childersburg",
         "EXPO_PUBLIC_SCHOOL_SLUG": "childersburg",
@@ -220,6 +306,19 @@
         "APP_VARIANT": "bishop-gorman",
         "EXPO_PUBLIC_SCHOOL_SLUG": "bishop-gorman",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "c6d70f8f-8dff-4f73-8977-217393ec1f74"
+      }
+    },
+    "bishop-gorman-simulator": {
+      "channel": "development",
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "bishop-gorman",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "bishop-gorman",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "c6d70f8f-8dff-4f73-8977-217393ec1f74"
+      },
+      "ios": {
+        "simulator": true
       }
     },
     "hickory": {
