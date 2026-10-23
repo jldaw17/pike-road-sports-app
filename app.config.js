@@ -56,6 +56,7 @@ const VARIANT_CONFIGS = {
   sylacauga: {
     schoolSlug: 'sylacauga',
     name: 'Sylacauga Aggies',
+    appVersion: '1.1.0',
     slug: 'sylacauga-athletics',
     scheme: 'sylacaugaathletics',
     iosBundleIdentifier: 'com.athleticos.sylacauga',
@@ -290,6 +291,7 @@ module.exports = () => {
   return {
     ...baseExpoConfig,
     name: variantConfig.name,
+    version: variantConfig.appVersion || baseExpoConfig.version,
     slug: variantConfig.slug,
     scheme: variantConfig.scheme,
     icon: resolvedIcon,
