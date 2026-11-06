@@ -5187,7 +5187,7 @@ function TopIcon({
           ]}
         >
           {isModernTheme(theme) && modernEmoji ? (
-            <Text style={{ fontSize: 17, lineHeight: 19 }}>{modernEmoji}</Text>
+            <Text style={{ fontSize: 13, lineHeight: 15 }}>{modernEmoji}</Text>
           ) : (
             <Ionicons name={icon} size={17} color={theme.colors.primary} />
           )}
