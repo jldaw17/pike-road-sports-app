@@ -5136,10 +5136,11 @@ function TopIcon({
                 borderColor: withAlpha(theme.colors.primary, '2C'),
                 borderTopWidth: 3,
                 borderTopColor: withAlpha(theme.colors.primary, '58'),
-                borderRadius: 16,
-                paddingVertical: isDense ? 8 : isCompact ? 9 : 11,
+                borderRadius: 14,
+                paddingVertical: isDense ? 5 : 6,
                 paddingHorizontal: isDense ? 4 : isCompact ? 5 : 7,
-                minHeight: isDense ? 72 : isCompact ? 80 : 88,
+                minHeight: isDense ? 58 : isCompact ? 64 : 70,
+                justifyContent: 'center',
                 shadowColor: withAlpha(theme.colors.primary, '16'),
                 shadowOpacity: 0.065,
                 shadowRadius: 10,
@@ -5160,21 +5161,21 @@ function TopIcon({
               borderColor: isModernTheme(theme)
                 ? withAlpha(theme.colors.primary, '3C')
                 : theme.colors.border,
-              borderRadius: isModernTheme(theme) ? 13 : 6,
-              marginBottom: 6,
+              borderRadius: isModernTheme(theme) ? 10 : 6,
+              marginBottom: isModernTheme(theme) ? 3 : 6,
               width: isModernTheme(theme)
                 ? isDense
-                  ? 36
+                  ? 30
                   : isCompact
-                  ? 40
-                  : 48
+                  ? 32
+                  : 36
                 : 40,
               height: isModernTheme(theme)
                 ? isDense
-                  ? 36
+                  ? 30
                   : isCompact
-                  ? 40
-                  : 48
+                  ? 32
+                  : 36
                 : 40,
               shadowColor: isModernTheme(theme)
                 ? withAlpha(theme.colors.primary, '1A')
@@ -5187,9 +5188,18 @@ function TopIcon({
           ]}
         >
           {isModernTheme(theme) && modernEmoji ? (
-            <Text style={{ fontSize: 13, lineHeight: 15 }}>{modernEmoji}</Text>
+            <Text
+              allowFontScaling={false}
+              style={{ fontSize: 10, lineHeight: 12 }}
+            >
+              {modernEmoji}
+            </Text>
           ) : (
-            <Ionicons name={icon} size={17} color={theme.colors.primary} />
+            <Ionicons
+              name={icon}
+              size={isModernTheme(theme) ? 13 : 17}
+              color={theme.colors.primary}
+            />
           )}
         </View>
         <Text
